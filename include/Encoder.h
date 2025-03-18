@@ -5,13 +5,18 @@ class Encoder {
 public:
     Encoder(int miso, int clk, int cs, int mosi);
     void begin();
-    float readAngle();
+    float readAngle();       // Returns current angle (0-360) and updates rotation count
+    float getTotalAngle();   // Returns total angle as (rotationCount * 360 + current angle)
 
 private:
-    float miso;
-    float clk;
-    float cs;
-    float mosi;
+    int miso;
+    int clk;
+    int cs;
+    int mosi;
+    
+    bool firstReading;  // True on the first call to readAngle()
+    float prevAngle;    // Previous instantaneous angle
+    int rotationCount;  // Count of full rotations (+/-)
 };
 
 #endif // Encoder_H
