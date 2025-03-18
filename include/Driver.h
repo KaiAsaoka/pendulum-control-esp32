@@ -3,13 +3,13 @@
 
 class Driver {
 public:
-    Driver(int PWM, int DIR);
+    Driver(int pwm, int dir);
     void begin();
     float move(int speed, int direction);
 
 private:
-    float PWM;
-    float DIR;
+    float pwm;
+    float dir;
     float speed;
     float direction;
 };

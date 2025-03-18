@@ -6,9 +6,11 @@
 
 class Move {
 public:
-    Move(Encoder ENC1, Encoder ENC2, Driver DVR1, Driver DVR2);
+    Move(Encoder enc1, Encoder enc2, Driver dvr1, Driver dvr2);
 
-    float move(int speed, int direction);
+    void moveX(int speed, bool direction);
+    
+    void moveY(int speed, bool direction);
 
     float returnPos();
 
@@ -18,10 +20,10 @@ public:
 
 
 private:
-    Encoder ENC1;
-    Encoder ENC2;
-    Driver DVR1;
-    Driver DVR2;
+    Encoder enc1;
+    Encoder enc2;
+    Driver dvr1;
+    Driver dvr2;
     float sumAngle1;
     float sumAngle2;
     float fullRot1;

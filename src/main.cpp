@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include <Encoder.h>
+#include "Encoder.h"
 
 // Define encoder SPI pins
 #define ENC_MISO 12    // Encoder data output (MISO)

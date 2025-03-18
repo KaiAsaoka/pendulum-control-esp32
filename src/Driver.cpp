@@ -2,18 +2,18 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-Driver::Driver(int PWM, int DIR) : PWM(PWM), DIR(DIR) {}
+Driver::Driver(int pwm, int dir) : pwm(pwm), dir(dir) {}
 
 void Driver::begin() {  
   // Set pin mode
-  pinMode(PWM, OUTPUT);
-  pinMode(DIR, OUTPUT);
+  pinMode(pwm, OUTPUT);
+  pinMode(dir, OUTPUT);
 }
 
 
 float Driver::move(int speed, int direction) {
   // Reads encoder angle and outputs in degrees
-  digitalWrite(DIR, direction);
-  analogWrite(PWM, speed);
+  digitalWrite(dir, direction);
+  analogWrite(pwm, speed);
   return speed, direction;
 }
