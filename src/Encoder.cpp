@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+int CLOCK_SPEED = 10000000; // 10MHz
+
 Encoder::Encoder(int miso, int clk, int cs, int mosi)
     : miso(miso), clk(clk), cs(cs), mosi(mosi),
       firstReading(true), prevAngle(0), rotationCount(0)
