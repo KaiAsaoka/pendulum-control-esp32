@@ -73,7 +73,7 @@ int Encoder::readAngle() {
   //   prevAngle = angle;
   // }
 
-  return response;
+  return int(response & 0x3FFF);;
 }
 
 float Encoder::getTotalAngle() {

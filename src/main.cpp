@@ -33,13 +33,12 @@ void setup() {
 
 void loop() {
   // Read the 14-bit angle
-  int response;
+
   int angle;
-  response = ENC1.readAngle();
-  angle = int(response & 0x3FFF);
-  // Serial.print("Angle: ");
+  angle = ENC1.readAngle();
+  
+  Serial.print("Angle 1: ");
   Serial.println(angle);
-  // Serial.println(response);
   }
 
 void printBinary16(uint16_t n) {
