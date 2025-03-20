@@ -14,7 +14,7 @@ void Encoder::begin() {
   pinMode(cs, OUTPUT);
   digitalWrite(cs, HIGH);  // Deselect encoder by default
   SPI.begin(clk, miso, mosi, cs);
-  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE1));
+  SPI.beginTransaction(SPISettings(CLOCK_SPEED, MSBFIRST, SPI_MODE1));
   Serial.println("AS5147 SPI Encoder Initialized");
 }
 
@@ -53,8 +53,7 @@ int Encoder::readAngle() {
   // if (diagReg & 0x0400) Serial.println("LF: Offset Compensation Failed");
 
   // Calculate the current angle between 0 and 360
-  int angle = int(response & 0x3FFF);
-
+  
   // if (firstReading) {
   //   prevAngle = angle;
   //   firstReading = false;
@@ -74,7 +73,7 @@ int Encoder::readAngle() {
   //   prevAngle = angle;
   // }
 
-  return angle;
+  return response;
 }
 
 float Encoder::getTotalAngle() {
