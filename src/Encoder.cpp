@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+int CLOCK_SPEED = 10000000; // 10MHz
+
 Encoder::Encoder(int miso, int clk, int cs, int mosi)
     : miso(miso), clk(clk), cs(cs), mosi(mosi),
       firstReading(true), prevAngle(0), rotationCount(0)
@@ -17,23 +19,37 @@ void Encoder::begin() {
 }
 
 float Encoder::readAngle() {
-<<<<<<< HEAD
-  // Reads encoder angle and outputs in degrees
-  //uint16_t response;
-
-  digitalWrite(CS, LOW);
-  u_int16_t response = SPI.transfer16(0x3FFF);
-  digitalWrite(CS, HIGH);
-  float angle = float(response & 0x3FFF) / 16384.00 * 360.00;
-=======
   // Reads encoder angle and converts to degrees (0-360)
   uint16_t response;
+  uint16_t error;
   digitalWrite(cs, LOW);
   response = SPI.transfer16(0x3FFF);
+  error = SPI.transfer16(0x0001);
   digitalWrite(cs, HIGH);
+
+  // // Send Read Command
+	// digitalWrite(cs, LOW);
+  // //delayMicroseconds(10);
+	// uint16_t response; //= SPI.transfer16(0x3FFF);
+	// //delayMicroseconds(10);
+	// // Send Nop Command while receiving data
+	// response = SPI.transfer16(0x3FFF);
+  // uint16_t error = SPI.transfer16(0x0001);
+  // uint16_t diag = SPI.transfer16(0x3FFC);
+	// digitalWrite(cs, HIGH);
   
   // Calculate the current angle between 0 and 360
-  float angle = float(response & 0x3FFF) / 16384.0 * 360.0;
+      // Mask the first two bits forcing them to 00 to get 14-bit number
+      // normalize number by dividing by 16384 = 2^14
+      // Multiply by 360 to get degrees
+  Serial.println("FEDCBA9876543210");
+  Serial.println(response, BIN);
+  Serial.println(error, BIN);
+  // Serial.println(error, BIN);
+  // Serial.println(diag, BIN);
+  //Serial.println(response & 0x3FFF, HEX);
+  float angle = (response & 0x3FFF) / 16384.0 * 360.0;
+  Serial.println(angle);
 
   if (firstReading) {
     prevAngle = angle;
@@ -54,7 +70,6 @@ float Encoder::readAngle() {
     prevAngle = angle;
   }
 
->>>>>>> 9c2bdea604a431e0541d3c0d60e3ec8de074af9a
   return angle;
 }
 
