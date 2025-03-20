@@ -33,9 +33,9 @@ void setup() {
 
 void loop() {
   // Read the 14-bit angle
-  float angle;
+  int angle;
   angle = ENC1.readAngle();
-  //Serial.print("Angle: ");
+  // Serial.print("Angle: ");
   Serial.println(angle);
   delay(10);
 }

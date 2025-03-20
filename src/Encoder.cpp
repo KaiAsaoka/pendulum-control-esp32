@@ -16,34 +16,61 @@ void Encoder::begin() {
   Serial.println("AS5147 SPI Encoder Initialized");
 }
 
-float Encoder::readAngle() {
+int Encoder::readAngle() {
   // Reads encoder angle and converts to degrees (0-360)
   uint16_t response;
-  digitalWrite(cs, LOW);
-  response = SPI.transfer16(0x3FFE);
-  digitalWrite(cs, HIGH);
   
+  // Read angle register
+  digitalWrite(cs, LOW);
+  // delayMicroseconds(1);  // Small delay before reading
+  response = SPI.transfer16(0xFF);
+  digitalWrite(cs, HIGH);
+  // delayMicroseconds(1);  // Small delay between reads
+  
+  // Read error register (0x0001)
+  // digitalWrite(cs, LOW);
+  // delayMicroseconds(1);  // Small delay before reading
+  // uint16_t errorReg = SPI.transfer16(0x0001); // Command to read error register with proper 16th bit MSB
+  // digitalWrite(cs, HIGH);
+
+  // Check specific error bits
+  // if (errorReg & 0x0001) Serial.println("Framing Error" + String(response, BIN));
+  // if (errorReg & 0x0002) Serial.println("Invalid Command" + String(response, BIN));
+  // if (errorReg & 0x0004) Serial.println("Parity Error" + String(response, BIN));
+
+  // Read diagnostic register (0x3FFC)
+  // digitalWrite(cs, LOW);
+  // delayMicroseconds(1);  // Small delay before reading
+  // uint16_t diagReg = SPI.transfer16(0x3FFC);
+  // digitalWrite(cs, HIGH);
+
+  // Check diagnostic bits
+  // if (diagReg & 0x2000) Serial.println("MAGL: Too Low Magnetic Field");
+  // if (diagReg & 0x1000) Serial.println("MAGH: Too High Magnetic Field");
+  // if (diagReg & 0x0800) Serial.println("COF: CORDIC Overflow");
+  // if (diagReg & 0x0400) Serial.println("LF: Offset Compensation Failed");
+
   // Calculate the current angle between 0 and 360
-  float angle = float(response & 0x3FFE) / 16384.0 * 360.0;
+  int angle = int(response & 0x3FFF);
 
-  if (firstReading) {
-    prevAngle = angle;
-    firstReading = false;
-  } else {
-    float diff = angle - prevAngle;
+  // if (firstReading) {
+  //   prevAngle = angle;
+  //   firstReading = false;
+  // } else {
+  //   float diff = angle - prevAngle;
 
-    // Adjust for multiple rollovers/rollbacks
-    while (diff > 180) {
-      rotationCount--;  // A negative diff means we've rolled back past 0
-      diff -= 360;
-    }
-    while (diff < -180) {
-      rotationCount++;  // A large negative difference indicates a rollover
-      diff += 360;
-    }
+  //   // Adjust for multiple rollovers/rollbacks
+  //   while (diff > 180) {
+  //     rotationCount--;  // A negative diff means we've rolled back past 0
+  //     diff -= 360;
+  //   }
+  //   while (diff < -180) {
+  //     rotationCount++;  // A large negative difference indicates a rollover
+  //     diff += 360;
+  //   }
     
-    prevAngle = angle;
-  }
+  //   prevAngle = angle;
+  // }
 
   return angle;
 }

@@ -17,7 +17,7 @@ angles = deque([0] * max_points, maxlen=max_points)
 
 # Set up plot
 fig, ax = plt.subplots()
-ax.set_ylim(0, 360)
+ax.set_ylim(0, 16384)
 ax.set_title("Real-Time Angle Encoder Data")
 ax.set_xlabel("Time (samples)")
 ax.set_ylabel("Angle (deg)")
