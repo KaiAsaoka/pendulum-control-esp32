@@ -23,20 +23,9 @@ float Encoder::readAngle() {
   uint16_t response;
   uint16_t error;
   digitalWrite(cs, LOW);
-  response = SPI.transfer16(0x3FFE);
+  response = SPI.transfer16(0x3FFF);
   error = SPI.transfer16(0x0001);
   digitalWrite(cs, HIGH);
-
-  // // Send Read Command
-	// digitalWrite(cs, LOW);
-  // //delayMicroseconds(10);
-	// uint16_t response; //= SPI.transfer16(0x3FFF);
-	// //delayMicroseconds(10);
-	// // Send Nop Command while receiving data
-	// response = SPI.transfer16(0x3FFF);
-  // uint16_t error = SPI.transfer16(0x0001);
-  // uint16_t diag = SPI.transfer16(0x3FFC);
-	// digitalWrite(cs, HIGH);
   
   // Calculate the current angle between 0 and 360
       // Mask the first two bits forcing them to 00 to get 14-bit number
@@ -45,9 +34,6 @@ float Encoder::readAngle() {
   Serial.println("FEDCBA9876543210");
   Serial.println(response, BIN);
   Serial.println(error, BIN);
-  // Serial.println(error, BIN);
-  // Serial.println(diag, BIN);
-  //Serial.println(response & 0x3FFF, HEX);
   float angle = (response & 0x3FFF) / 16384.0 * 360.0;
   Serial.println(angle);
 
