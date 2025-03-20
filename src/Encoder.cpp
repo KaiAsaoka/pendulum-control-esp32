@@ -23,7 +23,7 @@ float Encoder::readAngle() {
   uint16_t response;
   uint16_t error;
   digitalWrite(cs, LOW);
-  response = SPI.transfer16(0x3FFF);
+  response = SPI.transfer16(0x3FFE);
   error = SPI.transfer16(0x0001);
   digitalWrite(cs, HIGH);
 

@@ -2,8 +2,6 @@
 #include <SPI.h>
 #include <Encoder.h>
 #include <chrono>
-// #include "Move.h"
-// #include "Driver.h"
 
 // Define encoder SPI pins
 #define ENC_MISO 12    // Encoder data output (MISO)
@@ -13,10 +11,9 @@
 
 // #define PWM1 4
 // #define DIR1 2
-// #define PWM2 16 //Formerly 15
-// #define DIR2 11 //Formerly 13
+// #define PWM2 15
+// #define DIR2 13
 // #define SPEED 10
-
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS, ENC_MOSI);
 // Driver DVR1(PWM1, DIR1);
 // Driver DVR2(PWM2, DIR2);
@@ -32,8 +29,6 @@ void setup() {
   ENC1.begin(); // Initializes SPI for ENC
 
   startTime = millis();
-  // DVR1.begin();
-  // DVR2.begin();
 }
 
 void loop() {
@@ -74,10 +69,3 @@ unsigned long getTime(unsigned long startTime) {
   unsigned long duration = currentTime - startTime;
   return duration;
 }
-
-// void printBinary16(uint16_t n) {
-//   for (int i = 15; i >= 0; i--) {
-//     Serial.print((n >> i) & 1);
-//   }
-//   Serial.println();
-// }
