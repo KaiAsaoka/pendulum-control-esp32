@@ -17,23 +17,14 @@ void Encoder::begin() {
 }
 
 float Encoder::readAngle() {
-<<<<<<< HEAD
-  // Reads encoder angle and outputs in degrees
-  //uint16_t response;
-
-  digitalWrite(CS, LOW);
-  u_int16_t response = SPI.transfer16(0x3FFF);
-  digitalWrite(CS, HIGH);
-  float angle = float(response & 0x3FFF) / 16384.00 * 360.00;
-=======
   // Reads encoder angle and converts to degrees (0-360)
   uint16_t response;
   digitalWrite(cs, LOW);
-  response = SPI.transfer16(0x3FFF);
+  response = SPI.transfer16(0x3FFE);
   digitalWrite(cs, HIGH);
   
   // Calculate the current angle between 0 and 360
-  float angle = float(response & 0x3FFF) / 16384.0 * 360.0;
+  float angle = float(response & 0x3FFE) / 16384.0 * 360.0;
 
   if (firstReading) {
     prevAngle = angle;
@@ -54,7 +45,6 @@ float Encoder::readAngle() {
     prevAngle = angle;
   }
 
->>>>>>> 9c2bdea604a431e0541d3c0d60e3ec8de074af9a
   return angle;
 }
 
