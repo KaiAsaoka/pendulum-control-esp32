@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-int CLOCK_SPEED = 10000000; // 10MHz
+int CLOCK_SPEED = 1000000; // 10MHz
 
 Encoder::Encoder(int miso, int clk, int cs, int mosi)
     : miso(miso), clk(clk), cs(cs), mosi(mosi),
@@ -13,6 +13,7 @@ void Encoder::begin() {
   // Configure encoder
   pinMode(cs, OUTPUT);
   digitalWrite(cs, HIGH);  // Deselect encoder by default
+  digitalWrite(mosi, HIGH);
   SPI.begin(clk, miso, mosi, cs);
   SPI.beginTransaction(SPISettings(CLOCK_SPEED, MSBFIRST, SPI_MODE1));
   Serial.println("AS5147 SPI Encoder Initialized");
@@ -21,11 +22,20 @@ void Encoder::begin() {
 int Encoder::readAngle() {
   // Reads encoder angle and converts to degrees (0-360)
   uint16_t response;
-  
+
   // Read angle register
   digitalWrite(cs, LOW);
-  // delayMicroseconds(1);  // Small delay before reading
-  response = SPI.transfer16(0xFF);
+  delayMicroseconds(1);  // Small delay before reading
+  SPI.transfer16(0xFFFF);
+  delayMicroseconds(1);  // Small delay before reading
+  digitalWrite(cs, HIGH);
+
+  delayMicroseconds(1);  // Small delay before reading
+
+  digitalWrite(cs, LOW);
+  delayMicroseconds(1);  // Small delay before reading
+  response = SPI.transfer16(0xC000);
+  delayMicroseconds(1);  // Small delay before reading
   digitalWrite(cs, HIGH);
   // delayMicroseconds(1);  // Small delay between reads
   
