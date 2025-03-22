@@ -55,60 +55,60 @@ void loop() {
   Serial.print(loopCount);
   Serial.println(" ----");
 
-  Serial.println("X+");
-  move.moveXY(SPEED, 1, 0, 0);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
-  delay(500);
+  // Serial.println("X+");
+  // move.moveXY(SPEED, 1, 0, 0);
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
+  // delay(500);
 
-  Serial.println("X-");
-  move.moveXY(SPEED, 0, 0, 0);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
-  delay(500); 
+  // Serial.println("X-");
+  // move.moveXY(SPEED, 0, 0, 0);
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
+  // delay(500); 
 
-  Serial.println("Y+");
-  move.moveXY(0, 0, SPEED, 1);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
-  delay(500);
+  // Serial.println("Y+");
+  // move.moveXY(0, 0, SPEED, 1);
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
+  // delay(500);
 
-  Serial.println("Y-");
-  move.moveXY(0, 0, SPEED, 0);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
-  delay(500);
+  // Serial.println("Y-");
+  // move.moveXY(0, 0, SPEED, 0);
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
+  // delay(500);
 
   Serial.println("X+ Y+");
   move.moveXY(SPEED, 1, SPEED, 1);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
   delay(500);
 
   Serial.println("X- Y-");
   move.moveXY(SPEED, 0, SPEED, 0);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
   delay(500);
 
   Serial.println("X+ Y-");
   move.moveXY(SPEED, 1, SPEED, 0);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
   delay(500);
 
   Serial.println("X- Y+");
   move.moveXY(SPEED, 0, SPEED, 1);
-  delay(500);
-  Serial.println("Stop");
-  move.brake();
+  // delay(500);
+  // Serial.println("Stop");
+  // move.brake();
   delay(500);
 
   Serial.println("--------------------");

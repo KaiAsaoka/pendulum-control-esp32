@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <Arduino.h>
 
+#define STATIC_BRAKE 3
+#define DYNAMIC_BRAKE 3
+
 Move::Move(Driver dvr1, Driver dvr2) : dvr1(dvr1), dvr2(dvr2) {}
 
 // void Move::moveX(int speed, bool direction) {
@@ -32,7 +35,7 @@ void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
     // Determine motor directions based on calculated speeds
     bool motor1Dir = motor1Speed >= 0;
     bool motor2Dir = motor2Speed >= 0;
-    
+
     // Get absolute values for motor speeds
     motor1Speed = abs(motor1Speed);
     motor2Speed = abs(motor2Speed);
@@ -45,18 +48,58 @@ void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
         motor2Speed = round(motor2Speed * scaleFactor);
     }
     
+
+    if (motor1Speed!=0 && motor2Speed==0) {
+        // Move motors with calculated speeds and directions
+        motor2Speed = DYNAMIC_BRAKE;
+        motor2Dir = motor1Dir;
+        Serial.println("Engaging Motor 2 Brake");
+
+        dvr1.move(motor1Speed, motor1Dir);
+        Serial.print("Motor 1: ");
+        Serial.print(motor1Speed);
+        Serial.print(" Direction: ");
+        Serial.println(motor1Dir);
+
+        dvr2.move(motor2Speed, motor2Dir);
+        Serial.print("Motor 2: ");
+        Serial.print(motor2Speed);
+        Serial.print(" Direction: ");
+        Serial.println(motor2Dir);
+
+    } else if (motor2Speed!=0 && motor1Speed==0) {
+        // Move motors with calculated speeds and directions
+
+        motor1Speed = DYNAMIC_BRAKE;
+        motor1Dir = motor2Dir;
+        Serial.println("Engaging Motor 1 Brake");
+
+        dvr1.move(motor1Speed, motor1Dir);
+        Serial.print("Motor 1: ");
+        Serial.print(motor1Speed);
+        Serial.print(" Direction: ");
+        Serial.println(motor1Dir);
+
+        dvr2.move(motor2Speed, motor2Dir);
+        Serial.print("Motor 2: ");
+        Serial.print(motor2Speed);
+        Serial.print(" Direction: ");
+        Serial.println(motor2Dir);
+
+    } else{
     // Move motors with calculated speeds and directions
-    dvr1.move(motor1Speed, motor1Dir);
-    Serial.print("Motor 1: ");
-    Serial.print(motor1Speed);
-    Serial.print(" Direction: ");
-    Serial.println(motor1Dir);
-    
-    dvr2.move(motor2Speed, motor2Dir);
-    Serial.print("Motor 2: ");
-    Serial.print(motor2Speed);
-    Serial.print(" Direction: ");
-    Serial.println(motor2Dir);
+        dvr1.move(motor1Speed, motor1Dir);
+        Serial.print("Motor 1: ");
+        Serial.print(motor1Speed);
+        Serial.print(" Direction: ");
+        Serial.println(motor1Dir);
+        
+        dvr2.move(motor2Speed, motor2Dir);
+        Serial.print("Motor 2: ");
+        Serial.print(motor2Speed);
+        Serial.print(" Direction: ");
+        Serial.println(motor2Dir);
+    }
 }
 
 void Move::stop() {
@@ -66,11 +109,11 @@ void Move::stop() {
 
 void Move::brake() {
     if (vel1 > 0){
-        dvr1.move(2, 0);
+        dvr1.move(STATIC_BRAKE, 0);
         Serial.println("Motor 1: 2 Direction: 0");   
     }
     else if (vel1 < 0){
-        dvr1.move(2, 1);
+        dvr1.move(STATIC_BRAKE, 1);
         Serial.println("Motor 1: 2 Direction: 1");
     }
     else{
@@ -78,11 +121,11 @@ void Move::brake() {
         Serial.println("Motor 1: 0 Direction: 0");
     }
     if (vel2 > 0){
-        dvr2.move(2, 0);
+        dvr2.move(STATIC_BRAKE, 0);
         Serial.println("Motor 2: 2 Direction: 0");
     }
     else if (vel2 < 0){
-        dvr2.move(2, 1);
+        dvr2.move(STATIC_BRAKE, 1);
         Serial.println("Motor 2: 2 Direction: 1");
     }
     else{
