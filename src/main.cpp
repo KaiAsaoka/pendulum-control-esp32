@@ -56,28 +56,28 @@ void loop() {
   Serial.println(" ----");
 
   Serial.println("X+");
-  move.moveX(SPEED, 1);
+  move.moveXY(SPEED, 1, 0, 0);
   delay(500);
   Serial.println("Stop");
   move.stop();
   delay(500);
 
   Serial.println("X-");
-  move.moveX(SPEED, 0);
+  move.moveXY(SPEED, 0, 0, 0);
   delay(500);
   Serial.println("Stop");
   move.stop();
   delay(500); 
 
   Serial.println("Y+");
-  move.moveY(SPEED, 1);
+  move.moveXY(0, 0, SPEED, 1);
   delay(500);
   Serial.println("Stop");
   move.stop();
   delay(500);
 
   Serial.println("Y-");
-  move.moveY(SPEED, 0);
+  move.moveXY(0, 0, SPEED, 0);
   delay(500);
   Serial.println("Stop");
   move.stop();

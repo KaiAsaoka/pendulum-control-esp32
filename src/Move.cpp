@@ -19,8 +19,21 @@ void Move::moveY(int speed, bool direction) {
 
 void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
     // Calculate raw motor speeds by combining X and Y components
-    bool motor1Dir = (directionX && directionY) || (directionX && !directionY);
-    bool motor2Dir = (directionX && directionY) || (!directionX && directionY);
+    bool motor1Dir;
+    bool motor2Dir;
+
+    if (speedY == 0 && speedX != 0) {
+        motor1Dir = directionX;
+        motor2Dir = directionX;
+    }
+    else if (speedX == 0 && speedY != 0) {
+        motor1Dir = directionY;
+        motor2Dir = !directionY;
+    }   
+    else{
+        motor1Dir = (directionX && directionY) || (directionX && !directionY);
+        motor2Dir = (directionX && directionY) || (!directionX && directionY);
+    }
     // Convert boolean direction to multiplier (-1 or 1)
     int dirX = directionX ? 1 : -1;
     int dirY = directionY ? 1 : -1;
