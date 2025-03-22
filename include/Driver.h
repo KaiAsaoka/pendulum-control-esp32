@@ -5,11 +5,11 @@ class Driver {
 public:
     Driver(int pwm, int dir);
     void begin();
-    float move(int speed, int direction);
+    void move(int speed, bool direction);
 
 private:
-    float pwm;
-    float dir;
+    int pwm;
+    int dir;
     float speed;
     float direction;
 };
