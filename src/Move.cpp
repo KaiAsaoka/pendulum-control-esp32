@@ -19,8 +19,14 @@ void Move::moveY(int speed, bool direction) {
 
 void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
     // Calculate raw motor speeds by combining X and Y components
-    int motor1Speed = speedX + speedY;  // For motor 1
-    int motor2Speed = speedX - speedY;  // For motor 2 (subtract Y since it runs opposite for Y movement)
+    bool motor1Dir = (directionX && directionY) || (directionX && !directionY);
+    bool motor2Dir = (directionX && directionY) || (!directionX && directionY);
+    // Convert boolean direction to multiplier (-1 or 1)
+    int dirX = directionX ? 1 : -1;
+    int dirY = directionY ? 1 : -1;
+
+    int motor1Speed = speedX*dirX + speedY*dirY;  // For motor 1
+    int motor2Speed = speedX*dirX - speedY*dirY;  // For motor 2 (subtract Y since it runs opposite for Y movement)
     
     // Calculate scaling factor if speeds exceed 255
     float scaleFactor = 1.0;
@@ -33,8 +39,7 @@ void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
     motor1Speed = abs(round(motor1Speed * scaleFactor));
     motor2Speed = abs(round(motor2Speed * scaleFactor));
     
-    bool motor1Dir = (directionX && motor1Speed >= 0) || (!directionX && motor1Speed < 0);
-    bool motor2Dir = (directionX && motor2Speed >= 0) || (!directionX && motor2Speed < 0);
+
     
     // Move motors with calculated speeds and directions
     dvr1.move(motor1Speed, motor1Dir);
