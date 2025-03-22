@@ -8,12 +8,14 @@ class Move {
 public:
     Move(Driver dvr1, Driver dvr2);
 
-    void moveX(int speed, bool direction);
+    // void moveX(int speed, bool direction);
     
-    void moveY(int speed, bool direction);
+    // void moveY(int speed, bool direction);
 
     void moveXY(int speedX, bool directionX, int speedY, bool directionY);
 
+    void brake();
+    
     void stop();
 
     float returnPos();
@@ -33,6 +35,8 @@ private:
     float fullRot2;
     float xPos;
     float yPos;
+    float vel1;
+    float vel2;
 
 };
 
