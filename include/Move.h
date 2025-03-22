@@ -12,6 +12,8 @@ public:
     
     void moveY(int speed, bool direction);
 
+    void moveXY(int speedX, bool directionX, int speedY, bool directionY);
+
     void stop();
 
     float returnPos();
