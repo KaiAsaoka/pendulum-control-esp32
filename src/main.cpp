@@ -4,6 +4,8 @@
 #include <chrono>
 #include "Driver.h"
 #include "Move.h"
+#include "getMACAddress.h"
+#include "ESPNow.h"
 
 // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -21,6 +23,11 @@
 Driver DVR1(PWM1, DIR1);
 Driver DVR2(PWM2, DIR2);
 Move move(DVR1, DVR2);
+ESPNowReceiver receiverESP;
+
+uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9b, 0xaf, 0x88};
+ESPNowSender senderESP(broadcastAddress);
+
 
 unsigned long startTime;
 unsigned long loopCount = 0;
@@ -30,89 +37,102 @@ unsigned long getTime(unsigned long startTime);
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);  // Give serial connection time to establish
-  Serial.println("ESP32 Motor Control Starting...");
-  Serial.flush();
+
+  senderESP.setUp();
+  senderESP.sendMessage("Hello");
+  delay(1000);
   
-  // ENC1.begin(); // Initializes SPI for ENC
-  DVR1.begin();
-  delay(1000);  // Give serial connection time to establish
-  Serial.println("Driver 1 initialized");
-  Serial.flush();
+  // receiverESP.setUp();
 
-  DVR2.begin();
-  delay(1000);  // Give serial connection time to establish
-  Serial.println("Driver 2 initialized");
-  Serial.flush();
+  // esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
+  //   receiverESP.onDataRecv(mac, data, len);  // Call the member function on the receiver instance
+  // });
 
-  Serial.println("Setup complete!");
-  Serial.flush();
+  // delay(1000);  // Give serial connection time to establish
+  // Serial.println("ESP32 Motor Control Starting...");
+  // Serial.flush();
+  
+  // // ENC1.begin(); // Initializes SPI for ENC
+  // DVR1.begin();
+  // delay(1000);  // Give serial connection time to establish
+  // Serial.println("Driver 1 initialized");
+  // Serial.flush();
+
+  // DVR2.begin();
+  // delay(1000);  // Give serial connection time to establish
+  // Serial.println("Driver 2 initialized");
+  // Serial.flush();
+
+  // getMACAddress().begin();
+
+  // Serial.println("Setup complete!");
+  // Serial.flush();
 }
 
 void loop() {
-  loopCount++;
-  Serial.print("Loop #");
-  Serial.print(loopCount);
-  Serial.println(" ----");
+  // loopCount++;
+  // Serial.print("Loop #");
+  // Serial.print(loopCount);
+  // Serial.println(" ----");
 
-  // Serial.println("X+");
-  // move.moveXY(SPEED, 1, 0, 0);
-  // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
+  // // Serial.println("X+");
+  // // move.moveXY(SPEED, 1, 0, 0);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
+  // // delay(500);
+
+  // // Serial.println("X-");
+  // // move.moveXY(SPEED, 0, 0, 0);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
+  // // delay(500); 
+
+  // // Serial.println("Y+");
+  // // move.moveXY(0, 0, SPEED, 1);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
+  // // delay(500);
+
+  // // Serial.println("Y-");
+  // // move.moveXY(0, 0, SPEED, 0);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
+  // // delay(500);
+
+  // Serial.println("X+ Y+");
+  // move.moveXY(SPEED, 1, SPEED, 1);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
   // delay(500);
 
-  // Serial.println("X-");
-  // move.moveXY(SPEED, 0, 0, 0);
-  // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
-  // delay(500); 
-
-  // Serial.println("Y+");
-  // move.moveXY(0, 0, SPEED, 1);
-  // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
+  // Serial.println("X- Y-");
+  // move.moveXY(SPEED, 0, SPEED, 0);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
   // delay(500);
 
-  // Serial.println("Y-");
-  // move.moveXY(0, 0, SPEED, 0);
-  // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
+  // Serial.println("X+ Y-");
+  // move.moveXY(SPEED, 1, SPEED, 0);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
   // delay(500);
 
-  Serial.println("X+ Y+");
-  move.moveXY(SPEED, 1, SPEED, 1);
+  // Serial.println("X- Y+");
+  // move.moveXY(SPEED, 0, SPEED, 1);
+  // // delay(500);
+  // // Serial.println("Stop");
+  // // move.brake();
   // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
-  delay(500);
 
-  Serial.println("X- Y-");
-  move.moveXY(SPEED, 0, SPEED, 0);
-  // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
-  delay(500);
-
-  Serial.println("X+ Y-");
-  move.moveXY(SPEED, 1, SPEED, 0);
-  // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
-  delay(500);
-
-  Serial.println("X- Y+");
-  move.moveXY(SPEED, 0, SPEED, 1);
-  // delay(500);
-  // Serial.println("Stop");
-  // move.brake();
-  delay(500);
-
-  Serial.println("--------------------");
-  Serial.flush();
+  // Serial.println("--------------------");
+  // Serial.flush();
 }
 
 void printBinary16(uint16_t n) {

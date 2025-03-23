@@ -18,10 +18,10 @@ void ESPNowSender::setUp(){
     if (esp_now_init() != ESP_OK) {
         Serial.println("Error initializing ESP-NOW");
         return;
-      }  
+    }  
       
     esp_now_register_send_cb(ESPNowSender::onDataSent);
-    memcpy(this->peerInfo.peer_addr, this->broadcastAddress,6);
+    memcpy(this->peerInfo.peer_addr, this->broadcastAddress, 6);
     this->peerInfo.channel = 0;
     this->peerInfo.encrypt = false;
 
@@ -32,7 +32,7 @@ void ESPNowSender::setUp(){
     Serial.println("Added peer successfully!");
 };
 
-void ESPNowSender::sendMessage(char message[32]){
+void ESPNowSender::sendMessage(const char* message){
     strcpy(this->data.message, message);
     
     //Send message!
@@ -40,10 +40,10 @@ void ESPNowSender::sendMessage(char message[32]){
     
     if (result == ESP_OK) {
         Serial.println("Sent with success.");
-      }
-      else {
+    }
+    else {
         Serial.println("Error sending the data.");
-      }
+    }
 };
 
 ESPNowReceiver::ESPNowReceiver(){
