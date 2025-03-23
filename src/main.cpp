@@ -38,17 +38,17 @@ unsigned long getTime(unsigned long startTime);
 void setup() {
   Serial.begin(115200);
 
-  senderESP.setUp();
-  senderESP.sendMessage("Hello");
-  delay(1000);
-  
-  // receiverESP.setUp();
+  // senderESP.setUp();
+  // senderESP.sendMessage("Hello");
+  // delay(1000);
 
-  // esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
-  //   receiverESP.onDataRecv(mac, data, len);  // Call the member function on the receiver instance
-  // });
+  receiverESP.setUp();
 
-  // delay(1000);  // Give serial connection time to establish
+  esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
+    receiverESP.onDataRecv(mac, data, len);  // Call the member function on the receiver instance
+  });
+
+  delay(1000);  // Give serial connection time to establish
   // Serial.println("ESP32 Motor Control Starting...");
   // Serial.flush();
   
@@ -70,6 +70,9 @@ void setup() {
 }
 
 void loop() {
+
+  // senderESP.sendMessage("Loop");
+  // delay(10000);
   // loopCount++;
   // Serial.print("Loop #");
   // Serial.print(loopCount);
