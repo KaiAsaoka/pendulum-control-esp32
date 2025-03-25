@@ -7,6 +7,9 @@ public:
     void begin();
     int readAngle();       // Returns current angle (0-360) and updates rotation count
     float getTotalAngle();   // Returns total angle as (rotationCount * 360 + current angle)
+    
+    // Static member variable shared across all instances
+    static int firstReading;  // Declaration of static member
 
 private:
     int miso;
@@ -14,7 +17,6 @@ private:
     int cs;
     int mosi;
     
-    bool firstReading;  // True on the first call to readAngle()
     float prevAngle;    // Previous instantaneous angle
     int rotationCount;  // Count of full rotations (+/-)
 };

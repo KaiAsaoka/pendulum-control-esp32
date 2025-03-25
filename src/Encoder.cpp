@@ -2,22 +2,31 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+// Define the static member variable
+int Encoder::firstReading = true;  // Initialize to 0
+
 int CLOCK_SPEED = 10000000; // 10MHz
 
 Encoder::Encoder(int miso, int clk, int cs, int mosi)
-    : miso(miso), clk(clk), cs(cs), mosi(mosi),
-      firstReading(true), prevAngle(0), rotationCount(0)
+    : miso(miso), clk(clk), cs(cs), mosi(mosi), prevAngle(0), rotationCount(0)
 {}
 
 void Encoder::begin() {  
   // Configure encoder
   pinMode(cs, OUTPUT);
-  pinMode(mosi, OUTPUT);  // Explicitly set MOSI as output
   digitalWrite(cs, HIGH);  // Deselect encoder by default
-  digitalWrite(mosi, HIGH);  // Set MOSI high initially
-  SPI.begin(clk, miso, mosi, cs);
-  SPI.beginTransaction(SPISettings(CLOCK_SPEED, MSBFIRST, SPI_MODE1));
+
+  if (firstReading) {
+    pinMode(mosi, OUTPUT);  // Explicitly set MOSI as output
+    digitalWrite(mosi, HIGH);  // Set MOSI high initially
+
+    SPI.begin(clk, miso, mosi);
+    SPI.beginTransaction(SPISettings(CLOCK_SPEED, MSBFIRST, SPI_MODE1));
+    firstReading = false;
+  }
+
   Serial.println("AS5147 SPI Encoder Initialized");
+
 }
 
 int Encoder::readAngle() {
