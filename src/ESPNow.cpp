@@ -32,8 +32,10 @@ void ESPNowSender::setUp(){
     Serial.println("Added peer successfully!");
 };
 
-void ESPNowSender::sendMessage(const char* message){
+void ESPNowSender::sendMessage(const char* message, int int_message_1, int int_message_2){
     strcpy(this->data.message, message);
+    this->data.int_message_1 = int_message_1;
+    this->data.int_message_2 = int_message_2;
     
     //Send message!
     esp_err_t result = esp_now_send(this->broadcastAddress, (uint8_t *) &this->data, sizeof(this->data));
@@ -67,6 +69,7 @@ void ESPNowReceiver::onDataRecv(const uint8_t * mac, const uint8_t *incomingData
 
     Serial.print("Message: \n");
     Serial.println(this->data.message);
-
+    Serial.println(this->data.int_message_1);
+    Serial.println(this->data.int_message_2);
     //Read messages by placing esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv)) in the setup of main.cpp after setting up receiver object.
 };

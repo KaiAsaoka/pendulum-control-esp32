@@ -12,7 +12,7 @@
 #define ESP_PENDULUM 2
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY  // Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // Define encoder SPI pins
 #define ENC_MISO 12    // Encoder data output (MISO)
@@ -92,6 +92,19 @@ void loop() {
   Serial.print("G2: ");
   Serial.println(angle2);
 
+  int encoder1 = receiverESP.data.int_message_1;
+  delay(1);
+  Serial.print("E1: ");
+  Serial.println(encoder1);
+
+  int encoder2 = receiverESP.data.int_message_2;
+  delay(1);
+  Serial.print("E2: ");
+  Serial.println(encoder2);
+
+  Serial.println(receiverESP.data.message);
+  delay(100);
+
   Serial.flush();
   // Example movement patterns (commented out for safety)
   /*
@@ -151,8 +164,7 @@ void loop() {
   Serial.print("E2: ");
   Serial.println(angle2);
 
-  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str());
-
+  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
 }
 
 #else
