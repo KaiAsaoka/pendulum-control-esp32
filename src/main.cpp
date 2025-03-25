@@ -19,7 +19,7 @@
 #define ENC_CLK  14    // SPI clock (SCK)
 #define ENC_CS1  15    // Chip Select (active LOW)
 #define ENC_CS2  13    // Chip Select (active LOW)
-#define ENC_MOSI 9    // MOSI pin for encoder communication
+#define ENC_MOSI 5    // MOSI pin for encoder communication
 
 #define PWM1 32
 #define DIR1 33
@@ -102,24 +102,18 @@ void loop() {
   Serial.flush();
 }
 
+  // Initialize pendulum-specific hardware
 #elif CURRENT_ESP == ESP_PENDULUM
 void setup() {
   Serial.begin(115200);
   Serial.println("Pendulum ESP32 Starting...");
-  // Initialize pendulum-specific hardware
   
-  // Initialize ESPNow communication
   senderESP.setUp();
   
-  // Initialize SPI encoders with proper delays
-  delay(100);  // Give SPI bus time to stabilize
   ENC1.begin();
-  delay(100);
   Serial.println("Encoder 1 initialized");
   
-  delay(100);
   ENC2.begin();
-  delay(100);
   Serial.println("Encoder 2 initialized");
 
   Serial.println("Pendulum setup complete!");
@@ -131,19 +125,16 @@ void loop() {
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.readAngle();
+  delay(1);
   Serial.print("Encoder 1 angle: ");
   Serial.println(angle1);
-  delay(1000);
 
   int angle2 = ENC2.readAngle();
+  delay(1);
   Serial.print("Encoder 2 angle: ");
   Serial.println(angle2);
-  delay(1000);
 
-  // Add your pendulum sensor reading and control code here
-  // Example: Read sensors and send data to gantry
-  senderESP.sendMessage(String("Encoder 1 angle: " + String(angle1)).c_str());
-  senderESP.sendMessage(String("Encoder 2 angle: " + String(angle2)).c_str());
+  senderESP.sendMessage(String("Encoder 1 angle: " + String(angle1) + "\n" + "Encoder 2 angle: " + String(angle2)).c_str());
   
 }
 

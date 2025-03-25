@@ -14,7 +14,7 @@ import time
 #------------------------------------------------------------
 
 # Set up serial (adjust port name to suit)
-SERIAL_PORT = 'COM4'
+SERIAL_PORT = 'COM5'
 BAUD_RATE = 115200
 ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
 time.sleep(2)
