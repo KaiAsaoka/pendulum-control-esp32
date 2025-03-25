@@ -12,7 +12,7 @@
 #define ESP_PENDULUM 2
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_PENDULUM  // Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY  // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // Define encoder SPI pins
 #define ENC_MISO 12    // Encoder data output (MISO)
@@ -40,16 +40,22 @@ uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9b, 0xaf, 0x88};
 ESPNowSender senderESP(broadcastAddress);
 
 unsigned long startTime;
-unsigned long loopCount = 0;
 
 void printBinary16(uint16_t n);
 unsigned long getTime(unsigned long startTime);
 
+// Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
 void setup() {
   Serial.begin(115200);
   Serial.println("Gantry ESP32 Starting...");
-  
+
+  ENC1.begin();
+  Serial.println("Encoder 1 initialized (Gantry)");
+
+  ENC2.begin();
+  Serial.println("Encoder 2 initialized (Gantry)");
+
   // Initialize drivers
   DVR1.begin();
   delay(1000);
@@ -71,16 +77,25 @@ void setup() {
   Serial.flush();
 }
 
+// Gantry-specific loop
 void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
-  loopCount++;
-  Serial.print("Gantry Loop #");
-  Serial.print(loopCount);
-  Serial.println(" ----");
 
+  int angle1 = ENC1.readAngle();
+  delay(1);
+  Serial.print("G1: ");
+  Serial.println(angle1);
+
+  int angle2 = ENC2.readAngle();
+  delay(1);
+  Serial.print("G2: ");
+  Serial.println(angle2);
+
+  Serial.flush();
   // Example movement patterns (commented out for safety)
   /*
+
   Serial.println("X+ Y+");
   move.moveXY(SPEED, 1, SPEED, 1);
   delay(500);
@@ -96,14 +111,15 @@ void loop() {
   Serial.println("X- Y+");
   move.moveXY(SPEED, 0, SPEED, 1);
   delay(500);
+
   */
 
-  Serial.println("--------------------");
-  Serial.flush();
+
 }
 
   // Initialize pendulum-specific hardware
 #elif CURRENT_ESP == ESP_PENDULUM
+// Pendulum-specific setup
 void setup() {
   Serial.begin(115200);
   Serial.println("Pendulum ESP32 Starting...");
@@ -111,31 +127,32 @@ void setup() {
   senderESP.setUp();
   
   ENC1.begin();
-  Serial.println("Encoder 1 initialized");
+  Serial.println("Encoder 1 initialized (Pendulum)");
   
   ENC2.begin();
-  Serial.println("Encoder 2 initialized");
+  Serial.println("Encoder 2 initialized (Pendulum)");
 
   Serial.println("Pendulum setup complete!");
   Serial.flush();
 }
 
+// Pendulum-specific loop
 void loop() {
   // Pendulum-specific control code
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.readAngle();
   delay(1);
-  Serial.print("Encoder 1 angle: ");
+  Serial.print("E1: ");
   Serial.println(angle1);
 
   int angle2 = ENC2.readAngle();
   delay(1);
-  Serial.print("Encoder 2 angle: ");
+  Serial.print("E2: ");
   Serial.println(angle2);
 
-  senderESP.sendMessage(String("Encoder 1 angle: " + String(angle1) + "\n" + "Encoder 2 angle: " + String(angle2)).c_str());
-  
+  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str());
+
 }
 
 #else

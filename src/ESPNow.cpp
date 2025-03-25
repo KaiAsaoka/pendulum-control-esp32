@@ -65,7 +65,7 @@ void ESPNowReceiver::onDataRecv(const uint8_t * mac, const uint8_t *incomingData
     Serial.print("Bytes received: ");
     Serial.println(len);
 
-    Serial.print("Message: ");
+    Serial.print("Message: \n");
     Serial.println(this->data.message);
 
     //Read messages by placing esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv)) in the setup of main.cpp after setting up receiver object.
