@@ -6,7 +6,9 @@ public:
     Encoder(int miso, int clk, int cs, int mosi);
     void begin();
     int readAngle();       // Returns current angle (0-360) and updates rotation count
-    float getTotalAngle();   // Returns total angle as (rotationCount * 360 + current angle)
+    long getTotalAngle();   // Returns total angle as (rotationCount * 360 + current angle)
+    float getTotalAngleFloat();   // Returns total angle as (rotationCount * 360 + current angle)
+
     
     // Static member variable shared across all instances
     static int firstReading;  // Declaration of static member
@@ -19,6 +21,7 @@ private:
     
     float prevAngle;    // Previous instantaneous angle
     int rotationCount;  // Count of full rotations (+/-)
+    int zeroAngle;      // Zero angle
 };
 
 #endif // Encoder_H

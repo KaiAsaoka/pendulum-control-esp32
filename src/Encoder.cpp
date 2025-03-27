@@ -5,10 +5,12 @@
 // Define the static member variable
 int Encoder::firstReading = true;  // Initialize to 0
 
+
 int CLOCK_SPEED = 10000000; // 10MHz
 
+
 Encoder::Encoder(int miso, int clk, int cs, int mosi)
-    : miso(miso), clk(clk), cs(cs), mosi(mosi), prevAngle(0), rotationCount(0)
+    : miso(miso), clk(clk), cs(cs), mosi(mosi), prevAngle(0), rotationCount(0), zeroAngle(-1)
 {}
 
 void Encoder::begin() {  
@@ -25,6 +27,7 @@ void Encoder::begin() {
     firstReading = false;
   }
 
+  zeroAngle = readAngle();
   Serial.println("AS5147 SPI Encoder Initialized");
 
 }
@@ -40,10 +43,29 @@ int Encoder::readAngle() {
   digitalWrite(cs, HIGH);
   delayMicroseconds(1);  // Small delay between reads
 
-  return int(response & 0x3FFF);
+  int currentAngle = int(response & 0x3FFF);
+  
+  // Detect rollover
+  if (prevAngle > 0x3FFF * 0.75 && currentAngle < 0x3FFF * 0.25 && zeroAngle != -1) {
+    // Rolled over from high to low
+    rotationCount++;
+  } else if (prevAngle < 0x3FFF * 0.25 && currentAngle > 0x3FFF * 0.75 && zeroAngle != -1) {
+    // Rolled over from low to high
+    rotationCount--;
+  }
+  
+  prevAngle = currentAngle;
+  return currentAngle;
 }
 
-float Encoder::getTotalAngle() {
+long Encoder::getTotalAngle() {
   // Total angle is the number of rotations times 360 plus the current angle
-  return rotationCount * 360.0 + prevAngle;
+  int currentAngle = readAngle();
+  long totalAngle = (long)rotationCount * 16384L + (long)currentAngle - (long)zeroAngle;
+  return totalAngle;
+}
+
+float Encoder::getTotalAngleFloat() {
+  float totalAngleFloat = float(getTotalAngle()) * 360.0 / 16384.0;
+  return totalAngleFloat;
 }

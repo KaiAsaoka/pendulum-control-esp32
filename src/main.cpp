@@ -33,7 +33,7 @@ Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
 Driver DVR1(PWM1, DIR1);
 Driver DVR2(PWM2, DIR2);
-Move move(DVR1, DVR2);
+Move move(DVR1, DVR2, ENC1, ENC2);
 ESPNowReceiver receiverESP;
 
 uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9b, 0xaf, 0x88};
@@ -82,15 +82,25 @@ void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
 
-  int angle1 = ENC1.readAngle();
+  int angle1 = ENC1.getTotalAngle();
   delay(1);
   Serial.print("G1: ");
   Serial.println(angle1);
 
-  int angle2 = ENC2.readAngle();
+  int angle2 = ENC2.getTotalAngle();
   delay(1);
   Serial.print("G2: ");
   Serial.println(angle2);
+
+  float posX = move.returnPosX();
+  delay(1);
+  Serial.print("X: ");
+  Serial.println(posX);
+
+  float posY = move.returnPosY();
+  delay(1);
+  Serial.print("Y: ");
+  Serial.println(posY);
 
   int encoder1 = receiverESP.data.int_message_1;
   delay(1);
