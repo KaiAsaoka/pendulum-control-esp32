@@ -29,10 +29,10 @@ public:
 
 private:
 
-    Driver dvr1;
-    Driver dvr2;
-    Encoder enc1;
-    Encoder enc2;
+    Driver& dvr1;
+    Driver& dvr2;
+    Encoder& enc1;
+    Encoder& enc2;
     float sumAngle1;
     float sumAngle2;
     float fullRot1;

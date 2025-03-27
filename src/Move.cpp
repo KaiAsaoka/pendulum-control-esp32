@@ -138,8 +138,6 @@ float Move::returnPosX(){
     // Get raw encoder values
     long angle1 = enc1.getTotalAngle();
     long angle2 = enc2.getTotalAngle();
-    Serial.println(angle1);
-    Serial.println(angle2);
 
     // Convert to float and scale appropriately
     // The sqrt(2) factor comes from the mechanical coupling of the motors
