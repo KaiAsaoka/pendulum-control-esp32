@@ -82,12 +82,12 @@ void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
 
-  int angle1 = ENC1.getTotalAngle();
+  long angle1 = ENC1.getTotalAngle();
   delay(1);
   Serial.print("G1: ");
   Serial.println(angle1);
 
-  int angle2 = ENC2.getTotalAngle();
+  long angle2 = ENC2.getTotalAngle();
   delay(1);
   Serial.print("G2: ");
   Serial.println(angle2);

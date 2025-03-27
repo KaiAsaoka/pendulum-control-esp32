@@ -8,7 +8,7 @@
 #define STATIC_BRAKE 3
 #define DYNAMIC_BRAKE 3
 
-Move::Move(Driver dvr1, Driver dvr2, Encoder enc1, Encoder enc2) : dvr1(dvr1), dvr2(dvr2), enc1(enc1), enc2(enc2) {}
+Move::Move(Driver& dvr1, Driver& dvr2, Encoder& enc1, Encoder& enc2) : dvr1(dvr1), dvr2(dvr2), enc1(enc1), enc2(enc2) {}
 
 // void Move::moveX(int speed, bool direction) {
 //     dvr1.move(speed, direction);
@@ -138,12 +138,13 @@ float Move::returnPosX(){
     // Get raw encoder values
     long angle1 = enc1.getTotalAngle();
     long angle2 = enc2.getTotalAngle();
-    
+    Serial.println(angle1);
+    Serial.println(angle2);
+
     // Convert to float and scale appropriately
     // The sqrt(2) factor comes from the mechanical coupling of the motors
     // We'll multiply by a scaling factor to get to physical units (mm)
     const float SCALE_FACTOR = 0.1; // Adjust this based on your mechanical setup
-    Serial.println((float(angle1) + float(angle2)) / sqrt(2.0f));
     float posX = (float(angle1) + float(angle2)) * SCALE_FACTOR / sqrt(2.0f);
     return posX;
 }
