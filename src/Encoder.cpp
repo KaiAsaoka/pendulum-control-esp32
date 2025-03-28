@@ -69,3 +69,10 @@ float Encoder::getTotalAngleFloat() {
   float totalAngleFloat = float(getTotalAngle()) * 360.0 / 16384.0;
   return totalAngleFloat;
 }
+
+void Encoder::zero() {
+  zeroAngle = getTotalAngle();
+  
+  Serial.print("zero'd to: ");
+  Serial.println(zeroAngle);
+}

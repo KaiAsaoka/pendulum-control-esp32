@@ -8,6 +8,7 @@ public:
     int readAngle();       // Returns current angle (0-360) and updates rotation count
     long getTotalAngle();   // Returns total angle as (rotationCount * 360 + current angle)
     float getTotalAngleFloat();   // Returns total angle as (rotationCount * 360 + current angle)
+    void zero();
 
     
     // Static member variable shared across all instances

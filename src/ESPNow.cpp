@@ -64,12 +64,12 @@ void ESPNowReceiver::setUp(){
 
 void ESPNowReceiver::onDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len){
     memcpy(&this->data, incomingData, sizeof(this->data));
-    Serial.print("Bytes received: ");
-    Serial.println(len);
+    // Serial.print("Bytes received: ");
+    // Serial.println(len);
 
-    Serial.print("Message: \n");
-    Serial.println(this->data.message);
-    Serial.println(this->data.int_message_1);
-    Serial.println(this->data.int_message_2);
+    // Serial.print("Message: \n");
+    // Serial.println(this->data.message);
+    // Serial.println(this->data.int_message_1);
+    // Serial.println(this->data.int_message_2);
     //Read messages by placing esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv)) in the setup of main.cpp after setting up receiver object.
 };

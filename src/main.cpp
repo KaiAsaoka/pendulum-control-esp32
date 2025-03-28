@@ -26,6 +26,8 @@
 #define PWM2 26
 #define DIR2 25
 
+#define ZERO_BTN 37
+
 #define SPEED 20
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
@@ -44,11 +46,42 @@ unsigned long startTime;
 void printBinary16(uint16_t n);
 unsigned long getTime(unsigned long startTime);
 
+// Flag to indicate button was pressed (must be volatile)
+volatile bool buttonPressed = false;
+
+// Time tracking for debouncing
+volatile unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 50;  // milliseconds
+
+// Interrupt Service Routine (ISR)
+void IRAM_ATTR buttonISR() {
+  unsigned long currentTime = millis();
+  if (currentTime - lastDebounceTime > debounceDelay) {
+    buttonPressed = true;
+    lastDebounceTime = currentTime;
+  }
+}
+
+// The function to run when button is pressed
+void handleButtonPress() {
+  // Your button handling code here
+  Serial.println("Button was pressed!");
+  ENC1.zero();
+  ENC2.zero();
+}
+
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
 void setup() {
   Serial.begin(115200);
   Serial.println("Gantry ESP32 Starting...");
+
+  pinMode(ZERO_BTN, INPUT_PULLUP);
+    
+  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
+  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  
+  Serial.println("Button interrupt initialized");
 
   ENC1.begin();
   Serial.println("Encoder 1 initialized (Gantry)");
@@ -82,61 +115,36 @@ void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
 
-  long angle1 = ENC1.getTotalAngle();
-  delay(1);
-  Serial.print("G1: ");
-  Serial.println(angle1);
-
-  long angle2 = ENC2.getTotalAngle();
-  delay(1);
-  Serial.print("G2: ");
-  Serial.println(angle2);
-
-  float posX = move.returnPosX();
-  delay(1);
-  Serial.print("X: ");
-  Serial.println(posX);
-
-  float posY = move.returnPosY();
-  delay(1);
-  Serial.print("Y: ");
-  Serial.println(posY);
-
-  int encoder1 = receiverESP.data.int_message_1;
+  int e1 = receiverESP.data.int_message_1;
   delay(1);
   Serial.print("E1: ");
-  Serial.println(encoder1);
+  Serial.println(e1);
 
-  int encoder2 = receiverESP.data.int_message_2;
+  int e2 = receiverESP.data.int_message_2;
   delay(1);
   Serial.print("E2: ");
-  Serial.println(encoder2);
+  Serial.println(e2);
 
-  Serial.println(receiverESP.data.message);
+  int g1 = ENC1.getTotalAngle();
+  delay(1);
+  Serial.print("G1: ");
+  Serial.println(g1);
+
+  int g2 = ENC2.getTotalAngle();
+  delay(1);
+  Serial.print("G2: ");
+  Serial.println(g2);
+
   delay(100);
 
   Serial.flush();
   // Example movement patterns (commented out for safety)
-  /*
-
-  Serial.println("X+ Y+");
-  move.moveXY(SPEED, 1, SPEED, 1);
-  delay(500);
-
-  Serial.println("X- Y-");
-  move.moveXY(SPEED, 0, SPEED, 0);
-  delay(500);
-
-  Serial.println("X+ Y-");
-  move.moveXY(SPEED, 1, SPEED, 0);
-  delay(500);
-
-  Serial.println("X- Y+");
-  move.moveXY(SPEED, 0, SPEED, 1);
-  delay(500);
-
-  */
-
+  
+   // Check if button was pressed
+   if (buttonPressed) {
+    handleButtonPress();
+    buttonPressed = false;  // Reset the flag
+  }
 
 }
 
@@ -175,6 +183,12 @@ void loop() {
   Serial.println(angle2);
 
   senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
+
+  // Check if button was pressed
+  if (buttonPressed) {
+    handleButtonPress();
+    buttonPressed = false;  // Reset the flag
+  }
 }
 
 #else
