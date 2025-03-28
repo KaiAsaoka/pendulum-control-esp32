@@ -14,12 +14,20 @@
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
+// // Define encoder SPI pins
+// #define ENC_MISO 12    // Encoder data output (MISO)
+// #define ENC_CLK  14    // SPI clock (SCK)
+// #define ENC_CS1  15    // Chip Select (active LOW)
+// #define ENC_CS2  13    // Chip Select (active LOW)
+// #define ENC_MOSI 5    // MOSI pin for encoder communication
+
 // Define encoder SPI pins
-#define ENC_MISO 12    // Encoder data output (MISO)
-#define ENC_CLK  14    // SPI clock (SCK)
-#define ENC_CS1  15    // Chip Select (active LOW)
-#define ENC_CS2  13    // Chip Select (active LOW)
-#define ENC_MOSI 5    // MOSI pin for encoder communication
+#define ENC_MISO 19    // Encoder data output (MISO)
+#define ENC_CLK  22    // SPI clock (SCK)
+#define ENC_CS1  20    // Chip Select (active LOW)
+#define ENC_CS2  21    // Chip Select (active LOW)
+#define ENC_MOSI 9    // MOSI pin for encoder communication
+
 
 #define PWM1 32
 #define DIR1 33

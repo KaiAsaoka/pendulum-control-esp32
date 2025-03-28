@@ -71,8 +71,10 @@ float Encoder::getTotalAngleFloat() {
 }
 
 void Encoder::zero() {
-  zeroAngle = getTotalAngle();
+  int currentAngle = readAngle();
+  long totalAngleNet = (long)rotationCount * 16384L + (long)currentAngle;
+  zeroAngle = totalAngleNet;
   
   Serial.print("zero'd to: ");
-  Serial.println(zeroAngle);
+  Serial.println(totalAngleNet);
 }
