@@ -53,52 +53,52 @@ void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
         // Move motors with calculated speeds and directions
         motor2Speed = DYNAMIC_BRAKE;
         motor2Dir = motor1Dir;
-        Serial.println("Engaging Motor 2 Brake");
+        // Serial.println("Engaging Motor 2 Brake");
 
         dvr1.move(motor1Speed, motor1Dir);
-        Serial.print("Motor 1: ");
-        Serial.print(motor1Speed);
-        Serial.print(" Direction: ");
-        Serial.println(motor1Dir);
+        // Serial.print("Motor 1: ");
+        // Serial.print(motor1Speed);
+        // Serial.print(" Direction: ");
+        // Serial.println(motor1Dir);
 
         dvr2.move(motor2Speed, motor2Dir);
-        Serial.print("Motor 2: ");
-        Serial.print(motor2Speed);
-        Serial.print(" Direction: ");
-        Serial.println(motor2Dir);
+        // Serial.print("Motor 2: ");
+        // Serial.print(motor2Speed);
+        // Serial.print(" Direction: ");
+        // Serial.println(motor2Dir);
 
     } else if (motor2Speed!=0 && motor1Speed==0) {
         // Move motors with calculated speeds and directions
 
         motor1Speed = DYNAMIC_BRAKE;
         motor1Dir = motor2Dir;
-        Serial.println("Engaging Motor 1 Brake");
+        // Serial.println("Engaging Motor 1 Brake");
 
         dvr1.move(motor1Speed, motor1Dir);
-        Serial.print("Motor 1: ");
-        Serial.print(motor1Speed);
-        Serial.print(" Direction: ");
-        Serial.println(motor1Dir);
+        // Serial.print("Motor 1: ");
+        // Serial.print(motor1Speed);
+        // Serial.print(" Direction: ");
+        // Serial.println(motor1Dir);
 
         dvr2.move(motor2Speed, motor2Dir);
-        Serial.print("Motor 2: ");
-        Serial.print(motor2Speed);
-        Serial.print(" Direction: ");
-        Serial.println(motor2Dir);
+        // Serial.print("Motor 2: ");
+        // Serial.print(motor2Speed);
+        // Serial.print(" Direction: ");
+        // Serial.println(motor2Dir);
 
     } else{
     // Move motors with calculated speeds and directions
         dvr1.move(motor1Speed, motor1Dir);
-        Serial.print("Motor 1: ");
-        Serial.print(motor1Speed);
-        Serial.print(" Direction: ");
-        Serial.println(motor1Dir);
+        // Serial.print("Motor 1: ");
+        // Serial.print(motor1Speed);
+        // Serial.print(" Direction: ");
+        // Serial.println(motor1Dir);
         
         dvr2.move(motor2Speed, motor2Dir);
-        Serial.print("Motor 2: ");
-        Serial.print(motor2Speed);
-        Serial.print(" Direction: ");
-        Serial.println(motor2Dir);
+        // Serial.print("Motor 2: ");
+        // Serial.print(motor2Speed);
+        // Serial.print(" Direction: ");
+        // Serial.println(motor2Dir);
     }
 }
 
@@ -156,7 +156,7 @@ float Move::returnPosY(){
     // The sqrt(2) factor comes from the mechanical coupling of the motors
     // We'll multiply by a scaling factor to get to physical units (mm)
     const float SCALE_FACTOR = 0.1; // Adjust this based on your mechanical setup
-    float posY = (float(angle1) - float(angle2)) * SCALE_FACTOR / sqrt(2.0f);
+    float posY = (float(angle2)-float(angle1)) * SCALE_FACTOR / sqrt(2.0f);
     return posY;
 }
 

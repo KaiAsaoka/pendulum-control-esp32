@@ -4,7 +4,7 @@
 class PID {
 public:
     PID(float kp, float ki, float kd);
-    float calculate(float setpoint, float measured_value);
+    float calculate(float error);
 
 private:
     float kp;

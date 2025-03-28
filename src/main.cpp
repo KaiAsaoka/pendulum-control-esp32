@@ -6,6 +6,7 @@
 #include "Move.h"
 #include "getMACAddress.h"
 #include "ESPNow.h"
+#include "PID.h"
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
@@ -34,12 +35,22 @@
 #define PWM2 26
 #define DIR2 25
 
+#define TARGET_POSX 0
+#define TARGET_POSY 0
+
+
 #define ZERO_BTN 37
 
 #define SPEED 20
 
+#define pendKP 0.01
+#define pendKI 0
+#define pendKD 0
+
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
+
+PID pendPID(pendKP, pendKI, pendKD);;
 
 Driver DVR1(PWM1, DIR1);
 Driver DVR2(PWM2, DIR2);
@@ -123,33 +134,80 @@ void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
 
-  int e1 = receiverESP.data.int_message_1;
-  delay(1);
-  Serial.print("E1: ");
-  Serial.println(e1);
+  // int e1 = receiverESP.data.int_message_1;
+  // delay(1);
+  // Serial.print("E1: ");
+  // Serial.println(e1);
 
-  int e2 = receiverESP.data.int_message_2;
-  delay(1);
-  Serial.print("E2: ");
-  Serial.println(e2);
+  // int e2 = receiverESP.data.int_message_2;
+  // delay(1);
+  // Serial.print("E2: ");
+  // Serial.println(e2);
 
   int g1 = ENC1.getTotalAngle();
   delay(1);
-  Serial.print("G1: ");
-  Serial.println(g1);
+  // Serial.print("G1: ");
+  // Serial.println(g1);
 
   int g2 = ENC2.getTotalAngle();
   delay(1);
-  Serial.print("G2: ");
-  Serial.println(g2);
+  // Serial.print("G2: ");
+  // Serial.println(g2);
 
-  delay(100);
+  int posX = move.returnPosX();
+  int posY = move.returnPosY();
+
+  float error1 = TARGET_POSX - posX;
+  float error2 = TARGET_POSY - posY;
+
+  Serial.print("error1: ");
+  Serial.print(error1);
+  Serial.print(", error2: ");
+  Serial.print(error2);
+
+  // Calculate PID outputs
+  float xVel = pendPID.calculate(error1);
+  float yVel = pendPID.calculate(error2);
+
+  // Serial.print(", xVel: ");
+  // Serial.print(xVel);
+  // Serial.print(", yVel: ");
+  // Serial.println(yVel);
+
+  // // Print debug info
+  // Serial.print("xVel: ");
+  // Serial.println(xVel);
+  // Serial.print(" yVel: ");
+  // Serial.println(yVel);
+
+  // Extract direction (true for positive, false for negative)
+  bool xDir = (xVel >= 0);
+  bool yDir = (yVel >= 0);
+
+  // Get absolute values for speed
+  int xSpeed = abs(xVel);
+  int ySpeed = abs(yVel);
+
+  xSpeed = constrain(xSpeed, 0, 255);
+  ySpeed = constrain(ySpeed, 0, 255);
+  Serial.print(", xSpeed: ");
+  Serial.print(xSpeed);
+  Serial.print(", xDir: ");
+  Serial.print(xDir);
+
+  Serial.print(", ySpeed: ");
+  Serial.print(ySpeed);
+  Serial.print(", yDir: ");
+  Serial.println(yDir);
+
+  // Apply to motors
+  move.moveXY(xSpeed, xDir, ySpeed, yDir);
 
   Serial.flush();
   // Example movement patterns (commented out for safety)
   
    // Check if button was pressed
-   if (buttonPressed) {
+  if (buttonPressed) {
     handleButtonPress();
     buttonPressed = false;  // Reset the flag
   }
