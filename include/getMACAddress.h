@@ -5,7 +5,6 @@ class getMACAddress {
 public:
     getMACAddress();
     void readMacAddress();
-    void begin();
 private:
 };
 

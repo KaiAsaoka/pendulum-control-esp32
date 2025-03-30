@@ -49,11 +49,9 @@ Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
 PID pendPID(pendKP, pendKI, pendKD);;
 
-
-
 ESPNowReceiver receiverESP;
 
-uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9b, 0xaf, 0x88};
+uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9c, 0x5b, 0xb0};
 ESPNowSender senderESP(broadcastAddress);
 
 unsigned long startTime;
@@ -141,16 +139,16 @@ void setup() {
 void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
+  
+  int e1 = receiverESP.data.int_message_1;
+  delay(1);
+  Serial.print("E1: ");
+  Serial.print(e1);
 
-  // int e1 = receiverESP.data.int_message_1;
-  // delay(1);
-  // Serial.print("E1: ");
-  // Serial.println(e1);
-
-  // int e2 = receiverESP.data.int_message_2;
-  // delay(1);
-  // Serial.print("E2: ");
-  // Serial.println(e2);
+  int e2 = receiverESP.data.int_message_2;
+  delay(1);
+  Serial.print("E2: ");
+  Serial.print(e2);
 
   int g1 = ENC1.getTotalAngle();
   delay(1);
@@ -168,7 +166,7 @@ void loop() {
   float error1 = TARGET_POSX - posX;
   float error2 = TARGET_POSY - posY;
 
-  Serial.print("error1: ");
+  Serial.print(", error1: ");
   Serial.print(error1);
   Serial.print(", error2: ");
   Serial.print(error2);
@@ -225,7 +223,7 @@ void loop() {
   // Initialize pendulum-specific hardware
 #elif CURRENT_ESP == ESP_PENDULUM
 // Pendulum-specific setup
-#define ZERO_BTN 20
+#define ZERO_BTN 37
 
 void setup() {
   Serial.begin(115200);
@@ -263,7 +261,7 @@ void loop() {
   int angle2 = ENC2.getTotalAngle();
   delay(1);
   Serial.print(", E2: ");
-  Serial.println(angle2);
+  Serial.print(angle2);
 
   senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
 

@@ -7,6 +7,12 @@
 getMACAddress::getMACAddress() {}
 
 void getMACAddress::readMacAddress(){
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin();
+
+  Serial.print("[DEFAULT] ESP32 Board MAC Address: ");
+
   uint8_t baseMac[6];
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, baseMac);
   if (ret == ESP_OK) {
@@ -16,14 +22,4 @@ void getMACAddress::readMacAddress(){
   } else {
     Serial.println("Failed to read MAC address");
   }
-}
-
-void getMACAddress::begin(){
-  Serial.begin(115200);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin();
-
-  Serial.print("[DEFAULT] ESP32 Board MAC Address: ");
-  readMacAddress();
 }
