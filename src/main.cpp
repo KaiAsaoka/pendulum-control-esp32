@@ -23,17 +23,17 @@
 // #define ENC_MOSI 5    // MOSI pin for encoder communication
 
 // Define encoder SPI pins
-#define ENC_MISO 19    // Encoder data output (MISO)
-#define ENC_CLK  22    // SPI clock (SCK)
-#define ENC_CS1  20    // Chip Select (active LOW)
-#define ENC_CS2  21    // Chip Select (active LOW)
+#define ENC_MISO 26    // Encoder data output (MISO)
+#define ENC_CLK  25    // SPI clock (SCK)
+#define ENC_CS1  32    // Chip Select (active LOW)
+#define ENC_CS2  33    // Chip Select (active LOW)
 #define ENC_MOSI 9    // MOSI pin for encoder communication
 
 
-#define PWM1 32
-#define DIR1 33
-#define PWM2 26
-#define DIR2 25
+#define PWM2 19
+#define DIR2 22
+#define PWM1 21
+#define DIR1 20
 
 #define TARGET_POSX 0
 #define TARGET_POSY 0
@@ -156,55 +156,58 @@ void loop() {
 
   int posX = move.returnPosX();
   int posY = move.returnPosY();
+  Serial.print("posX: ");
+  Serial.print(posX);
+  Serial.print(", poxY: ");
+  Serial.print(posY);
 
-  float error1 = TARGET_POSX - posX;
-  float error2 = TARGET_POSY - posY;
+  // float error1 = TARGET_POSX - posX;
+  // float error2 = TARGET_POSY - posY;
 
-  Serial.print("error1: ");
-  Serial.print(error1);
-  Serial.print(", error2: ");
-  Serial.print(error2);
+  // Serial.print("error1: ");
+  // Serial.print(error1);
+  // Serial.print(", error2: ");
+  // Serial.print(error2);
 
-  // Calculate PID outputs
-  float xVel = pendPID.calculate(error1);
-  float yVel = pendPID.calculate(error2);
+  // // Calculate PID outputs
+  // float xVel = pendPID.calculate(error1);
+  // float yVel = pendPID.calculate(error2);
 
-  // Serial.print(", xVel: ");
-  // Serial.print(xVel);
-  // Serial.print(", yVel: ");
-  // Serial.println(yVel);
+  // // Serial.print(", xVel: ");
+  // // Serial.print(xVel);
+  // // Serial.print(", yVel: ");
+  // // Serial.println(yVel);
 
-  // // Print debug info
-  // Serial.print("xVel: ");
-  // Serial.println(xVel);
-  // Serial.print(" yVel: ");
-  // Serial.println(yVel);
+  // // // Print debug info
+  // // Serial.print("xVel: ");
+  // // Serial.println(xVel);
+  // // Serial.print(" yVel: ");
+  // // Serial.println(yVel);
 
-  // Extract direction (true for positive, false for negative)
-  bool xDir = (xVel >= 0);
-  bool yDir = (yVel >= 0);
+  // // Extract direction (true for positive, false for negative)
+  // bool xDir = (xVel >= 0);
+  // bool yDir = (yVel >= 0);
 
-  // Get absolute values for speed
-  int xSpeed = abs(xVel);
-  int ySpeed = abs(yVel);
+  // // Get absolute values for speed
+  // int xSpeed = abs(xVel);
+  // int ySpeed = abs(yVel);
 
-  xSpeed = constrain(xSpeed, 0, 255);
-  ySpeed = constrain(ySpeed, 0, 255);
-  Serial.print(", xSpeed: ");
-  Serial.print(xSpeed);
-  Serial.print(", xDir: ");
-  Serial.print(xDir);
+  // xSpeed = constrain(xSpeed, 0, 255);
+  // ySpeed = constrain(ySpeed, 0, 255);
 
-  Serial.print(", ySpeed: ");
-  Serial.print(ySpeed);
-  Serial.print(", yDir: ");
-  Serial.println(yDir);
 
   // Apply to motors
-  move.moveXY(xSpeed, xDir, ySpeed, yDir);
+  move.moveXY(10, 1, 0, 1);
+  delay(500);
+  move.moveXY(0, 1, 0, 1);
+  delay(500);
+  move.moveXY(0, 0, 10, 0);
+  delay(500);
+  move.moveXY(0, 1, 0, 1);
+  delay(1000);
 
   Serial.flush();
-  // Example movement patterns (commented out for safety)
+  // // Example movement patterns (commented out for safety)
   
    // Check if button was pressed
   if (buttonPressed) {
