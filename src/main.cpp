@@ -2,11 +2,11 @@
 #include <SPI.h>
 #include <Encoder.h>
 #include <chrono>
-#include "Driver.h"
-#include "Move.h"
-#include "getMACAddress.h"
-#include "ESPNow.h"
-#include "PID.h"
+#include <Driver.h>
+#include <Move.h>
+#include <getMACAddress.h>
+#include <ESPNow.h>
+#include <PID.h>
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
@@ -220,8 +220,10 @@ void loop() {
 
 }
 
-  // Initialize pendulum-specific hardware
+
+// Initialize pendulum-specific hardware
 #elif CURRENT_ESP == ESP_PENDULUM
+
 // Pendulum-specific setup
 #define ZERO_BTN 37
 
