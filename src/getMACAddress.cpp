@@ -1,12 +1,8 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
-#include "getMACAddress.h"
+#include <getMACAddress.h>
 
-
-// Code to get MAC address of ESP32.
-getMACAddress::getMACAddress() {}
-
-void getMACAddress::readMacAddress(){
+void readMacAddress(){
   uint8_t baseMac[6];
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, baseMac);
   if (ret == ESP_OK) {
@@ -18,9 +14,8 @@ void getMACAddress::readMacAddress(){
   }
 }
 
-void getMACAddress::begin(){
-  Serial.begin(115200);
-
+// You only need to call this every time you want to read the MAC address of the ESP. Make sure that Serial communication has started in the setup first, though.
+void macAddressBegin(){
   WiFi.mode(WIFI_STA);
   WiFi.begin();
 
