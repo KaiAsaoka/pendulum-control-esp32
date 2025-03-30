@@ -30,20 +30,17 @@
 #define ENC_MOSI 9    // MOSI pin for encoder communication
 
 
-#define PWM2 19
-#define DIR2 22
-#define PWM1 21
-#define DIR1 20
+
 
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
 
-#define ZERO_BTN 37
+
 
 #define SPEED 20
 
-#define pendKP 0.01
+#define pendKP 0.005
 #define pendKI 0
 #define pendKD 0
 
@@ -52,9 +49,8 @@ Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
 PID pendPID(pendKP, pendKI, pendKD);;
 
-Driver DVR1(PWM1, DIR1);
-Driver DVR2(PWM2, DIR2);
-Move move(DVR1, DVR2, ENC1, ENC2);
+
+
 ESPNowReceiver receiverESP;
 
 uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9b, 0xaf, 0x88};
@@ -91,6 +87,18 @@ void handleButtonPress() {
 
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
+
+#define ZERO_BTN 37
+#define PWM2 19
+#define DIR2 22
+#define PWM1 21
+#define DIR1 20
+
+Driver DVR1(PWM1, DIR1);
+Driver DVR2(PWM2, DIR2);
+
+Move move(DVR1, DVR2, ENC1, ENC2);
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Gantry ESP32 Starting...");
@@ -156,58 +164,55 @@ void loop() {
 
   int posX = move.returnPosX();
   int posY = move.returnPosY();
-  Serial.print("posX: ");
-  Serial.print(posX);
-  Serial.print(", poxY: ");
-  Serial.print(posY);
 
-  // float error1 = TARGET_POSX - posX;
-  // float error2 = TARGET_POSY - posY;
+  float error1 = TARGET_POSX - posX;
+  float error2 = TARGET_POSY - posY;
 
-  // Serial.print("error1: ");
-  // Serial.print(error1);
-  // Serial.print(", error2: ");
-  // Serial.print(error2);
+  Serial.print("error1: ");
+  Serial.print(error1);
+  Serial.print(", error2: ");
+  Serial.print(error2);
 
-  // // Calculate PID outputs
-  // float xVel = pendPID.calculate(error1);
-  // float yVel = pendPID.calculate(error2);
+  // Calculate PID outputs
+  float xVel = pendPID.calculate(error1);
+  float yVel = pendPID.calculate(error2);
 
-  // // Serial.print(", xVel: ");
-  // // Serial.print(xVel);
-  // // Serial.print(", yVel: ");
-  // // Serial.println(yVel);
+  // Serial.print(", xVel: ");
+  // Serial.print(xVel);
+  // Serial.print(", yVel: ");
+  // Serial.println(yVel);
 
-  // // // Print debug info
-  // // Serial.print("xVel: ");
-  // // Serial.println(xVel);
-  // // Serial.print(" yVel: ");
-  // // Serial.println(yVel);
+  // // Print debug info
+  // Serial.print("xVel: ");
+  // Serial.println(xVel);
+  // Serial.print(" yVel: ");
+  // Serial.println(yVel);
 
-  // // Extract direction (true for positive, false for negative)
-  // bool xDir = (xVel >= 0);
-  // bool yDir = (yVel >= 0);
+  // Extract direction (true for positive, false for negative)
+  bool xDir = (xVel >= 0);
+  bool yDir = (yVel >= 0);
 
-  // // Get absolute values for speed
-  // int xSpeed = abs(xVel);
-  // int ySpeed = abs(yVel);
+  // Get absolute values for speed
+  int xSpeed = abs(xVel);
+  int ySpeed = abs(yVel);
 
-  // xSpeed = constrain(xSpeed, 0, 255);
-  // ySpeed = constrain(ySpeed, 0, 255);
+  xSpeed = constrain(xSpeed, 0, 255);
+  ySpeed = constrain(ySpeed, 0, 255);
+  Serial.print(", xSpeed: ");
+  Serial.print(xSpeed);
+  Serial.print(", xDir: ");
+  Serial.print(xDir);
 
+  Serial.print(", ySpeed: ");
+  Serial.print(ySpeed);
+  Serial.print(", yDir: ");
+  Serial.println(yDir);
 
   // Apply to motors
-  move.moveXY(10, 1, 0, 1);
-  delay(500);
-  move.moveXY(0, 1, 0, 1);
-  delay(500);
-  move.moveXY(0, 0, 10, 0);
-  delay(500);
-  move.moveXY(0, 1, 0, 1);
-  delay(1000);
+  move.moveXY(xSpeed, xDir, ySpeed, yDir);
 
   Serial.flush();
-  // // Example movement patterns (commented out for safety)
+  // Example movement patterns (commented out for safety)
   
    // Check if button was pressed
   if (buttonPressed) {
@@ -220,6 +225,8 @@ void loop() {
   // Initialize pendulum-specific hardware
 #elif CURRENT_ESP == ESP_PENDULUM
 // Pendulum-specific setup
+#define ZERO_BTN 20
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Pendulum ESP32 Starting...");
@@ -232,6 +239,13 @@ void setup() {
   ENC2.begin();
   Serial.println("Encoder 2 initialized (Pendulum)");
 
+  pinMode(ZERO_BTN, INPUT_PULLUP);
+    
+  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
+  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  
+  Serial.println("Button interrupt initialized");
+
   Serial.println("Pendulum setup complete!");
   Serial.flush();
 }
@@ -241,14 +255,14 @@ void loop() {
   // Pendulum-specific control code
   // This will handle sensor readings and send data to gantry
   
-  int angle1 = ENC1.readAngle();
+  int angle1 = ENC1.getTotalAngle();
   delay(1);
   Serial.print("E1: ");
-  Serial.println(angle1);
+  Serial.print(angle1);
 
-  int angle2 = ENC2.readAngle();
+  int angle2 = ENC2.getTotalAngle();
   delay(1);
-  Serial.print("E2: ");
+  Serial.print(", E2: ");
   Serial.println(angle2);
 
   senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
