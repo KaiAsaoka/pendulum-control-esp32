@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <Arduino.h>
 
-#define STATIC_BRAKE 3
-#define DYNAMIC_BRAKE 3
+#define STATIC_BRAKE 0
+#define DYNAMIC_BRAKE 0
 
 Move::Move(Driver& dvr1, Driver& dvr2, Encoder& enc1, Encoder& enc2) : dvr1(dvr1), dvr2(dvr2), enc1(enc1), enc2(enc2) {}
 
@@ -53,7 +53,7 @@ void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
         // Move motors with calculated speeds and directions
         motor2Speed = DYNAMIC_BRAKE;
         motor2Dir = motor1Dir;
-        Serial.println("Engaging Motor 2 Brake");
+        // Serial.println("Engaging Motor 2 Brake");
 
         dvr1.move(motor1Speed, motor1Dir);
         // Serial.print(", Motor 1: ");

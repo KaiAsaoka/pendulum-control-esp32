@@ -32,12 +32,12 @@
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 7
-#define Y_DEADZONE 7
+#define X_DEADZONE 6
+#define Y_DEADZONE 6
 
 #define SPEED 20
 
-#define pendKP 0.01
+#define pendKP 0.12
 #define pendKI 0
 #define pendKD 0
 
@@ -166,14 +166,23 @@ void loop() {
   float posError1 = TARGET_POSX - move.returnPosX();
   float posError2 = TARGET_POSY - move.returnPosY();
 
+  // Serial.print("E1: ");
+  // Serial.println(error1);
+  // Serial.print("E2: ");
+  // Serial.println(error2);
+  // Serial.print("G1: ");
+  // Serial.println(posError1);
+  // Serial.print("G2: ");
+  // Serial.println(posError2);
+
   Serial.print("E1: ");
-  Serial.println(error1);
-  Serial.print("E2: ");
-  Serial.println(error2);
-  Serial.print("G1: ");
-  Serial.println(posError1);
-  Serial.print("G2: ");
-  Serial.println(posError2);
+  Serial.print(error1);
+  Serial.print(", E2: ");
+  Serial.print(error2);
+  Serial.print(", G1: ");
+  Serial.print(posError1);
+  Serial.print(", G2: ");
+  Serial.print(posError2);
 
   float xVel = 0;
   float yVel = 0;
@@ -186,15 +195,15 @@ void loop() {
     xVel = 0;
     yVel = 0;
   }
-  // Serial.print(", xVel: ");
-  // Serial.print(xVel);
-  // Serial.print(", yVel: ");
-  // Serial.println(yVel);
+  Serial.print(", xVel: ");
+  Serial.print(xVel);
+  Serial.print(", yVel: ");
+  Serial.println(yVel);
 
   // // Print debug info
   // Serial.print("xVel: ");
   // Serial.println(xVel);
-  // Serial.print(" yVel: ");
+  // Serial.print("yVel: ");
   // Serial.println(yVel);
 
   // Extract direction (true for positive, false for negative)
@@ -202,11 +211,13 @@ void loop() {
   bool yDir = (yVel >= 0);
 
   // Get absolute values for speed
-  int xSpeed = abs(xVel) + X_DEADZONE;
+  // int xSpeed = abs(xVel) + X_DEADZONE;
+  int xSpeed = 0;
+
   int ySpeed = abs(yVel) + Y_DEADZONE;
 
-  xSpeed = constrain(xSpeed, 0, 255);
-  ySpeed = constrain(ySpeed, 0, 255);
+  // xSpeed = constrain(xSpeed, 0, 255);
+  // ySpeed = constrain(ySpeed, 0, 255);
   // Serial.print(", xSpeed: ");
   // Serial.print(xSpeed);
   // Serial.print(", xDir: ");
