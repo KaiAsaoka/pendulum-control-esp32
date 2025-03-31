@@ -40,9 +40,9 @@
 
 #define SPEED 20
 
-#define pendKP 0.005
+#define pendKP 0.40
 #define pendKI 0
-#define pendKD 0
+#define pendKD 0.05
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
@@ -140,41 +140,55 @@ void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
   
-  int e1 = receiverESP.data.int_message_1;
+  int e1 = - receiverESP.data.int_message_1;
   delay(1);
-  Serial.print("E1: ");
-  Serial.print(e1);
+  // Serial.print("E1: ");
+  // Serial.print(e1);
 
   int e2 = receiverESP.data.int_message_2;
   delay(1);
-  Serial.print("E2: ");
-  Serial.print(e2);
+  // Serial.print(", E2: ");
+  // Serial.print(e2);
 
-  int g1 = ENC1.getTotalAngle();
-  delay(1);
-  // Serial.print("G1: ");
-  // Serial.println(g1);
+  // int g1 = ENC1.getTotalAngle();
+  // delay(1);
+  // // Serial.print("G1: ");
+  // // Serial.println(g1);
 
-  int g2 = ENC2.getTotalAngle();
-  delay(1);
+  // int g2 = ENC2.getTotalAngle();
+  // delay(1);
   // Serial.print("G2: ");
   // Serial.println(g2);
 
-  int posX = move.returnPosX();
-  int posY = move.returnPosY();
+  // int posX = move.returnPosX();
+  // int posY = move.returnPosY();
 
-  float error1 = TARGET_POSX - posX;
-  float error2 = TARGET_POSY - posY;
+  float error1 = TARGET_POSX - e1;
+  float error2 = TARGET_POSY - e2;
 
-  Serial.print(", error1: ");
+  float posError1 = TARGET_POSX - move.returnPosX();
+  float posError2 = TARGET_POSY - move.returnPosY();
+
+  Serial.print("error1: ");
   Serial.print(error1);
   Serial.print(", error2: ");
   Serial.print(error2);
+  Serial.print(", PosError1: ");
+  Serial.print(posError1);
+  Serial.print(", PosError2: ");
+  Serial.print(posError2);
 
+  float xVel = 0;
+  float yVel = 0;
+
+  if (abs(error1) < 1500 && abs(error2) < 1500 && abs(posError1) < 8000 && abs(posError2) < 10000){
   // Calculate PID outputs
-  float xVel = pendPID.calculate(error1);
-  float yVel = pendPID.calculate(error2);
-
+    xVel = - pendPID.calculate(error1);
+    yVel = - pendPID.calculate(error2);
+  } else{
+    xVel = 0;
+    yVel = 0;
+  }
   // Serial.print(", xVel: ");
   // Serial.print(xVel);
   // Serial.print(", yVel: ");

@@ -72,7 +72,7 @@ void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
 
         motor1Speed = DYNAMIC_BRAKE;
         motor1Dir = motor2Dir;
-        Serial.println("Engaging Motor 1 Brake");
+        // Serial.println("Engaging Motor 1 Brake");
 
         dvr1.move(motor1Speed, motor1Dir);
         // Serial.print("Motor 1: ");
