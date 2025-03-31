@@ -40,9 +40,9 @@
 
 #define SPEED 20
 
-#define pendKP 0.40
+#define pendKP 0.325
 #define pendKI 0
-#define pendKD 0.05
+#define pendKD 0
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
@@ -169,14 +169,14 @@ void loop() {
   float posError1 = TARGET_POSX - move.returnPosX();
   float posError2 = TARGET_POSY - move.returnPosY();
 
-  Serial.print("error1: ");
-  Serial.print(error1);
-  Serial.print(", error2: ");
-  Serial.print(error2);
-  Serial.print(", PosError1: ");
-  Serial.print(posError1);
-  Serial.print(", PosError2: ");
-  Serial.print(posError2);
+  Serial.print("E1: ");
+  Serial.println(error1);
+  Serial.print("E2: ");
+  Serial.println(error2);
+  Serial.print("G1: ");
+  Serial.println(posError1);
+  Serial.print("G2: ");
+  Serial.println(posError2);
 
   float xVel = 0;
   float yVel = 0;
@@ -210,15 +210,15 @@ void loop() {
 
   xSpeed = constrain(xSpeed, 0, 255);
   ySpeed = constrain(ySpeed, 0, 255);
-  Serial.print(", xSpeed: ");
-  Serial.print(xSpeed);
-  Serial.print(", xDir: ");
-  Serial.print(xDir);
+  // Serial.print(", xSpeed: ");
+  // Serial.print(xSpeed);
+  // Serial.print(", xDir: ");
+  // Serial.print(xDir);
 
-  Serial.print(", ySpeed: ");
-  Serial.print(ySpeed);
-  Serial.print(", yDir: ");
-  Serial.println(yDir);
+  // Serial.print(", ySpeed: ");
+  // Serial.print(ySpeed);
+  // Serial.print(", yDir: ");
+  // Serial.println(yDir);
 
   // Apply to motors
   move.moveXY(xSpeed, xDir, ySpeed, yDir);

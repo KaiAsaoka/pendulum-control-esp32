@@ -9,7 +9,7 @@ import queue
 from array import array
 
 # Set up serial with optimized buffer
-SERIAL_PORT = 'COM4'
+SERIAL_PORT = 'COM6'
 BAUD_RATE = 115200
 ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.001, write_timeout=1)
 ser.reset_input_buffer()
@@ -35,7 +35,7 @@ fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 fig.suptitle("Real-Time Angle Encoder Data")
 
 # First subplot for E1, E2
-ax1.set_ylim(0, 16384)
+ax1.set_ylim(-3000, 3000)
 ax1.set_title("Encoders E1, E2")
 ax1.set_xlabel("Time (samples)")
 ax1.set_ylabel("Angle (deg)")
@@ -43,7 +43,7 @@ line1, = ax1.plot(angles1, color='b', lw=2)
 line2, = ax1.plot(angles2, color='r', lw=2)
 
 # Second subplot for G1, G2
-ax2.set_ylim(0, 16384)
+ax2.set_ylim(-100000, 100000)
 ax2.set_title("Encoders G1, G2")
 ax2.set_xlabel("Time (samples)")
 ax2.set_ylabel("Angle (deg)")
