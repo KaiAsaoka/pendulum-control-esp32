@@ -29,25 +29,22 @@
 #define ENC_CS2  33    // Chip Select (active LOW)
 #define ENC_MOSI 9    // MOSI pin for encoder communication
 
-
-
-
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-
-
+#define X_DEADZONE 7
+#define Y_DEADZONE 7
 
 #define SPEED 20
 
-#define pendKP 0.325
+#define pendKP 0.01
 #define pendKI 0
 #define pendKD 0
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-PID pendPID(pendKP, pendKI, pendKD);;
+PID pendPID(pendKP, pendKI, pendKD);
 
 ESPNowReceiver receiverESP;
 
@@ -205,8 +202,8 @@ void loop() {
   bool yDir = (yVel >= 0);
 
   // Get absolute values for speed
-  int xSpeed = abs(xVel);
-  int ySpeed = abs(yVel);
+  int xSpeed = abs(xVel) + X_DEADZONE;
+  int ySpeed = abs(yVel) + Y_DEADZONE;
 
   xSpeed = constrain(xSpeed, 0, 255);
   ySpeed = constrain(ySpeed, 0, 255);
