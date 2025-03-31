@@ -211,8 +211,8 @@ void loop() {
   bool yDir = (yVel >= 0);
 
   // Get absolute values for speed
-  // int xSpeed = abs(xVel) + X_DEADZONE;
-  int xSpeed = 0;
+  int xSpeed = abs(xVel) + X_DEADZONE;
+  // int xSpeed = 0;
 
   int ySpeed = abs(yVel) + Y_DEADZONE;
 
