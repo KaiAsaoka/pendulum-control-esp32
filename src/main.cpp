@@ -33,18 +33,29 @@
 #define TARGET_POSY 0
 
 #define X_DEADZONE 6
-#define Y_DEADZONE 6
+#define Y_DEADZONE 3
 
 #define SPEED 20
 
-#define pendKP 0.12
-#define pendKI 0
-#define pendKD 0
+#define pendKPx 0.20
+#define pendKIx 0
+#define pendKDx 0
+
+#define pendKPy 0.26
+#define pendKIy 0
+#define pendKDy 0
+
+#define ganKP 0 // 0.05
+#define ganKI 0
+#define ganKD 0
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-PID pendPID(pendKP, pendKI, pendKD);
+PID pendPIDx(pendKPx, pendKIx, pendKDx);
+PID pendPIDy(pendKPy, pendKIy, pendKDy);
+
+PID ganPID(ganKP, ganKI, ganKD);
 
 ESPNowReceiver receiverESP;
 
@@ -138,73 +149,35 @@ void loop() {
   // This will handle motor control and position management
   
   int e1 = - receiverESP.data.int_message_1;
-  delay(1);
-  // Serial.print("E1: ");
-  // Serial.print(e1);
 
   int e2 = receiverESP.data.int_message_2;
-  delay(1);
-  // Serial.print(", E2: ");
-  // Serial.print(e2);
 
   // int g1 = ENC1.getTotalAngle();
-  // delay(1);
-  // // Serial.print("G1: ");
-  // // Serial.println(g1);
 
   // int g2 = ENC2.getTotalAngle();
-  // delay(1);
-  // Serial.print("G2: ");
-  // Serial.println(g2);
 
-  // int posX = move.returnPosX();
-  // int posY = move.returnPosY();
 
-  float error1 = TARGET_POSX - e1;
-  float error2 = TARGET_POSY - e2;
+  int posX = move.returnPosX();
+  int posY = move.returnPosY();
 
-  float posError1 = TARGET_POSX - move.returnPosX();
-  float posError2 = TARGET_POSY - move.returnPosY();
+  float posError1 = TARGET_POSX - posX;
+  float posError2 = TARGET_POSY - posY;
 
-  // Serial.print("E1: ");
-  // Serial.println(error1);
-  // Serial.print("E2: ");
-  // Serial.println(error2);
-  // Serial.print("G1: ");
-  // Serial.println(posError1);
-  // Serial.print("G2: ");
-  // Serial.println(posError2);
 
-  Serial.print("E1: ");
-  Serial.print(error1);
-  Serial.print(", E2: ");
-  Serial.print(error2);
-  Serial.print(", G1: ");
-  Serial.print(posError1);
-  Serial.print(", G2: ");
-  Serial.print(posError2);
+  
+  float setPointAngle1 = ganPID.calculate(posError1);
+  float setPointAngle2 = ganPID.calculate(posError2);
+
+  float error1 = setPointAngle1 - e1;
+  float error2 = setPointAngle2 - e2;
+
+
 
   float xVel = 0;
   float yVel = 0;
 
-  if (abs(error1) < 1500 && abs(error2) < 1500 && abs(posError1) < 8000 && abs(posError2) < 10000){
-  // Calculate PID outputs
-    xVel = - pendPID.calculate(error1);
-    yVel = - pendPID.calculate(error2);
-  } else{
-    xVel = 0;
-    yVel = 0;
-  }
-  Serial.print(", xVel: ");
-  Serial.print(xVel);
-  Serial.print(", yVel: ");
-  Serial.println(yVel);
-
-  // // Print debug info
-  // Serial.print("xVel: ");
-  // Serial.println(xVel);
-  // Serial.print("yVel: ");
-  // Serial.println(yVel);
+  xVel = - pendPIDx.calculate(error1);
+  yVel = - pendPIDy.calculate(error2);
 
   // Extract direction (true for positive, false for negative)
   bool xDir = (xVel >= 0);
@@ -216,20 +189,36 @@ void loop() {
 
   int ySpeed = abs(yVel) + Y_DEADZONE;
 
-  // xSpeed = constrain(xSpeed, 0, 255);
-  // ySpeed = constrain(ySpeed, 0, 255);
-  // Serial.print(", xSpeed: ");
-  // Serial.print(xSpeed);
-  // Serial.print(", xDir: ");
-  // Serial.print(xDir);
-
-  // Serial.print(", ySpeed: ");
-  // Serial.print(ySpeed);
-  // Serial.print(", yDir: ");
-  // Serial.println(yDir);
+  xSpeed = constrain(xSpeed, 0, 255);
+  ySpeed = constrain(ySpeed, 0, 255);
 
   // Apply to motors
-  move.moveXY(xSpeed, xDir, ySpeed, yDir);
+  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) && abs(e1) < 1500 && abs(e2) < 1500){
+    // Calculate PID outputs
+    move.moveXY(xSpeed, xDir, ySpeed, yDir);
+  } else {
+    move.moveXY(0, xDir, 0, yDir);
+  }
+  Serial.print("E1: ");
+  Serial.print(error1);
+  Serial.print(", E2: ");
+  Serial.print(error2);
+  Serial.print(", G1: ");
+  Serial.print(posError1);
+  Serial.print(", G2: ");
+  Serial.print(posError2);
+  Serial.print(", xVel: ");
+  Serial.print(xVel);
+  Serial.print(", yVel: ");
+  Serial.print(yVel);
+  Serial.print(", pex: ");
+  Serial.print(error1);
+  Serial.print(", pey: ");
+  Serial.print(error2);
+  Serial.print(", gex: ");
+  Serial.print(posError1);
+  Serial.print(", gey: ");
+  Serial.println(posError2);
 
   Serial.flush();
   // Example movement patterns (commented out for safety)

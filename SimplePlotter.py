@@ -16,7 +16,7 @@ ser.reset_input_buffer()
 time.sleep(2)
 
 # Initialize data structures with thread safety
-max_points = 100
+max_points = 1000
 # Use numpy arrays for better performance
 angles1 = np.zeros(max_points)
 angles2 = np.zeros(max_points)
@@ -35,7 +35,8 @@ fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 fig.suptitle("Real-Time Angle Encoder Data")
 
 # First subplot for E1, E2
-ax1.set_ylim(-3000, 3000)
+ax1.set_ylim(-200, 200)
+ax1.axhline(0, color='black', linestyle='--', linewidth=1)
 ax1.set_title("Encoders E1, E2")
 ax1.set_xlabel("Time (samples)")
 ax1.set_ylabel("Angle (deg)")
@@ -43,7 +44,8 @@ line1, = ax1.plot(angles1, color='b', lw=2)
 line2, = ax1.plot(angles2, color='r', lw=2)
 
 # Second subplot for G1, G2
-ax2.set_ylim(-100000, 100000)
+ax2.set_ylim(-50, 50)
+ax2.axhline(0, color='black', linestyle='--', linewidth=1)
 ax2.set_title("Encoders G1, G2")
 ax2.set_xlabel("Time (samples)")
 ax2.set_ylabel("Angle (deg)")

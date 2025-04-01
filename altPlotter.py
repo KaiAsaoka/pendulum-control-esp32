@@ -39,7 +39,7 @@ GKD = 0
 # -------------
 # User Config
 # -------------
-SERIAL_PORT = 'COM3'        # Adjust if needed
+SERIAL_PORT = 'COM6'        # Adjust if needed
 BAUD_RATE   = 115200
 UPDATE_INTERVAL_MS = 50     # ~20 FPS
 MAX_POINTS  = 1000          # store up to 1000 samples
@@ -78,6 +78,10 @@ class DataStore:
         self.G2    = []
         self.xVel  = []   # calibrated gantry velocity (x)
         self.yVel  = []   # calibrated gantry velocity (y)
+        self.Pex = []
+        self.Pey = []
+        self.Gex = []
+        self.Gey = []
 
         # Computed carriage position (in inches)
         self.carriageX = []
@@ -98,7 +102,7 @@ class DataStore:
         self._xVel_base = 0.0
         self._yVel_base = 0.0
 
-    def append(self, e1, e2, g1, g2, xv, yv):
+    def append(self, e1, e2, g1, g2, xv, yv, pex, pey, gex, gey):
         now = time.time() - self.start_time
 
         def store(lst, val):
@@ -108,6 +112,12 @@ class DataStore:
 
         store(self.times, now)
 
+        store(self.Pex, pex)
+        store(self.Pey, pey)
+        store(self.Gex, gex)
+        store(self.Gey, gey)
+
+        
         # Calibrate pendulum angles:
         if not self._initialized_pendulum:
             self._E1_center = e1
@@ -177,7 +187,7 @@ def parse_line(line):
         return None
 
     parts = line.split(',')
-    if len(parts) < 6:
+    if len(parts) < 10:
         return None
 
     try:
@@ -187,7 +197,13 @@ def parse_line(line):
         g2_val = float(parts[3].split(':')[1].strip())
         xv_val = float(parts[4].split(':')[1].strip())
         yv_val = float(parts[5].split(':')[1].strip())
-        return (e1_val, e2_val, g1_val, g2_val, xv_val, yv_val)
+        pex_val = float(parts[6].split(':')[1].strip())
+        pey_val = float(parts[7].split(':')[1].strip())
+        gex_val = float(parts[8].split(':')[1].strip())
+        gey_val = float(parts[9].split(':')[1].strip())
+
+        return (e1_val, e2_val, g1_val, g2_val, xv_val, yv_val, 
+                pex_val, pey_val, gex_val, gey_val)
     except:
         return None
 
@@ -390,6 +406,52 @@ class PendulumVisualizer:
         return []
 
 # --------------------------------------
+# Visualization: Error
+# --------------------------------------
+class ErrorVisualizer:
+    """
+    Visualizes motor angles (G1, G2) and velocities (xVel, yVel) versus time.
+    """
+    def __init__(self, ds):
+        self.ds = ds
+        self.fig, (self.ax_perr, self.ax_gerr) = plt.subplots(2, 1, figsize=(8, 6))
+        self.fig.suptitle("Error: Real-Time Angle Encoder Data")
+
+        self.ax_perr.set_title("Angle Error")
+        self.ax_perr.set_xlabel("Time (s)")
+        self.ax_perr.set_ylabel("Angle (units)")
+        self.line_e1, = self.ax_perr.plot([], [], 'b-', label="X Angle Error")
+        self.line_e2, = self.ax_perr.plot([], [], 'r-', label="Y Angle Error")
+        self.ax_perr.axhline(0, color='black', linestyle='--', linewidth=1)
+        self.ax_perr.legend()
+
+        self.ax_gerr.set_title("Position Error")
+        self.ax_gerr.set_xlabel("Time (s)")
+        self.ax_gerr.set_ylabel("Position (units)")
+        self.line_g1, = self.ax_gerr.plot([], [], 'g-', label="X Pos Error")
+        self.line_g2, = self.ax_gerr.plot([], [], 'm-', label="Y Pos Error")
+        self.ax_gerr.axhline(0, color='black', linestyle='--', linewidth=1)
+        self.ax_gerr.legend()
+
+    def update(self):
+        ds = self.ds
+        t  = ds.times
+
+        self.line_e1.set_data(t, ds.Pex)
+        self.line_e2.set_data(t, ds.Pey)
+        self.line_g1.set_data(t, ds.Gex)
+        self.line_g2.set_data(t, ds.Gey)
+        if len(t) > 1:
+            self.ax_perr.set_xlim(t[0], t[-1])
+            self.ax_gerr.set_xlim(t[0], t[-1])
+        self.ax_perr.relim()
+        self.ax_perr.autoscale_view()
+        self.ax_gerr.relim()
+        self.ax_gerr.autoscale_view()
+        return []
+
+
+# --------------------------------------
 # Main
 # --------------------------------------
 def main():
@@ -399,6 +461,7 @@ def main():
     gantry_vis = GantryVisualizer(ds)
     pend_vis   = PendulumVisualizer(ds)
     carriage_vis = CarriagePositionVisualizer(ds)  # Separate figure for carriage
+    error_vis = ErrorVisualizer(ds)
 
     # Open serial port.
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.001)
@@ -424,12 +487,17 @@ def main():
 
     def update_carriage(frame):
         return carriage_vis.update()
+    
+    def update_error(frame):
+        return error_vis.update()
 
     ani1 = animation.FuncAnimation(gantry_vis.fig, update_gantry,
                                    interval=UPDATE_INTERVAL_MS, blit=False)
     ani2 = animation.FuncAnimation(pend_vis.fig, update_pendulum,
                                    interval=UPDATE_INTERVAL_MS, blit=False)
     ani3 = animation.FuncAnimation(carriage_vis.fig, update_carriage,
+                                   interval=UPDATE_INTERVAL_MS, blit=False)
+    ani4 = animation.FuncAnimation(error_vis.fig, update_error,
                                    interval=UPDATE_INTERVAL_MS, blit=False)
 
     plt.show()
