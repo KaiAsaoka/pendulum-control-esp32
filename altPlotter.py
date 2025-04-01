@@ -27,6 +27,15 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as patches
 
+#Attempt to import K values for PID (from main.cpp) MANUAL
+PKP = 1
+PKI = 0
+PKD = 0
+GKP = 1
+GKI = 0
+GKD = 0
+
+
 # -------------
 # User Config
 # -------------
@@ -38,6 +47,10 @@ MAX_POINTS  = 1000          # store up to 1000 samples
 # Gantry boundaries (in inches)
 GANTRY_X_HALF = 16.0  # 32 inches wide
 GANTRY_Y_HALF = 24.0  # 48 inches tall
+
+#X and Y position scaling - inches to motor angles
+X_scale = 675.0  # 1000 motor units = 1 inch
+Y_scale = 575.0  # 1000 motor units = 1 inch
 
 # --------------------------------------
 # Data Store
@@ -141,9 +154,9 @@ class DataStore:
 
         dg1 = g1 - self._g1_center
         dg2 = g2 - self._g2_center
-        # Fake scaling: 1000 units difference in motor reading equals 1 inch.
-        x_in = dg1 / 1000.0
-        y_in = dg2 / 1000.0
+        # Motor to xy displacement scaling
+        x_in = dg1 / X_scale
+        y_in = dg2 / Y_scale
 
         # Bound the results within the gantry limits.
         x_in = max(-GANTRY_X_HALF, min(x_in, GANTRY_X_HALF))
@@ -160,7 +173,6 @@ def parse_line(line):
     Returns (E1, E2, G1, G2, xVel, yVel) as floats or None on failure.
     """
     line = line.strip()
-    print(line)
     if not line:
         return None
 
@@ -208,6 +220,7 @@ def data_processor_thread(line_queue, datastore, stop_event):
             for _ in range(100):
                 line = line_queue.get_nowait()
                 parsed = parse_line(line)
+                print(parsed)
                 if parsed:
                     datastore.append(*parsed)
         except queue.Empty:
@@ -227,7 +240,7 @@ class CarriagePositionVisualizer:
     """
     def __init__(self, ds):
         self.ds = ds
-        self.fig, self.ax = plt.subplots(figsize=(6,8))
+        self.fig, self.ax = plt.subplots(figsize=(8,8))
         self.ax.set_title("Carriage Position in Gantry Space")
         self.ax.set_xlabel("X (inches)")
         self.ax.set_ylabel("Y (inches)")
@@ -253,6 +266,14 @@ class CarriagePositionVisualizer:
         # Placeholder for the velocity arrow.
         self.vel_arrow = None
         self.vel_scale = 0.1  # scaling factor for velocity vector
+
+        # Add PID values as a note outside the plot area
+        pid_text = (
+            f"Pendulum PID:\n[PKP: {PKP}, PKI: {PKI}, PKD: {PKD}]\n\n"
+            f"Gantry PID:\n[GKP: {GKP}, GKI: {GKI}, GKD: {GKD}]"
+        )
+        self.fig.text(0.02, 0.95, pid_text, fontsize=10, verticalalignment='top', horizontalalignment='left')
+
 
     def update(self):
         ds = self.ds
