@@ -32,16 +32,16 @@
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 6
-#define Y_DEADZONE 3
+#define X_DEADZONE 4
+#define Y_DEADZONE 2
 
 #define SPEED 20
 
-#define pendKPx 0.20
+#define pendKPx 0.25
 #define pendKIx 0
 #define pendKDx 0
 
-#define pendKPy 0.26
+#define pendKPy 0.30
 #define pendKIy 0
 #define pendKDy 0
 
@@ -165,29 +165,46 @@ void loop() {
 
 
   
-  float setPointAngle1 = ganPID.calculate(posError1);
-  float setPointAngle2 = ganPID.calculate(posError2);
+  float setPointAngle1 = - ganPID.calculate(posError1);
+  float setPointAngle2 = - ganPID.calculate(posError2);
 
-  float error1 = setPointAngle1 - e1;
-  float error2 = setPointAngle2 - e2;
+  float error1 = -(setPointAngle1 - e1);
+  float error2 = -(setPointAngle2 - e2);
 
 
 
   float xVel = 0;
   float yVel = 0;
 
-  xVel = - pendPIDx.calculate(error1);
-  yVel = - pendPIDy.calculate(error2);
+  xVel = pendPIDx.calculate(error1);
+  yVel = pendPIDy.calculate(error2);
+
+  if (error1 < 0) {
+    xVel -= X_DEADZONE;
+  } else if (error1 > 0) {
+    xVel += X_DEADZONE ;
+  }else{
+    xVel += 0;
+  }
+
+  if (error2 < 0) {
+    yVel -= Y_DEADZONE;
+  } else if (error2 > 0) {
+    yVel += Y_DEADZONE ;
+  }else{
+    yVel += 0;
+  }
 
   // Extract direction (true for positive, false for negative)
   bool xDir = (xVel >= 0);
   bool yDir = (yVel >= 0);
 
   // Get absolute values for speed
-  int xSpeed = abs(xVel) + X_DEADZONE;
-  // int xSpeed = 0;
+  // int xSpeed = round(abs(xVel));
+  int xSpeed = 0;
 
-  int ySpeed = abs(yVel) + Y_DEADZONE;
+  int ySpeed = round(abs(yVel));
+  // int ySpeed = 0;
 
   xSpeed = constrain(xSpeed, 0, 255);
   ySpeed = constrain(ySpeed, 0, 255);
@@ -200,24 +217,24 @@ void loop() {
     move.moveXY(0, xDir, 0, yDir);
   }
   Serial.print("E1: ");
-  Serial.print(error1);
+  Serial.print(e1);
   Serial.print(", E2: ");
-  Serial.print(error2);
+  Serial.print(e2);
   Serial.print(", G1: ");
-  Serial.print(posError1);
+  Serial.print(posX);
   Serial.print(", G2: ");
-  Serial.print(posError2);
-  Serial.print(", xVel: ");
+  Serial.print(posY);
+  Serial.print(", xV: ");
   Serial.print(xVel);
-  Serial.print(", yVel: ");
+  Serial.print(", yV: ");
   Serial.print(yVel);
-  Serial.print(", pex: ");
+  Serial.print(", px: ");
   Serial.print(error1);
-  Serial.print(", pey: ");
+  Serial.print(", py: ");
   Serial.print(error2);
-  Serial.print(", gex: ");
+  Serial.print(", gx: ");
   Serial.print(posError1);
-  Serial.print(", gey: ");
+  Serial.print(", gy: ");
   Serial.println(posError2);
 
   Serial.flush();
