@@ -7,6 +7,7 @@ Data lines from serial are expected in this form:
 
 This code now:
   - Calibrates the pendulum angles so that the first reading is treated as upright (zero).
+  - Calibrates the gantry velocities so that the initial xVel and yVel are treated as "no movement".
   - Visualizes the carriage position within a gantry space (32″ in x by 48″ in y) where
     the center is at (0,0). The carriage is shown as a 3″×5″ rectangle with velocity arrows.
   - Also shows motor angles and velocities versus time and pendulum angles (calibrated) versus time
@@ -48,7 +49,10 @@ class DataStore:
     plus computed carriage positions (in inches).
 
     For the pendulum, the first values for E1 and E2 are treated as the reference (upright),
-    so that the calibrated values (stored in self.E1 and self.E2) are relative to that.
+    so that the calibrated values are relative to that.
+    
+    For the velocities, the first xVel and yVel are taken as the baseline (no movement).
+    Subsequent velocity values are plotted as deviations from that baseline.
     """
     def __init__(self, maxlen=1000):
         self.maxlen = maxlen
@@ -59,23 +63,27 @@ class DataStore:
         self.E2    = []   # calibrated pendulum angle E2
         self.G1    = []
         self.G2    = []
-        self.xVel  = []
-        self.yVel  = []
+        self.xVel  = []   # calibrated gantry velocity (x)
+        self.yVel  = []   # calibrated gantry velocity (y)
 
         # Computed carriage position (in inches)
         self.carriageX = []
         self.carriageY = []
 
-        # For calibration:
-        # - Pendulum: use first E1, E2 as reference for upright.
-        # - Carriage: use first G1, G2 as center.
+        # Calibration for pendulum:
         self._initialized_pendulum = False
         self._E1_center = 0.0
         self._E2_center = 0.0
 
+        # Calibration for carriage (motor angles):
         self._initialized_carriage = False
         self._g1_center = 0.0
         self._g2_center = 0.0
+
+        # Calibration for velocity:
+        self._initialized_velocity = False
+        self._xVel_base = 0.0
+        self._yVel_base = 0.0
 
     def append(self, e1, e2, g1, g2, xv, yv):
         now = time.time() - self.start_time
@@ -97,11 +105,19 @@ class DataStore:
         store(self.E1, e1_cal)
         store(self.E2, e2_cal)
 
-        # For carriage, store G1 and G2 raw and compute position.
+        # Store raw motor angles:
         store(self.G1, g1)
         store(self.G2, g2)
-        store(self.xVel, xv)
-        store(self.yVel, yv)
+
+        # Calibrate velocities:
+        if not self._initialized_velocity:
+            self._xVel_base = xv
+            self._yVel_base = yv
+            self._initialized_velocity = True
+        xv_cal = xv - self._xVel_base
+        yv_cal = yv - self._yVel_base
+        store(self.xVel, xv_cal)
+        store(self.yVel, yv_cal)
 
         # Compute carriage position from motor angles (placeholder logic)
         x_in, y_in = self.calculate_carriage_position(g1, g2)
@@ -132,7 +148,7 @@ class DataStore:
         # Bound the results within the gantry limits.
         x_in = max(-GANTRY_X_HALF, min(x_in, GANTRY_X_HALF))
         y_in = max(-GANTRY_Y_HALF, min(y_in, GANTRY_Y_HALF))
-        return (x_in, y_in)
+        return (-x_in, -y_in)
 
 # --------------------------------------
 # Parsing
@@ -234,22 +250,22 @@ class CarriagePositionVisualizer:
                                                  linewidth=2, edgecolor='r', facecolor='none')
         self.ax.add_patch(self.carriage_rect)
 
-        # Prepare a placeholder for the velocity arrow.
+        # Placeholder for the velocity arrow.
         self.vel_arrow = None
-        self.vel_scale = 0.01  # scaling factor for velocity vector
+        self.vel_scale = 0.1  # scaling factor for velocity vector
 
     def update(self):
         ds = self.ds
         if len(ds.carriageX) > 0:
             x = ds.carriageX[-1]
             y = ds.carriageY[-1]
-            # Update the carriage rectangle to be centered at (x, y)
+            # Update carriage rectangle so its center is at (x,y)
             self.carriage_rect.set_xy((x - self.carriage_width/2, y - self.carriage_height/2))
-            # Remove the previous velocity arrow if present.
+            # Remove previous velocity arrow if it exists.
             if self.vel_arrow is not None:
                 self.vel_arrow.remove()
                 self.vel_arrow = None
-            # Draw new velocity arrow if velocity data exists.
+            # Draw new velocity arrow from carriage center.
             if len(ds.xVel) > 0 and len(ds.yVel) > 0:
                 xv = ds.xVel[-1]
                 yv = ds.yVel[-1]
@@ -309,7 +325,7 @@ class GantryVisualizer:
 class PendulumVisualizer:
     """
     Visualizes pendulum angles (E1, E2) versus time and a tilt plot (E2 vs E1).
-    (Note: E1 and E2 are now calibrated so that 0 is the upright position.)
+    (Pendulum angles are calibrated so that 0 is the upright position.)
     """
     def __init__(self, ds):
         self.ds = ds
@@ -329,8 +345,8 @@ class PendulumVisualizer:
         self.ax_tilt.set_xlabel("E2")
         self.ax_tilt.set_ylabel("E1")
         self.line_tilt, = self.ax_tilt.plot([0,0], [0,0], 'g-o')
-        self.ax_tilt.set_xlim(-5000, 5000)
-        self.ax_tilt.set_ylim(-5000, 5000)
+        self.ax_tilt.set_xlim(-500, 500)
+        self.ax_tilt.set_ylim(-500, 500)
 
     def update(self):
         ds = self.ds
@@ -349,6 +365,7 @@ class PendulumVisualizer:
             self.line_tilt.set_data([0, -e1_latest], [0, -e2_latest])
             self.ax_tilt.relim()
             self.ax_tilt.autoscale_view()
+
         return []
 
 # --------------------------------------
