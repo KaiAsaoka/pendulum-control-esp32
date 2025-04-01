@@ -32,12 +32,12 @@
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 6
+#define X_DEADZONE 5
 #define Y_DEADZONE 3
 
 #define SPEED 20
 
-#define pendKPx 0.25
+#define pendKPx 0.275
 #define pendKIx 0
 #define pendKDx 0
 
