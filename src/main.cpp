@@ -32,8 +32,8 @@
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 4
-#define Y_DEADZONE 2
+#define X_DEADZONE 6
+#define Y_DEADZONE 3
 
 #define SPEED 20
 
@@ -41,7 +41,7 @@
 #define pendKIx 0
 #define pendKDx 0
 
-#define pendKPy 0.30
+#define pendKPy 0.25
 #define pendKIy 0
 #define pendKDy 0
 
@@ -200,8 +200,8 @@ void loop() {
   bool yDir = (yVel >= 0);
 
   // Get absolute values for speed
-  // int xSpeed = round(abs(xVel));
-  int xSpeed = 0;
+  int xSpeed = round(abs(xVel));
+  // int xSpeed = 0;
 
   int ySpeed = round(abs(yVel));
   // int ySpeed = 0;
