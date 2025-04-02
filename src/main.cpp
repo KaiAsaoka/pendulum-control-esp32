@@ -41,7 +41,7 @@
 #define pendKIx 0.016
 #define pendKDx 0
 
-#define pendKPy 0.035
+#define pendKPy 0.040
 #define pendKIy 0.020
 #define pendKDy 0
 
