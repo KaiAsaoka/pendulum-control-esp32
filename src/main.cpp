@@ -164,20 +164,15 @@ void loop() {
   float posError2 = TARGET_POSY - posY;
 
 
-  
-  float setPointAngle1 = - ganPID.calculate(posError1);
-  float setPointAngle2 = - ganPID.calculate(posError2);
+  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPID.calculate(-posError1);
+  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPID.calculate(-posError2);
 
   float error1 = -(setPointAngle1 - e1);
   float error2 = -(setPointAngle2 - e2);
 
 
-
-  float xVel = 0;
-  float yVel = 0;
-
-  xVel = pendPIDx.calculate(error1);
-  yVel = pendPIDy.calculate(error2);
+  auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(error1);
+  auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(error2);
 
   if (error1 < 0) {
     xVel -= X_DEADZONE;

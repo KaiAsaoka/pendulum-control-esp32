@@ -1,10 +1,12 @@
 #ifndef PID_H
 #define PID_H
+#include <tuple>
+
 
 class PID {
 public:
     PID(float kp, float ki, float kd);
-    float calculate(float error);
+    std::tuple<float, float, float, float> calculate(float error);
 
 private:
     float kp;
