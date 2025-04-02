@@ -82,6 +82,7 @@ class DataStore:
         self.Pey = []
         self.Gex = []
         self.Gey = []
+        
         # Add to the DataStore.__init__ method:
         # PID Components for X velocity controller
         self.xVelp = []  # P component for X velocity
@@ -95,6 +96,18 @@ class DataStore:
         # Computed carriage position (in inches)
         self.carriageX = []
         self.carriageY = []
+
+        # PID Components for angle setpoint controllers
+        self.xspAngle = []  # X setpoint angle
+        self.xspAp = []     # P component for X setpoint angle
+        self.xspAi = []     # I component for X setpoint angle
+        self.xspAd = []     # D component for X setpoint angle
+        
+        # PID Components for Y angle setpoint controller
+        self.yspAngle = []  # Y setpoint angle
+        self.yspAp = []     # P component for Y setpoint angle
+        self.yspAi = []     # I component for Y setpoint angle 
+        self.yspAd = []     # D component for Y setpoint angle
 
         # Calibration for pendulum:
         self._initialized_pendulum = False
@@ -111,7 +124,10 @@ class DataStore:
         self._xVel_base = 0.0
         self._yVel_base = 0.0
 
-    def append(self, e1, e2, g1, g2, xv, yv, pex, pey, gex, gey, xVelp, xVeli, xVeld, yVelp, yVeli, yVeld):
+    def append(self, e1, e2, g1, g2, xv, yv, pex, pey, gex, gey, 
+               xVelp, xVeli, xVeld, yVelp, yVeli, yVeld, 
+               xspAngle, xspAp, xspAi, xspAd, yspAngle, yspAp, yspAi, yspAd):
+        
         now = time.time() - self.start_time
 
         def store(lst, val):
@@ -132,6 +148,17 @@ class DataStore:
         store(self.yVelp, yVelp)
         store(self.yVeli, yVeli)
         store(self.yVeld, yVeld)
+        
+        store(self.xspAngle, xspAngle)
+        store(self.xspAp, xspAp)
+        store(self.xspAi, xspAi)
+        store(self.xspAd, xspAd)
+
+        
+        store(self.yspAngle, yspAngle)
+        store(self.yspAp, yspAp)
+        store(self.yspAi, yspAi)
+        store(self.yspAd, yspAd)
         
         # Calibrate pendulum angles:
         if not self._initialized_pendulum:
@@ -590,6 +617,74 @@ class VelocityPIDVisualizer:
         self.ax_yvel.autoscale_view()
         
         return []
+    
+    
+# --------------------------------------
+# Visualization: PID Components
+# --------------------------------------
+class AngleSetpointPIDVisualizer:
+    """
+    Visualizes the individual PID components (P, I, D) for angle setpoint controllers.
+    """
+    def __init__(self, ds):
+        self.ds = ds
+        self.fig, (self.ax_xangle, self.ax_yangle) = plt.subplots(2, 1, figsize=(10, 8))
+        self.fig.suptitle("Angle Setpoint PID Controller Components")
+
+        # X Angle Setpoint Controller Components
+        self.ax_xangle.set_title("X Angle Setpoint PID Components")
+        self.ax_xangle.set_xlabel("Time (s)")
+        self.ax_xangle.set_ylabel("Value")
+        self.line_xsp, = self.ax_xangle.plot([], [], 'm-', label="Setpoint")
+        self.line_xspap, = self.ax_xangle.plot([], [], 'r-', label="P")
+        self.line_xspai, = self.ax_xangle.plot([], [], 'g-', label="I")
+        # self.line_xspad, = self.ax_xangle.plot([], [], 'b-', label="D")
+        self.line_xangle_out, = self.ax_xangle.plot([], [], 'k--', linewidth=2, label="Position Error X")
+        self.ax_xangle.axhline(0, color='black', linestyle='--', linewidth=0.5)
+        self.ax_xangle.legend()
+        
+        # Y Angle Setpoint Controller Components
+        self.ax_yangle.set_title("Y Angle Setpoint PID Components")
+        self.ax_yangle.set_xlabel("Time (s)")
+        self.ax_yangle.set_ylabel("Value")
+        self.line_ysp, = self.ax_yangle.plot([], [], 'm-', label="Setpoint")
+        self.line_yspap, = self.ax_yangle.plot([], [], 'r-', label="P")
+        self.line_yspai, = self.ax_yangle.plot([], [], 'g-', label="I")
+        # self.line_yspad, = self.ax_yangle.plot([], [], 'b-', label="D")
+        self.line_yangle_out, = self.ax_yangle.plot([], [], 'k--', linewidth=2, label="Position Error Y")
+        self.ax_yangle.axhline(0, color='black', linestyle='--', linewidth=0.5)
+        self.ax_yangle.legend()
+
+    def update(self):
+        ds = self.ds
+        t = ds.times
+        
+        # Update X Angle Setpoint controller data
+        self.line_xsp.set_data(t, ds.xspAngle)
+        self.line_xspap.set_data(t, ds.xspAp)
+        self.line_xspai.set_data(t, ds.xspAi)
+        # self.line_xspad.set_data(t, ds.xspAd)
+        self.line_xangle_out.set_data(t, ds.Gex)  # Position error X
+        
+        # Update Y Angle Setpoint controller data
+        self.line_ysp.set_data(t, ds.yspAngle)
+        self.line_yspap.set_data(t, ds.yspAp)
+        self.line_yspai.set_data(t, ds.yspAi)
+        # self.line_yspad.set_data(t, ds.yspAd)
+        self.line_yangle_out.set_data(t, ds.Gey)  # Position error Y
+        
+        if len(t) > 1:
+            self.ax_xangle.set_xlim(t[0], t[-1])
+            self.ax_yangle.set_xlim(t[0], t[-1])
+            
+        self.ax_xangle.relim()
+        self.ax_xangle.autoscale_view()
+        self.ax_yangle.relim()
+        self.ax_yangle.autoscale_view()
+        
+        return []
+    
+    
 # --------------------------------------
 # Main
 # --------------------------------------
@@ -602,7 +697,7 @@ def main():
     # carriage_vis = CarriagePositionVisualizer(ds)  # Separate figure for carriage
     #error_vis = AngleErrorVisualizer(ds)
     velocity_vis = VelocityPIDVisualizer(ds)
-    gantry_err_vis = VelocityPIDVisualizer(ds)
+    gantry_err_vis = AngleSetpointPIDVisualizer(ds)
 
     # Open serial port.
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.001)
