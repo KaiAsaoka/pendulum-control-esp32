@@ -7,7 +7,7 @@ class PID {
 public:
     PID(float kp, float ki, float kd);
     std::tuple<float, float, float, float> calculate(float error);
-
+    void reset_I();
 private:
     float kp;
     float ki;

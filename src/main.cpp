@@ -37,12 +37,12 @@
 
 #define SPEED 20
 
-#define pendKPx 0.275
-#define pendKIx 0.001
+#define pendKPx 0.045
+#define pendKIx 0.016
 #define pendKDx 0
 
-#define pendKPy 0.25
-#define pendKIy 0.001
+#define pendKPy 0.045
+#define pendKIy 0.016
 #define pendKDy 0
 
 #define ganKP 0 // 0.05
@@ -87,7 +87,9 @@ void IRAM_ATTR buttonISR() {
 void handleButtonPress() {
   // Your button handling code here
   Serial.println("Button was pressed!");
-  ENC1.zero();
+  pendPIDx.reset_I();
+  pendPIDy.reset_I();
+  ENC1.zero(); //Old zeroing button
   ENC2.zero();
 }
 

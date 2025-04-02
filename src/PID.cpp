@@ -15,3 +15,7 @@ std::tuple<float, float, float, float> PID::calculate(float error) {
     
     return std::make_tuple(output, p_term, i_term, d_term);
 }
+
+void PID::reset_I() {
+    integral = 0;
+}
