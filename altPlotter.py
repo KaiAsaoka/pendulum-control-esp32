@@ -82,7 +82,16 @@ class DataStore:
         self.Pey = []
         self.Gex = []
         self.Gey = []
+        # Add to the DataStore.__init__ method:
+        # PID Components for X velocity controller
+        self.xVelp = []  # P component for X velocity
+        self.xVeli = []  # I component for X velocity 
+        self.xVeld = []  # D component for X velocity
 
+        # PID Components for Y velocity controller
+        self.yVelp = []  # P component for Y velocity
+        self.yVeli = []  # I component for Y velocity
+        self.yVeld = []  # D component for Y velocity
         # Computed carriage position (in inches)
         self.carriageX = []
         self.carriageY = []
@@ -102,7 +111,7 @@ class DataStore:
         self._xVel_base = 0.0
         self._yVel_base = 0.0
 
-    def append(self, e1, e2, g1, g2, xv, yv, pex, pey, gex, gey):
+    def append(self, e1, e2, g1, g2, xv, yv, pex, pey, gex, gey, xVelp, xVeli, xVeld, yVelp, yVeli, yVeld):
         now = time.time() - self.start_time
 
         def store(lst, val):
@@ -116,7 +125,13 @@ class DataStore:
         store(self.Pey, pey)
         store(self.Gex, gex)
         store(self.Gey, gey)
-
+        
+        store(self.xVelp, xVelp)
+        store(self.xVeli, xVeli)
+        store(self.xVeld, xVeld)
+        store(self.yVelp, yVelp)
+        store(self.yVeli, yVeli)
+        store(self.yVeld, yVeld)
         
         # Calibrate pendulum angles:
         if not self._initialized_pendulum:
@@ -187,7 +202,7 @@ def parse_line(line):
         return None
 
     parts = line.split(',')
-    if len(parts) < 10:
+    if len(parts) < 16:
         return None
 
     try:
@@ -201,9 +216,16 @@ def parse_line(line):
         pey_val = float(parts[7].split(':')[1].strip())
         gex_val = float(parts[8].split(':')[1].strip())
         gey_val = float(parts[9].split(':')[1].strip())
+        xVelp_val = float(parts[10].split(':')[1].strip())
+        xVeli_val = float(parts[11].split(':')[1].strip())
+        xVeld_val = float(parts[12].split(':')[1].strip())
+        yVelp_val = float(parts[13].split(':')[1].strip())
+        yVeli_val = float(parts[14].split(':')[1].strip())
+        yVeld_val = float(parts[15].split(':')[1].strip())
 
         return (e1_val, e2_val, g1_val, g2_val, xv_val, yv_val, 
-                pex_val, pey_val, gex_val, gey_val)
+                pex_val, pey_val, gex_val, gey_val,
+                xVelp_val, xVeli_val, xVeld_val, yVelp_val, yVeli_val, yVeld_val)
     except:
         return None
 
@@ -494,7 +516,70 @@ class AngleErrorVisualizer:
         self.ax_pey.relim()
         self.ax_pey.autoscale_view()
         return []
+# --------------------------------------
+# Visualization: PID Components
+# --------------------------------------
+class VelocityPIDVisualizer:
+    """
+    Visualizes the individual PID components (P, I, D) for both velocity controllers.
+    """
+    def __init__(self, ds):
+        self.ds = ds
+        self.fig, (self.ax_xvel, self.ax_yvel) = plt.subplots(2, 1, figsize=(10, 8))
+        self.fig.suptitle("Velocity PID Controller Components")
 
+        # X Velocity Controller Components
+        self.ax_xvel.set_title("X Velocity PID Components")
+        self.ax_xvel.set_xlabel("Time (s)")
+        self.ax_xvel.set_ylabel("Value")
+        self.line_xvelp, = self.ax_xvel.plot([], [], 'r-', label="P")
+        self.line_xveli, = self.ax_xvel.plot([], [], 'g-', label="I")
+        # self.line_xveld, = self.ax_xvel.plot([], [], 'b-', label="D")
+        self.line_xvele, = self.ax_xvel.plot([], [], 'k--', label="Error")
+        self.line_xvelout, = self.ax_xvel.plot([], [], 'm-', linewidth=2, label="Output")
+        self.ax_xvel.axhline(0, color='black', linestyle='--', linewidth=0.5)
+        self.ax_xvel.legend()
+        
+        # Y Velocity Controller Components
+        self.ax_yvel.set_title("Y Velocity PID Components")
+        self.ax_yvel.set_xlabel("Time (s)")
+        self.ax_yvel.set_ylabel("Value")
+        self.line_yvelp, = self.ax_yvel.plot([], [], 'r-', label="P")
+        self.line_yveli, = self.ax_yvel.plot([], [], 'g-', label="I")
+        # self.line_yveld, = self.ax_yvel.plot([], [], 'b-', label="D")
+        self.line_yvele, = self.ax_yvel.plot([], [], 'k--', label="Error")
+        self.line_yvelout, = self.ax_yvel.plot([], [], 'm-', linewidth=2, label="Output")
+        self.ax_yvel.axhline(0, color='black', linestyle='--', linewidth=0.5)
+        self.ax_yvel.legend()
+
+    def update(self):
+        ds = self.ds
+        t = ds.times
+        
+        # Update X Velocity controller data
+        self.line_xvelp.set_data(t, ds.xVelp)
+        self.line_xveli.set_data(t, ds.xVeli)
+        # self.line_xveld.set_data(t, ds.xVeld)
+        self.line_xvele.set_data(t, ds.Pex)  # Using pendulum x error
+        self.line_xvelout.set_data(t, ds.xVel)
+        
+        # Update Y Velocity controller data
+        self.line_yvelp.set_data(t, ds.yVelp)
+        self.line_yveli.set_data(t, ds.yVeli)
+        # self.line_yveld.set_data(t, ds.yVeld)
+        self.line_yvele.set_data(t, ds.Pey)  # Using pendulum y error
+        self.line_yvelout.set_data(t, ds.yVel)
+        
+        if len(t) > 1:
+            self.ax_xvel.set_xlim(t[0], t[-1])
+            self.ax_yvel.set_xlim(t[0], t[-1])
+            
+        self.ax_xvel.relim()
+        self.ax_xvel.autoscale_view()
+        self.ax_yvel.relim()
+        self.ax_yvel.autoscale_view()
+        
+        return []
 # --------------------------------------
 # Main
 # --------------------------------------
@@ -506,6 +591,7 @@ def main():
     # pend_vis   = PendulumVisualizer(ds)
     # carriage_vis = CarriagePositionVisualizer(ds)  # Separate figure for carriage
     error_vis = AngleErrorVisualizer(ds)
+    velocity_vis = VelocityPIDVisualizer(ds)
 
     # Open serial port.
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.001)
@@ -532,8 +618,10 @@ def main():
     # def update_carriage(frame):
     #     return carriage_vis.update()
     
-    def update_error(frame):
-        return error_vis.update()
+    # def update_error(frame):
+    #     return error_vis.update()
+    def update_velocity(frame):
+        return velocity_vis.update()
 
     # ani1 = animation.FuncAnimation(gantry_vis.fig, update_gantry,
     #                                interval=UPDATE_INTERVAL_MS, blit=False)
@@ -541,8 +629,10 @@ def main():
     #                                interval=UPDATE_INTERVAL_MS, blit=False)
     # ani3 = animation.FuncAnimation(carriage_vis.fig, update_carriage,
     #                                interval=UPDATE_INTERVAL_MS, blit=False)
-    ani4 = animation.FuncAnimation(error_vis.fig, update_error,
-                                   interval=UPDATE_INTERVAL_MS, blit=False)
+    # ani4 = animation.FuncAnimation(error_vis.fig, update_error,
+    #                                interval=UPDATE_INTERVAL_MS, blit=False)
+    ani5 = animation.FuncAnimation(velocity_vis.fig, update_velocity,
+                                interval=UPDATE_INTERVAL_MS, blit=False)
 
     plt.show()
 

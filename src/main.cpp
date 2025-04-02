@@ -230,7 +230,19 @@ void loop() {
   Serial.print(", gx: ");
   Serial.print(posError1);
   Serial.print(", gy: ");
-  Serial.println(posError2);
+  Serial.print(posError2);
+  Serial.print(", xVelp: ");
+  Serial.print(xVelp);
+  Serial.print(", xVeli: ");
+  Serial.print(xVeli);
+  Serial.print(", xVeld: ");
+  Serial.print(xVeld);
+  Serial.print(", yVelp: ");
+  Serial.print(yVelp);
+  Serial.print(", yVeli: ");
+  Serial.print(yVeli);
+  Serial.print(", yVeld: ");
+  Serial.println(yVeld);
 
   Serial.flush();
   // Example movement patterns (commented out for safety)
