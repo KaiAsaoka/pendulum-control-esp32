@@ -38,11 +38,11 @@
 #define SPEED 20
 
 #define pendKPx 0.275
-#define pendKIx 0
+#define pendKIx 0.001
 #define pendKDx 0
 
 #define pendKPy 0.25
-#define pendKIy 0
+#define pendKIy 0.001
 #define pendKDy 0
 
 #define ganKP 0 // 0.05
@@ -210,7 +210,7 @@ void loop() {
   ySpeed = constrain(ySpeed, 0, 255);
 
   // Apply to motors
-  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) && abs(e1) < 1500 && abs(e2) < 1500){
+  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) && abs(e1) < 2000 && abs(e2) < 2000){
     // Calculate PID outputs
     move.moveXY(xSpeed, xDir, ySpeed, yDir);
   } else {
