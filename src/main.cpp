@@ -41,11 +41,11 @@
 #define pendKIx 0.016
 #define pendKDx 0
 
-#define pendKPy 0.045
+#define pendKPy 0.035
 #define pendKIy 0.016
 #define pendKDy 0
 
-#define ganKP 0 // 0.05
+#define ganKP 0  // 0.05
 #define ganKI 0
 #define ganKD 0
 
