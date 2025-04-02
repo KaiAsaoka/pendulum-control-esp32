@@ -244,7 +244,24 @@ void loop() {
   Serial.print(", yVeli: ");
   Serial.print(yVeli);
   Serial.print(", yVeld: ");
-  Serial.println(yVeld);
+  Serial.print(yVeld);
+  Serial.print(", setPointAngle1: ");
+  Serial.print(setPointAngle1);
+  Serial.print(", angle1p: ");
+  Serial.print(angle1p);
+  Serial.print(", angle1i: ");
+  Serial.print(angle1i);
+  Serial.print(", angle1d: ");
+  Serial.print(angle1d);
+  Serial.print(", setPointAngle2: ");
+  Serial.print(setPointAngle2);
+  Serial.print(", angle2p: ");
+  Serial.print(angle2p);
+  Serial.print(", angle2i: ");
+  Serial.print(angle2i);
+  Serial.print(", angle2d: ");
+  Serial.println(angle2d);
+
 
   Serial.flush();
   // Example movement patterns (commented out for safety)

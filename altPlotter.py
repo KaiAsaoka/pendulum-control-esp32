@@ -222,10 +222,20 @@ def parse_line(line):
         yVelp_val = float(parts[13].split(':')[1].strip())
         yVeli_val = float(parts[14].split(':')[1].strip())
         yVeld_val = float(parts[15].split(':')[1].strip())
+        setPointAngle1 = float(parts[16].split(':')[1].strip())
+        angle1p = float(parts[17].split(':')[1].strip())
+        angle1i = float(parts[18].split(':')[1].strip())
+        angle1d = float(parts[19].split(':')[1].strip())
+        setPointAngle2 = float(parts[20].split(':')[1].strip())
+        angle2p = float(parts[21].split(':')[1].strip())
+        angle2i = float(parts[22].split(':')[1].strip())
+        angle2d = float(parts[23].split(':')[1].strip())
+
 
         return (e1_val, e2_val, g1_val, g2_val, xv_val, yv_val, 
                 pex_val, pey_val, gex_val, gey_val,
-                xVelp_val, xVeli_val, xVeld_val, yVelp_val, yVeli_val, yVeld_val)
+                xVelp_val, xVeli_val, xVeld_val, yVelp_val, yVeli_val, yVeld_val, 
+                setPointAngle1, angle1p, angle1i, angle1d, setPointAngle2, angle2p, angle2i, angle2d)
     except:
         return None
 
@@ -590,8 +600,9 @@ def main():
     # gantry_vis = GantryVisualizer(ds)
     # pend_vis   = PendulumVisualizer(ds)
     # carriage_vis = CarriagePositionVisualizer(ds)  # Separate figure for carriage
-    error_vis = AngleErrorVisualizer(ds)
+    #error_vis = AngleErrorVisualizer(ds)
     velocity_vis = VelocityPIDVisualizer(ds)
+    gantry_err_vis = VelocityPIDVisualizer(ds)
 
     # Open serial port.
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.001)
@@ -622,6 +633,9 @@ def main():
     #     return error_vis.update()
     def update_velocity(frame):
         return velocity_vis.update()
+    
+    def update_gantry_err(frame):
+        return gantry_err_vis.update()
 
     # ani1 = animation.FuncAnimation(gantry_vis.fig, update_gantry,
     #                                interval=UPDATE_INTERVAL_MS, blit=False)
@@ -632,6 +646,8 @@ def main():
     # ani4 = animation.FuncAnimation(error_vis.fig, update_error,
     #                                interval=UPDATE_INTERVAL_MS, blit=False)
     ani5 = animation.FuncAnimation(velocity_vis.fig, update_velocity,
+                                interval=UPDATE_INTERVAL_MS, blit=False)
+    ani6 = animation.FuncAnimation(gantry_err_vis.fig, update_gantry_err,
                                 interval=UPDATE_INTERVAL_MS, blit=False)
 
     plt.show()
