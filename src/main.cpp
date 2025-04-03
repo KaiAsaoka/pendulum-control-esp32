@@ -47,9 +47,9 @@
 
 #define ganKPx 0.0050  // 0.05
 #define ganKIx 0.0
-#define ganKDx 0.0035
+#define ganKDx 0.0040
 
-#define ganKPy 0.0050  // 0.05
+#define ganKPy 0.0055  // 0.05
 #define ganKIy 0.0
 #define ganKDy 0.0005
 
