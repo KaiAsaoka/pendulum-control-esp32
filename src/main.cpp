@@ -58,7 +58,7 @@
 #define ganlpfx 0.75
 #define ganintcutoffx 5
 
-#define ganKPy 0.0055  // 0.05
+#define ganKPy 0.0050  // 0.05
 #define ganKIy 0.00002
 #define ganKDy 0.0300
 
@@ -195,7 +195,7 @@ void loop() {
   auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2);
   
   setPointAngle1 = constrain(setPointAngle1, -8, 8);
-  setPointAngle2 = constrain(setPointAngle2, -10, 10);
+  setPointAngle2 = constrain(setPointAngle2, -11, 11);
 
   float error1 = -(setPointAngle1 - e1);
   float error2 = -(setPointAngle2 - e2);
