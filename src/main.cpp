@@ -45,9 +45,9 @@
 #define pendKIy 0.021
 #define pendKDy 0
 
-#define ganKP 0.004  // 0.05
+#define ganKP 0.0030  // 0.05
 #define ganKI 0
-#define ganKD 0.002
+#define ganKD 0.0025
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
