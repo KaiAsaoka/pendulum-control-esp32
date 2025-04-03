@@ -32,8 +32,8 @@
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 5
-#define Y_DEADZONE 3
+#define X_DEADZONE 4
+#define Y_DEADZONE 2
 
 #define SPEED 20
 
@@ -41,26 +41,44 @@
 #define pendKIx 0.018
 #define pendKDx 0
 
+#define pendlpfx 0
+#define pendintcutoffx 1000
+
 #define pendKPy 0.025
 #define pendKIy 0.016
 #define pendKDy 0
 
+#define pendlpfy 0
+#define pendintcutoffy 1000
+
 #define ganKPx 0.0030  // 0.05
-#define ganKIx 0.0
-#define ganKDx 0.0150
+#define ganKIx 0.00002
+#define ganKDx 0.1000
+
+#define ganlpfx 0.75
+#define ganintcutoffx 5
 
 #define ganKPy 0.0055  // 0.05
-#define ganKIy 0.0
-#define ganKDy 0.0005
+#define ganKIy 0.00002
+#define ganKDy 0.0300
+
+#define ganlpfy 0.75
+#define ganintcutoffy 5
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-PID pendPIDx(pendKPx, pendKIx, pendKDx);
-PID pendPIDy(pendKPy, pendKIy, pendKDy);
+// PID pendPIDx(pendKPx, pendKIx, pendKDx);
+// PID pendPIDy(pendKPy, pendKIy, pendKDy);
 
-PID ganPIDx(ganKPx, ganKIx, ganKDx);
-PID ganPIDy(ganKPy, ganKIy, ganKDy);
+// PID ganPIDx(ganKPx, ganKIx, ganKDx);
+// PID ganPIDy(ganKPy, ganKIy, ganKDy);
+
+PID pendPIDx(pendKPx, pendKIx, pendKDx, pendlpfx, pendintcutoffx);
+PID pendPIDy(pendKPy, pendKIy, pendKDy, pendlpfy, pendintcutoffy);
+
+PID ganPIDx(ganKPx, ganKIx, ganKDx, ganlpfx, ganintcutoffx);
+PID ganPIDy(ganKPy, ganKIy, ganKDy, ganlpfy, ganintcutoffy);
 
 ESPNowReceiver receiverESP;
 
@@ -176,8 +194,8 @@ void loop() {
   auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1);
   auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2);
   
-  setPointAngle1 = constrain(setPointAngle1, -13, 13);
-  setPointAngle2 = constrain(setPointAngle2, -13, 13);
+  setPointAngle1 = constrain(setPointAngle1, -8, 8);
+  setPointAngle2 = constrain(setPointAngle2, -10, 10);
 
   float error1 = -(setPointAngle1 - e1);
   float error2 = -(setPointAngle2 - e2);
