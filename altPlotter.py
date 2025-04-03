@@ -637,9 +637,9 @@ class AngleSetpointPIDVisualizer:
         self.ax_xangle.set_ylabel("Value")
         self.line_xsp, = self.ax_xangle.plot([], [], 'm-', label="Setpoint")
         self.line_xspap, = self.ax_xangle.plot([], [], 'r-', label="P")
-        self.line_xspai, = self.ax_xangle.plot([], [], 'g-', label="I")
-        # self.line_xspad, = self.ax_xangle.plot([], [], 'b-', label="D")
-        self.line_xangle_out, = self.ax_xangle.plot([], [], 'k--', linewidth=2, label="Position Error X")
+        # self.line_xspai, = self.ax_xangle.plot([], [], 'g-', label="I")
+        self.line_xspad, = self.ax_xangle.plot([], [], 'b-', label="D")
+        # self.line_xangle_out, = self.ax_xangle.plot([], [], 'k--', linewidth=2, label="Position Error X")
         self.ax_xangle.axhline(0, color='black', linestyle='--', linewidth=0.5)
         self.ax_xangle.legend()
         
@@ -649,9 +649,9 @@ class AngleSetpointPIDVisualizer:
         self.ax_yangle.set_ylabel("Value")
         self.line_ysp, = self.ax_yangle.plot([], [], 'm-', label="Setpoint")
         self.line_yspap, = self.ax_yangle.plot([], [], 'r-', label="P")
-        self.line_yspai, = self.ax_yangle.plot([], [], 'g-', label="I")
-        # self.line_yspad, = self.ax_yangle.plot([], [], 'b-', label="D")
-        self.line_yangle_out, = self.ax_yangle.plot([], [], 'k--', linewidth=2, label="Position Error Y")
+        # self.line_yspai, = self.ax_yangle.plot([], [], 'g-', label="I")
+        self.line_yspad, = self.ax_yangle.plot([], [], 'b-', label="D")
+        # self.line_yangle_out, = self.ax_yangle.plot([], [], 'k--', linewidth=2, label="Position Error Y")
         self.ax_yangle.axhline(0, color='black', linestyle='--', linewidth=0.5)
         self.ax_yangle.legend()
 
@@ -662,16 +662,16 @@ class AngleSetpointPIDVisualizer:
         # Update X Angle Setpoint controller data
         self.line_xsp.set_data(t, ds.xspAngle)
         self.line_xspap.set_data(t, ds.xspAp)
-        self.line_xspai.set_data(t, ds.xspAi)
-        # self.line_xspad.set_data(t, ds.xspAd)
-        self.line_xangle_out.set_data(t, ds.Gex)  # Position error X
+        # self.line_xspai.set_data(t, ds.xspAi)
+        self.line_xspad.set_data(t, ds.xspAd)
+        # self.line_xangle_out.set_data(t, ds.Gex)  # Position error X
         
         # Update Y Angle Setpoint controller data
         self.line_ysp.set_data(t, ds.yspAngle)
         self.line_yspap.set_data(t, ds.yspAp)
-        self.line_yspai.set_data(t, ds.yspAi)
-        # self.line_yspad.set_data(t, ds.yspAd)
-        self.line_yangle_out.set_data(t, ds.Gey)  # Position error Y
+        # self.line_yspai.set_data(t, ds.yspAi)
+        self.line_yspad.set_data(t, ds.yspAd)
+        # self.line_yangle_out.set_data(t, ds.Gey)  # Position error Y
         
         if len(t) > 1:
             self.ax_xangle.set_xlim(t[0], t[-1])
