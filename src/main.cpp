@@ -38,16 +38,16 @@
 #define SPEED 20
 
 #define pendKPx 0.045
-#define pendKIx 0.016
+#define pendKIx 0.018
 #define pendKDx 0
 
 #define pendKPy 0.030
-#define pendKIy 0.018
+#define pendKIy 0.019
 #define pendKDy 0
 
 #define ganKPx 0.0050  // 0.05
 #define ganKIx 0.0
-#define ganKDx 0.0020
+#define ganKDx 0.0030
 
 #define ganKPy 0.0050  // 0.05
 #define ganKIy 0.0
@@ -176,7 +176,7 @@ void loop() {
   auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1);
   auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2);
   
-  setPointAngle1 = constrain(setPointAngle1, -11, 11);
+  setPointAngle1 = constrain(setPointAngle1, -13, 13);
   setPointAngle2 = constrain(setPointAngle2, -11, 11);
 
   float error1 = -(setPointAngle1 - e1);
