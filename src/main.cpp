@@ -45,7 +45,7 @@
 #define pendKIy 0.021
 #define pendKDy 0
 
-#define ganKP 0  // 0.05
+#define ganKP 0.01  // 0.05
 #define ganKI 0
 #define ganKD 0
 
@@ -162,12 +162,12 @@ void loop() {
   int posX = move.returnPosX();
   int posY = move.returnPosY();
 
-  float posError1 = TARGET_POSX - posX;
-  float posError2 = TARGET_POSY - posY;
+  float posError1 = (TARGET_POSX - posX);
+  float posError2 = (TARGET_POSY - posY);
 
 
-  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPID.calculate(-posError1);
-  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPID.calculate(-posError2);
+  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPID.calculate(posError1);
+  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPID.calculate(posError2);
 
   float error1 = -(setPointAngle1 - e1);
   float error2 = -(setPointAngle2 - e2);
