@@ -46,7 +46,7 @@
 #define pendKDy 0
 
 #define ganKP 0.0030  // 0.05
-#define ganKI 0
+#define ganKI 0.00001
 #define ganKD 0.0025
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
@@ -89,6 +89,7 @@ void handleButtonPress() {
   Serial.println("Button was pressed!");
   pendPIDx.reset_I();
   pendPIDy.reset_I();
+  ganPID.reset_I();
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
 }
@@ -168,6 +169,9 @@ void loop() {
 
   auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPID.calculate(posError1);
   auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPID.calculate(posError2);
+  
+  setPointAngle1 = constrain(setPointAngle1, 0, 6);
+  setPointAngle2 = constrain(setPointAngle2, 0, 6);
 
   float error1 = -(setPointAngle1 - e1);
   float error2 = -(setPointAngle2 - e2);
