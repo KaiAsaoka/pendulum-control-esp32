@@ -45,9 +45,13 @@
 #define pendKIy 0.021
 #define pendKDy 0
 
-#define ganKP 0.0050  // 0.05
-#define ganKI 0.0
-#define ganKD 0.0005
+#define ganKPx 0.0050  // 0.05
+#define ganKIx 0.0
+#define ganKDx 0.0010
+
+#define ganKPy 0.0050  // 0.05
+#define ganKIy 0.0
+#define ganKDy 0.0005
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
@@ -55,7 +59,8 @@ Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 PID pendPIDx(pendKPx, pendKIx, pendKDx);
 PID pendPIDy(pendKPy, pendKIy, pendKDy);
 
-PID ganPID(ganKP, ganKI, ganKD);
+PID ganPIDx(ganKPx, ganKIx, ganKDx);
+PID ganPIDy(ganKPy, ganKIy, ganKDy);
 
 ESPNowReceiver receiverESP;
 
@@ -89,7 +94,8 @@ void handleButtonPress() {
   Serial.println("Button was pressed!");
   pendPIDx.reset_I();
   pendPIDy.reset_I();
-  ganPID.reset_I();
+  ganPIDx.reset_I();
+  ganPIDy.reset_I();
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
 }
@@ -167,8 +173,8 @@ void loop() {
   float posError2 = (TARGET_POSY - posY);
 
 
-  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPID.calculate(posError1);
-  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPID.calculate(posError2);
+  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1);
+  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2);
   
   setPointAngle1 = constrain(setPointAngle1, -11, 11);
   setPointAngle2 = constrain(setPointAngle2, -11, 11);
