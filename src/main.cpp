@@ -42,24 +42,24 @@
 #define pendKDx 0
 
 #define pendlpfx 0
-#define pendintcutoffx 1000 / 0.00002
+#define pendintcutoffx 1000 / 0.018
 
-#define pendKPy 0.025
-#define pendKIy 0.016
+#define pendKPy 0.015
+#define pendKIy 0.018
 #define pendKDy 0
 
 #define pendlpfy 0
-#define pendintcutoffy 2000 / 0.00002
+#define pendintcutoffy 2000 / 0.016
 
 #define ganKPx 0.0030  // 0.05
-#define ganKIx 0.00002
+#define ganKIx 0.00000
 #define ganKDx 0.1100
 
 #define ganlpfx 0.75
 #define ganintcutoffx 5
 
-#define ganKPy 0.0050  // 0.05
-#define ganKIy 0.00002
+#define ganKPy 0.0055  // 0.05
+#define ganKIy 0.00000
 #define ganKDy 0.0300
 
 #define ganlpfy 0.75
