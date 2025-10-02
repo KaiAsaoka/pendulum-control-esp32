@@ -7,6 +7,8 @@
 #include <getMACAddress.h>
 #include <ESPNow.h>
 #include <PID.h>
+#include <math.h>   
+
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
@@ -42,14 +44,14 @@
 #define pendKDx 0
 
 #define pendlpfx 0
-#define pendintcutoffx 1000 / 0.018
+#define pendintcutoffx (1000 / 0.018)
 
 #define pendKPy 0.015
 #define pendKIy 0.018
 #define pendKDy 0
 
 #define pendlpfy 0
-#define pendintcutoffy 2000 / 0.016
+#define pendintcutoffy (2000 / 0.016)
 
 #define ganKPx 0.0030  // 0.05
 #define ganKIx 0.00000
@@ -174,7 +176,13 @@ void setup() {
 void loop() {
   // Gantry-specific control code
   // This will handle motor control and position management
-  
+  static uint32_t last_us = micros();
+  uint32_t now_us = micros();
+  float dt = (now_us - last_us) * 1e-6f;   // seconds
+  last_us = now_us;
+  if (dt < 1e-6f) dt = 1e-6f;              // clamp tiny/negative
+  if (dt > 0.02f) dt = 0.02f;              // clamp long pauses
+
   int e1 = - receiverESP.data.int_message_1;
 
   int e2 = receiverESP.data.int_message_2;
@@ -190,9 +198,8 @@ void loop() {
   float posError1 = (TARGET_POSX - posX);
   float posError2 = (TARGET_POSY - posY);
 
-
-  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1);
-  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2);
+  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1, dt);
+  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2, dt);
   
   setPointAngle1 = constrain(setPointAngle1, -8, 8);
   setPointAngle2 = constrain(setPointAngle2, -11, 11);
@@ -200,9 +207,8 @@ void loop() {
   float error1 = -(setPointAngle1 - e1);
   float error2 = -(setPointAngle2 - e2);
 
-
-  auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(error1);
-  auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(error2);
+  auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(error1, dt);
+  auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(error2, dt);
 
   if (error1 < 0) {
     xVel -= X_DEADZONE;
@@ -225,74 +231,72 @@ void loop() {
   bool yDir = (yVel >= 0);
 
   // Get absolute values for speed
-  int xSpeed = round(abs(xVel));
-  // int xSpeed = 0;
-
-  int ySpeed = round(abs(yVel));
-  // int ySpeed = 0;
+  int xSpeed = (int)lroundf(fabsf(xVel));
+  int ySpeed = (int)lroundf(fabsf(yVel));
 
   xSpeed = constrain(xSpeed, 0, 255);
   ySpeed = constrain(ySpeed, 0, 255);
 
   // Apply to motors
-  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) && abs(e1) < 2000 && abs(e2) < 2000){
+  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) < 2000 && abs(e2) < 2000) {
     // Calculate PID outputs
     move.moveXY(xSpeed, xDir, ySpeed, yDir);
   } else {
     move.moveXY(0, xDir, 0, yDir);
   }
-  Serial.print("E1: ");
-  Serial.print(e1);
-  Serial.print(", E2: ");
-  Serial.print(e2);
-  Serial.print(", G1: ");
-  Serial.print(posX);
-  Serial.print(", G2: ");
-  Serial.print(posY);
-  Serial.print(", xV: ");
-  Serial.print(xVel);
-  Serial.print(", yV: ");
-  Serial.print(yVel);
-  Serial.print(", px: ");
-  Serial.print(error1);
-  Serial.print(", py: ");
-  Serial.print(error2);
-  Serial.print(", gx: ");
-  Serial.print(posError1);
-  Serial.print(", gy: ");
-  Serial.print(posError2);
-  Serial.print(", xVelp: ");
-  Serial.print(xVelp);
-  Serial.print(", xVeli: ");
-  Serial.print(xVeli);
-  Serial.print(", xVeld: ");
-  Serial.print(xVeld);
-  Serial.print(", yVelp: ");
-  Serial.print(yVelp);
-  Serial.print(", yVeli: ");
-  Serial.print(yVeli);
-  Serial.print(", yVeld: ");
-  Serial.print(yVeld);
-  Serial.print(", setPointAngle1: ");
-  Serial.print(setPointAngle1);
-  Serial.print(", angle1p: ");
-  Serial.print(angle1p);
-  Serial.print(", angle1i: ");
-  Serial.print(angle1i);
-  Serial.print(", angle1d: ");
-  Serial.print(angle1d);
-  Serial.print(", setPointAngle2: ");
-  Serial.print(setPointAngle2);
-  Serial.print(", angle2p: ");
-  Serial.print(angle2p);
-  Serial.print(", angle2i: ");
-  Serial.print(angle2i);
-  Serial.print(", angle2d: ");
-  Serial.println(angle2d);
 
-
-  Serial.flush();
-  // Example movement patterns (commented out for safety)
+  static uint32_t k=0;
+  if ((k++ % 25) == 0) {
+    Serial.print("E1: ");
+    Serial.print(e1);
+    Serial.print(", E2: ");
+    Serial.print(e2);
+    Serial.print(", G1: ");
+    Serial.print(posX);
+    Serial.print(", G2: ");
+    Serial.print(posY);
+    Serial.print(", xV: ");
+    Serial.print(xVel);
+    Serial.print(", yV: ");
+    Serial.print(yVel);
+    Serial.print(", px: ");
+    Serial.print(error1);
+    Serial.print(", py: ");
+    Serial.print(error2);
+    Serial.print(", gx: ");
+    Serial.print(posError1);
+    Serial.print(", gy: ");
+    Serial.print(posError2);
+    Serial.print(", xVelp: ");
+    Serial.print(xVelp);
+    Serial.print(", xVeli: ");
+    Serial.print(xVeli);
+    Serial.print(", xVeld: ");
+    Serial.print(xVeld);
+    Serial.print(", yVelp: ");
+    Serial.print(yVelp);
+    Serial.print(", yVeli: ");
+    Serial.print(yVeli);
+    Serial.print(", yVeld: ");
+    Serial.print(yVeld);
+    Serial.print(", setPointAngle1: ");
+    Serial.print(setPointAngle1);
+    Serial.print(", angle1p: ");
+    Serial.print(angle1p);
+    Serial.print(", angle1i: ");
+    Serial.print(angle1i);
+    Serial.print(", angle1d: ");
+    Serial.print(angle1d);
+    Serial.print(", setPointAngle2: ");
+    Serial.print(setPointAngle2);
+    Serial.print(", angle2p: ");
+    Serial.print(angle2p);
+    Serial.print(", angle2i: ");
+    Serial.print(angle2i);
+    Serial.print(", angle2d: ");
+    Serial.println(angle2d); 
+  }
+  
   
    // Check if button was pressed
   if (buttonPressed) {

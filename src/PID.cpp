@@ -1,30 +1,45 @@
 #include "PID.h"
+#include <Arduino.h>   // for constrain()
 #include <tuple>
-#include <Arduino.h>
 
-PID::PID(float kp, float ki, float kd, float lpf_gain, float int_cutoff) : kp(kp), ki(ki), kd(kd), previous_error(0), integral(0), d_term(0), lpf_gain(lpf_gain), int_cutoff(int_cutoff){}
-//PID::PID(float kp, float ki, float kd) : kp(kp), ki(ki), kd(kd), previous_error(0), integral(0), d_term(0), lpf_gain(0.75), int_cutoff(100000) {}
+PID::PID(float kp, float ki, float kd, float lpf_gain, float int_cutoff)
+: kp(kp), ki(ki), kd(kd),
+  previous_error(0.0f), integral(0.0f), d_term(0.0f),
+  lpf_gain(lpf_gain), int_cutoff(int_cutoff) {}
 
-std::tuple<float, float, float, float> PID::calculate(float error) {
+// Time-aware PID: dt in seconds
+std::tuple<float, float, float, float> PID::calculate(float error, float dt) {
+    // Guard against bad dt
+    if (dt <= 0.0f) dt = 1.0f;
 
-    integral += error;
-    integral = constrain(integral, -int_cutoff, int_cutoff); // limit integral term to prevent windup
+    // Integral with windup clamp (units: error·seconds)
+    integral += error * dt;
+    integral = constrain(integral, -int_cutoff, int_cutoff);
 
-    float derivative = error - previous_error;
+    // Derivative (per second)
+    float d_raw = (error - previous_error) / dt;
     previous_error = error;
 
+    // Terms
     float p_term = kp * error;
     float i_term = ki * integral;
 
-    float prev_d_term = d_term; // record for filter
-    float d_term = kd * derivative;
-    d_term = lpf_gain * (prev_d_term) + (1 - lpf_gain) * d_term; // exponential low-pass filter
+    // Low-pass the D term (alpha in [0,1])
+    float alpha = constrain(lpf_gain, 0.0f, 1.0f);
+    float d_unf = kd * d_raw;
+    d_term = alpha * d_term + (1.0f - alpha) * d_unf;
 
-    float output = p_term + i_term + d_term;
-    
-    return std::make_tuple(output, p_term, i_term, d_term);
+    float u = p_term + i_term + d_term;
+    return {p_term, i_term, d_term, u};
+}
+
+// Compatibility: dt defaults to 1.0 s if you call the 1-arg version
+std::tuple<float, float, float, float> PID::calculate(float error) {
+    return calculate(error, 1.0f);
 }
 
 void PID::reset_I() {
-    integral = 0;
+    integral = 0.0f;
+    previous_error = 0.0f;
+    d_term = 0.0f;
 }
