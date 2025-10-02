@@ -142,8 +142,8 @@ float Move::returnPosX(){
     // Convert to float and scale appropriately
     // The sqrt(2) factor comes from the mechanical coupling of the motors
     // We'll multiply by a scaling factor to get to physical units (mm)
-    const float SCALE_FACTOR = 0.1; // Adjust this based on your mechanical setup
-    float posX = (float(angle1) + float(angle2)) * SCALE_FACTOR / sqrt(2.0f);
+    const float SCALE_FACTOR = (2 * 3.141592 * 16.1671) / 16384; // Updated - I will put my calculations somewhere
+    float posX = (float(angle1) + float(angle2)) * SCALE_FACTOR;
     return posX;
 }
 
@@ -155,8 +155,8 @@ float Move::returnPosY(){
     // Convert to float and scale appropriately
     // The sqrt(2) factor comes from the mechanical coupling of the motors
     // We'll multiply by a scaling factor to get to physical units (mm)
-    const float SCALE_FACTOR = 0.1; // Adjust this based on your mechanical setup
-    float posY = (float(angle1)-(angle2)) * SCALE_FACTOR / sqrt(2.0f);
+    const float SCALE_FACTOR = (2 * 3.141592 * 16.1671) / 16384; // Updated - I will put my calculations somewhere
+    float posY = (float(angle1) - float(angle2)) * SCALE_FACTOR;
     return posY;
 }
 
