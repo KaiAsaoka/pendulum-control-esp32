@@ -13,7 +13,7 @@
 #define ESP_PENDULUM 2
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY// Change this to ESP_\PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -39,7 +39,7 @@
 
 #define pendKPx 0.045
 #define pendKIx 0.018
-#define pendKDx 0
+#define pendKDx 0 
 
 #define pendlpfx 0
 #define pendintcutoffx 1000 / 0.018
@@ -170,136 +170,188 @@ void setup() {
   Serial.flush();
 }
 
-// Gantry-specific loop
+struct movePacket {
+    int x_pwm;
+    bool x_dir;
+    int y_pwm;
+    bool y_dir;
+};
+
+void moveTest(int x_pwm, bool x_dir, int y_pwm, bool y_dir, int waitTime) {
+    move.moveXY(x_pwm, x_dir, y_pwm, y_dir);
+    move.brake();
+
+    int posX = move.returnPosX();
+    int posY = move.returnPosY();
+
+    Serial.print("Move outwards: (");
+    Serial.print(posX);
+    Serial.print(",");
+    Serial.print(posY);
+    Serial.println(")");
+    delay(waitTime);
+
+    move.moveXY(x_pwm, !x_dir, y_pwm, !y_dir);
+    move.brake();
+
+    posX = move.returnPosX();
+    posY = move.returnPosY();
+
+    Serial.print("Move inwards: (");
+    Serial.print(posX);
+    Serial.print(",");
+    Serial.print(posY);
+    Serial.println(")");
+    delay(waitTime);
+}
+
 void loop() {
-  // Gantry-specific control code
-  // This will handle motor control and position management
-  
-  int e1 = - receiverESP.data.int_message_1;
+    bool validPWM = false;
+    int waitTime = 2000; //ms
+    int baseMotorPWM = 0;
 
-  int e2 = receiverESP.data.int_message_2;
+    while (!validPWM) {
+        Serial.println("Input base PWM Speed (0 < int < 50): ");
+        while (Serial.available() == 0) {}
 
-  // int g1 = ENC1.getTotalAngle();
+        baseMotorPWM = Serial.parseInt();
 
-  // int g2 = ENC2.getTotalAngle();
+        if (baseMotorPWM <= 0 || baseMotorPWM > 50) {
+            Serial.println("Invalid Input!");
+        }
+        else {
+            Serial.print("Speeds: ");
+            Serial.print(baseMotorPWM);
+            Serial.print(baseMotorPWM * 2);
+            Serial.print(baseMotorPWM * 3);
+            Serial.print(baseMotorPWM * 4);
+            Serial.println(baseMotorPWM * 5);
+            Serial.println("Beginning motion test...");
+            validPWM = true;
+        }
+    }
 
+    Serial.flush();
 
-  int posX = move.returnPosX();
-  int posY = move.returnPosY();
+    movePacket y;
+    movePacket plusXY;
+    movePacket x;
+    movePacket plusXMinusY;
 
-  float posError1 = (TARGET_POSX - posX);
-  float posError2 = (TARGET_POSY - posY);
+    y.x_pwm = 0;
+    y.x_dir = 0;
+    y.y_pwm = baseMotorPWM;
+    y.y_dir = 1;
 
+    plusXY.x_pwm = baseMotorPWM;
+    plusXY.x_dir = 1;
+    plusXY.y_pwm = baseMotorPWM;
+    plusXY.y_dir = 1;
 
-  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1);
-  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2);
-  
-  setPointAngle1 = constrain(setPointAngle1, -8, 8);
-  setPointAngle2 = constrain(setPointAngle2, -11, 11);
+    x.x_pwm = baseMotorPWM;
+    x.x_dir = 1;
+    x.y_pwm = 0;
+    x.y_dir = 1;
 
-  float error1 = -(setPointAngle1 - e1);
-  float error2 = -(setPointAngle2 - e2);
+    plusXMinusY.x_pwm = baseMotorPWM;
+    plusXMinusY.x_dir = 1;
+    plusXMinusY.y_pwm = baseMotorPWM;
+    plusXMinusY.y_dir = 0;
 
+  std::array<movePacket, 4> directions = {y, plusXY, x, plusXMinusY};
 
-  auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(error1);
-  auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(error2);
-
-  if (error1 < 0) {
-    xVel -= X_DEADZONE;
-  } else if (error1 > 0) {
-    xVel += X_DEADZONE ;
-  }else{
-    xVel += 0;
+  for (int i = 1; i < 6; i ++) {
+    for (auto& directionTest : directions) {
+        moveTest(directionTest.x_pwm * i, directionTest.x_dir, directionTest.y_pwm * i, directionTest.y_dir, waitTime);
+        moveTest(directionTest.x_pwm * i, !directionTest.x_dir, directionTest.y_pwm * i, !directionTest.y_dir, waitTime);
+    }
   }
 
-  if (error2 < 0) {
-    yVel -= Y_DEADZONE;
-  } else if (error2 > 0) {
-    yVel += Y_DEADZONE ;
-  }else{
-    yVel += 0;
-  }
+  validPWM = false;
 
-  // Extract direction (true for positive, false for negative)
-  bool xDir = (xVel >= 0);
-  bool yDir = (yVel >= 0);
-
-  // Get absolute values for speed
-  int xSpeed = round(abs(xVel));
-  // int xSpeed = 0;
-
-  int ySpeed = round(abs(yVel));
-  // int ySpeed = 0;
-
-  xSpeed = constrain(xSpeed, 0, 255);
-  ySpeed = constrain(ySpeed, 0, 255);
-
-  // Apply to motors
-  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) && abs(e1) < 2000 && abs(e2) < 2000){
-    // Calculate PID outputs
-    move.moveXY(xSpeed, xDir, ySpeed, yDir);
-  } else {
-    move.moveXY(0, xDir, 0, yDir);
-  }
-  Serial.print("E1: ");
-  Serial.print(e1);
-  Serial.print(", E2: ");
-  Serial.print(e2);
-  Serial.print(", G1: ");
-  Serial.print(posX);
-  Serial.print(", G2: ");
-  Serial.print(posY);
-  Serial.print(", xV: ");
-  Serial.print(xVel);
-  Serial.print(", yV: ");
-  Serial.print(yVel);
-  Serial.print(", px: ");
-  Serial.print(error1);
-  Serial.print(", py: ");
-  Serial.print(error2);
-  Serial.print(", gx: ");
-  Serial.print(posError1);
-  Serial.print(", gy: ");
-  Serial.print(posError2);
-  Serial.print(", xVelp: ");
-  Serial.print(xVelp);
-  Serial.print(", xVeli: ");
-  Serial.print(xVeli);
-  Serial.print(", xVeld: ");
-  Serial.print(xVeld);
-  Serial.print(", yVelp: ");
-  Serial.print(yVelp);
-  Serial.print(", yVeli: ");
-  Serial.print(yVeli);
-  Serial.print(", yVeld: ");
-  Serial.print(yVeld);
-  Serial.print(", setPointAngle1: ");
-  Serial.print(setPointAngle1);
-  Serial.print(", angle1p: ");
-  Serial.print(angle1p);
-  Serial.print(", angle1i: ");
-  Serial.print(angle1i);
-  Serial.print(", angle1d: ");
-  Serial.print(angle1d);
-  Serial.print(", setPointAngle2: ");
-  Serial.print(setPointAngle2);
-  Serial.print(", angle2p: ");
-  Serial.print(angle2p);
-  Serial.print(", angle2i: ");
-  Serial.print(angle2i);
-  Serial.print(", angle2d: ");
-  Serial.println(angle2d);
-
-
-  Serial.flush();
-  // Example movement patterns (commented out for safety)
-  
    // Check if button was pressed
   if (buttonPressed) {
     handleButtonPress();
     buttonPressed = false;  // Reset the flag
   }
 
+
+//   // Below this write position stuff
+//   int xVel = 0;
+//   int yVel = 0;
+//   bool xDir = 0;
+//   bool yDir = 0;
+//   int xPos = 0;
+//   int yPos = 0;
+//   int xError = 0;
+//   int yError = 0;
+//   int netError = 0;
+
+//   bool validPos = false;
+
+//   Serial.println("Input PWM Speed (0 < int < 255): ");
+
+//   while (Serial.available() == 0) {}
+
+//   int motorPWM = Serial.parseInt();
+
+//   if (motorPWM <= 0 || motorPWM > 255) {
+//     Serial.println("Invalid Input!");
+//   }
+//   else {
+//     Serial.println("Setting PWM speed...");
+//   }
+
+//   while (!validPos) {
+//     Serial.println("Input position X,Y ( -450 < X < 450, -600 < Y < 600):");
+//     while (Serial.available() == 0) {}
+
+//     String posInput = Serial.readStringUntil('\n');
+//     posInput.trim();
+
+//     int comma = posInput.indexOf(",");
+//     int xPos = int(posInput.substring(0, comma).toInt());
+//     int yPos = int(posInput.substring(comma, -1).toInt());
+
+//     if (-450 < xPos < 450 && -600 < yPos < 600) {
+//         validPos == true;
+//         Serial.println("Moving...");
+
+//         xError = xPos - move.returnPosX();
+//         yError = yPos - move.returnPosY();
+//         netError = abs(xError) + abs(yError);
+
+//         xDir = (xError >= 0);
+//         yDir = (yError >= 0);
+//     }
+//     else {
+//         Serial.println("Invalid Position!");
+//     }
+//  }
+
+//  while(netError >= 15) {
+//     if (abs(xError) < 5) {
+//         xVel = 0;
+//     }
+//     else {
+//         xVel = motorPWM;
+//     }
+//     if (abs(yError) < 5) {
+//         yVel = 0;
+//     }
+//     else {
+//         yVel = motorPWM;
+//     }
+
+//     move.moveXY(xVel, xDir, yVel, yDir);
+
+//     xError = xPos - move.returnPosX();
+//     yError = yPos - move.returnPosY();
+//     netError = abs(xError) + abs(yError);
+
+//     xDir = (xError >= 0);
+//     yDir = (yError >= 0);
+//  }
 }
 
 
