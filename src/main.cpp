@@ -40,29 +40,29 @@
 #define SPEED 20
 
 #define pendKPx 0.045
-#define pendKIx 0.018
+#define pendKIx 0
 #define pendKDx 0
 
 #define pendlpfx 0
 #define pendintcutoffx (1000 / 0.018)
 
 #define pendKPy 0.015
-#define pendKIy 0.018
+#define pendKIy 0.
 #define pendKDy 0
 
 #define pendlpfy 0
 #define pendintcutoffy (2000 / 0.016)
 
 #define ganKPx 0.0030  // 0.05
-#define ganKIx 0.00000
-#define ganKDx 0.1100
+#define ganKIx 0
+#define ganKDx 0
 
 #define ganlpfx 0.75
 #define ganintcutoffx 5
 
 #define ganKPy 0.0055  // 0.05
-#define ganKIy 0.00000
-#define ganKDy 0.0300
+#define ganKIy 0
+#define ganKDy 0
 
 #define ganlpfy 0.75
 #define ganintcutoffy 5
@@ -178,11 +178,11 @@ void loop() {
   // This will handle motor control and position management
   static uint32_t last_us = micros();
   uint32_t now_us = micros();
-  float dt = (now_us - last_us) * 1e-6f;   // seconds
-  last_us = now_us;
-  if (dt < 1e-6f) dt = 1e-6f;              // clamp tiny/negative
-  if (dt > 0.02f) dt = 0.02f;              // clamp long pauses
-
+  uint32_t elapsed = now_us - last_us;
+  if (elapsed < 1000) delayMicroseconds(1000 - elapsed);  // pace to 1 ms
+  last_us = micros();                                      // reset after pacing
+  const float dt = 0.001f;                    
+               
   int e1 = - receiverESP.data.int_message_1;
 
   int e2 = receiverESP.data.int_message_2;
