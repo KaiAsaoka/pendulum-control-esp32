@@ -14,6 +14,12 @@
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
+
+// Define 1 ms loop timing
+constexpr uint32_t LOOP_US = 1000;     // 1 ms
+static volatile uint32_t overrun_count = 0;
+
+
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
@@ -174,72 +180,73 @@ void setup() {
 
 // Gantry-specific loop
 void loop() {
-  // Gantry-specific control code
-  // This will handle motor control and position management
-  static uint32_t last_us = micros();
-  uint32_t now_us = micros();
-  uint32_t elapsed = now_us - last_us;
-  if (elapsed < 1000) delayMicroseconds(1000 - elapsed);  // pace to 1 ms
-  last_us = micros();                                      // reset after pacing
-  const float dt = 0.001f;                    
-               
-  int e1 = - receiverESP.data.int_message_1;
+  // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
+  static uint32_t next_tick = micros();
+  uint32_t now = micros();
 
-  int e2 = receiverESP.data.int_message_2;
+  // Sleep if early
+  int32_t until_tick = (int32_t)(next_tick - now);
+  if (until_tick > 0) {
+    delayMicroseconds((uint32_t)until_tick);
+    now = micros();
+  }
 
-  // int g1 = ENC1.getTotalAngle();
+  // Catch up if we’re late by >= 1 period (no drift even on overruns)
+  uint32_t missed = 0;
+  while ((int32_t)(now - next_tick) >= 0) {
+    next_tick += LOOP_US;   // LOOP_US = 1000
+    ++missed;
+  }
+  overrun_count += missed;
 
-  // int g2 = ENC2.getTotalAngle();
+  // Fixed dt (exactly 1 ms)
+  const float dt = 0.001f;
 
+  // Snapshot inputs (avoid torn reads)
+  const int e1 = -receiverESP.data.int_message_1;
+  const int e2 =  receiverESP.data.int_message_2;
 
-  int posX = move.returnPosX();
-  int posY = move.returnPosY();
+  // Read plant state
+  const int posX = move.returnPosX();
+  const int posY = move.returnPosY();
 
-  float posError1 = (TARGET_POSX - posX);
-  float posError2 = (TARGET_POSY - posY);
+  // Outer-loop (position) errors
+  const float posError1 = (TARGET_POSX - posX);
+  const float posError2 = (TARGET_POSY - posY);
 
-  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1, dt);
-  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2, dt);
-  
-  setPointAngle1 = constrain(setPointAngle1, -8, 8);
+  // Outer PIDs -> desired angles
+  auto [angle1p, angle1i, angle1d, setPointAngle1] = ganPIDx.calculate(posError1, dt);
+  auto [angle2p, angle2i, angle2d, setPointAngle2] = ganPIDy.calculate(posError2, dt);
+
+  // Angle limits (units must match e1/e2)
+  setPointAngle1 = constrain(setPointAngle1, -8,  8);
   setPointAngle2 = constrain(setPointAngle2, -11, 11);
 
-  float error1 = -(setPointAngle1 - e1);
-  float error2 = -(setPointAngle2 - e2);
+  // Inner-loop (angle) errors
+  const float error1 = -(setPointAngle1 - e1);
+  const float error2 = -(setPointAngle2 - e2);
 
-  auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(error1, dt);
-  auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(error2, dt);
+  // Inner PIDs -> motor velocities
+  auto [xVelp, xVeli, xVeld, xVel] = pendPIDx.calculate(error1, dt);
+  auto [yVelp, yVeli, yVeld, yVel] = pendPIDy.calculate(error2, dt);
 
-  if (error1 < 0) {
-    xVel -= X_DEADZONE;
-  } else if (error1 > 0) {
-    xVel += X_DEADZONE ;
-  }else{
-    xVel += 0;
-  }
+  // Deadzones
+  if (error1 < 0) xVel -= X_DEADZONE;
+  else if (error1 > 0) xVel += X_DEADZONE;
 
-  if (error2 < 0) {
-    yVel -= Y_DEADZONE;
-  } else if (error2 > 0) {
-    yVel += Y_DEADZONE ;
-  }else{
-    yVel += 0;
-  }
+  if (error2 < 0) yVel -= Y_DEADZONE;
+  else if (error2 > 0) yVel += Y_DEADZONE;
 
-  // Extract direction (true for positive, false for negative)
-  bool xDir = (xVel >= 0);
-  bool yDir = (yVel >= 0);
-
-  // Get absolute values for speed
+  // Directions and speed limits
+  const bool xDir = (xVel >= 0);
+  const bool yDir = (yVel >= 0);
   int xSpeed = (int)lroundf(fabsf(xVel));
   int ySpeed = (int)lroundf(fabsf(yVel));
-
   xSpeed = constrain(xSpeed, 0, 255);
   ySpeed = constrain(ySpeed, 0, 255);
 
-  // Apply to motors
+  // Safety window + command
   if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) < 2000 && abs(e2) < 2000) {
-    // Calculate PID outputs
     move.moveXY(xSpeed, xDir, ySpeed, yDir);
   } else {
     move.moveXY(0, xDir, 0, yDir);
