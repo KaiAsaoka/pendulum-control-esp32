@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include <Encoder.h>
+#include "Encoder.h"
 #include <chrono>
 #include <Driver.h>
 #include <Move.h>
@@ -144,7 +144,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Gantry ESP32 Starting...");
 
-  pinMode(ZERO_BTN, INPUT_PULLUP);
+  pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
@@ -314,56 +314,65 @@ void loop() {
 }
 
 
-// Initialize pendulum-specific hardware
 #elif CURRENT_ESP == ESP_PENDULUM
 
-// Pendulum-specific setup
 #define ZERO_BTN 37
+
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Pendulum ESP32 Starting...");
-  
+
   senderESP.setUp();
-  
-  ENC1.begin();
-  Serial.println("Encoder 1 initialized (Pendulum)");
-  
-  ENC2.begin();
-  Serial.println("Encoder 2 initialized (Pendulum)");
 
-  pinMode(ZERO_BTN, INPUT_PULLUP);
-    
-  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
+  ENC1.begin();  Serial.println("Encoder 1 initialized (Pendulum)");
+  ENC2.begin();  Serial.println("Encoder 2 initialized (Pendulum)");
+
+  pinMode(ZERO_BTN, INPUT_PULLUP);           // or INPUT if using GPIO37 with external pull-up
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
-  
   Serial.println("Button interrupt initialized");
-
   Serial.println("Pendulum setup complete!");
-  Serial.flush();
 }
 
-// Pendulum-specific loop
 void loop() {
-  // Pendulum-specific control code
-  // This will handle sensor readings and send data to gantry
-  
-  int angle1 = ENC1.getTotalAngle();
-  delay(1);
-  Serial.print("E1: ");
-  Serial.print(angle1);
+  // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
+  static uint32_t next_tick = micros();
+  uint32_t now = micros();
 
-  int angle2 = ENC2.getTotalAngle();
-  delay(1);
-  Serial.print(", E2: ");
-  Serial.print(angle2);
+  int32_t until_tick = (int32_t)(next_tick - now);
+  if (until_tick > 0) { delayMicroseconds((uint32_t)until_tick); now = micros(); }
 
-  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
+  uint32_t missed = 0;
+  while ((int32_t)(now - next_tick) >= 0) { next_tick += 1000; ++missed; }
+  // overrun_count += missed;  // optional
 
-  // Check if button was pressed
+  // ---- pendulum work ----
+  const int angle1 = ENC1.getTotalAngle();
+  const int angle2 = ENC2.getTotalAngle();
+
+  static uint32_t k = 0;
+  if ((k++ % 25) == 0) {                   // ~40 Hz debug
+    Serial.print("E1: "); Serial.print(angle1);
+    Serial.print(", E2: "); Serial.println(angle2);
+  }
+
+  // Send at 200 Hz, avoid String allocations
+  static uint32_t t = 0;
+  if ((t++ % 5) == 0) {
+    static char msg[40];
+    snprintf(msg, sizeof(msg), "E1:%d\nE2:%d", angle1, angle2);
+    senderESP.sendMessage(msg);
+  }
+
+  // Debounce example (optional)
   if (buttonPressed) {
-    handleButtonPress();
-    buttonPressed = false;  // Reset the flag
+    static uint32_t lastPressUs = 0;
+    uint32_t usNow = micros();
+    if ((int32_t)(usNow - lastPressUs) > 15000) { // ~15 ms
+      handleButtonPress();
+      lastPressUs = usNow;
+    }
+    buttonPressed = false;
   }
 }
 
