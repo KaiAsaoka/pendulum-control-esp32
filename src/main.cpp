@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include "Encoder.h"
+#include "Encoder.h" // Remove <> to avoid accidental using Arduino version
 #include <chrono>
 #include <Driver.h>
 #include <Move.h>
