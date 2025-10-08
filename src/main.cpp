@@ -16,7 +16,7 @@
 
 
 // Define 1 ms loop timing
-constexpr uint32_t LOOP_US = 1000;     // 1 ms
+constexpr uint32_t LOOP_US = 10000;     // 10 ms
 static volatile uint32_t overrun_count = 0;
 
 
@@ -199,8 +199,8 @@ void loop() {
   }
   overrun_count += missed;
 
-  // Fixed dt (exactly 1 ms)
-  const float dt = 0.001f;
+  // Fixed dt (exactly 10 ms)
+  const float dt = 0.01f;
 
   // Snapshot inputs (avoid torn reads)
   const int e1 = -receiverESP.data.int_message_1;
@@ -310,7 +310,6 @@ void loop() {
     handleButtonPress();
     buttonPressed = false;  // Reset the flag
   }
-
 }
 
 
@@ -343,7 +342,7 @@ void loop() {
   if (until_tick > 0) { delayMicroseconds((uint32_t)until_tick); now = micros(); }
 
   uint32_t missed = 0;
-  while ((int32_t)(now - next_tick) >= 0) { next_tick += 1000; ++missed; }
+  while ((int32_t)(now - next_tick) >= 0) { next_tick += 10000; ++missed; }
   // overrun_count += missed;  // optional
 
   // ---- pendulum work ----
