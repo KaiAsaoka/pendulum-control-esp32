@@ -59,14 +59,14 @@ static volatile uint32_t overrun_count = 0;
 #define pendlpfy 0
 #define pendintcutoffy (2000 / 0.016)
 
-#define ganKPx 0.0030  // 0.05
+#define ganKPx 0  
 #define ganKIx 0
 #define ganKDx 0
 
 #define ganlpfx 0.75
 #define ganintcutoffx 5
 
-#define ganKPy 0.0055  // 0.05
+#define ganKPy 0  
 #define ganKIy 0
 #define ganKDy 0
 
@@ -219,8 +219,8 @@ void loop() {
   auto [angle2p, angle2i, angle2d, setPointAngle2] = ganPIDy.calculate(posError2, dt);
 
   // Angle limits (units must match e1/e2)
-  setPointAngle1 = constrain(setPointAngle1, -8,  8);
-  setPointAngle2 = constrain(setPointAngle2, -11, 11);
+  //setPointAngle1 = constrain(setPointAngle1, -8,  8);
+  //setPointAngle2 = constrain(setPointAngle2, -11, 11);
 
   // Inner-loop (angle) errors
   const float error1 = -(setPointAngle1 - e1);
@@ -253,63 +253,8 @@ void loop() {
     Serial.print("Out of bounds!");
   }
 
-  static uint32_t k=0;
-  if ((k++ % 25) == 0) {
-    Serial.print(", time of loop (us): ");
-    Serial.print(micros() - now);
-    Serial.print(", E1: ");
-    Serial.print(e1);
-    Serial.print(", E2: ");
-    Serial.print(e2);
-    Serial.print(", G1: ");
-    Serial.print(posX);
-    Serial.print(", G2: ");
-    Serial.print(posY);
-    Serial.print(", xV: ");
-    Serial.print(xVel);
-    Serial.print(", yV: ");
-    Serial.print(yVel);
-    Serial.print(", px: ");
-    Serial.print(error1);
-    Serial.print(", py: ");
-    Serial.print(error2);
-    Serial.print(", gx: ");
-    Serial.print(posError1);
-    Serial.print(", gy: ");
-    Serial.print(posError2);
-    Serial.print(", xVelp: ");
-    Serial.print(xVelp);
-    Serial.print(", xVeli: ");
-    Serial.print(xVeli);
-    Serial.print(", xVeld: ");
-    Serial.print(xVeld);
-    Serial.print(", yVelp: ");
-    Serial.print(yVelp);
-    Serial.print(", yVeli: ");
-    Serial.print(yVeli);
-    Serial.print(", yVeld: ");
-    Serial.print(yVeld);
-    Serial.print(", setPointAngle1: ");
-    Serial.print(setPointAngle1);
-    Serial.print(", angle1p: ");
-    Serial.print(angle1p);
-    Serial.print(", angle1i: ");
-    Serial.print(angle1i);
-    Serial.print(", angle1d: ");
-    Serial.print(angle1d);
-    Serial.print(", setPointAngle2: ");
-    Serial.print(setPointAngle2);
-    Serial.print(", angle2p: ");
-    Serial.print(angle2p);
-    Serial.print(", angle2i: ");
-    Serial.print(angle2i);
-    Serial.print(", angle2d: ");
-    Serial.println(angle2d); 
-    Serial.print("time of loop (us): ");
-    Serial.print(micros() - now);
-  }
-  
-  
+   // Old print statements go here
+
    // Check if button was pressed
   if (buttonPressed) {
     handleButtonPress();
