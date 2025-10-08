@@ -53,7 +53,7 @@ static volatile uint32_t overrun_count = 0;
 #define pendintcutoffx (1000 / 0.018)
 
 #define pendKPy 0.015
-#define pendKIy 0.
+#define pendKIy 0
 #define pendKDy 0
 
 #define pendlpfy 0
@@ -250,11 +250,14 @@ void loop() {
     move.moveXY(xSpeed, xDir, ySpeed, yDir);
   } else {
     move.moveXY(0, xDir, 0, yDir);
+    Serial.print("Out of bounds!");
   }
 
   static uint32_t k=0;
   if ((k++ % 25) == 0) {
-    Serial.print("E1: ");
+    Serial.print(", time of loop (us): ");
+    Serial.print(micros() - now);
+    Serial.print(", E1: ");
     Serial.print(e1);
     Serial.print(", E2: ");
     Serial.print(e2);
@@ -302,6 +305,8 @@ void loop() {
     Serial.print(angle2i);
     Serial.print(", angle2d: ");
     Serial.println(angle2d); 
+    Serial.print("time of loop (us): ");
+    Serial.print(micros() - now);
   }
   
   
@@ -315,79 +320,56 @@ void loop() {
 
 #elif CURRENT_ESP == ESP_PENDULUM
 
+// Pendulum-specific setup
 #define ZERO_BTN 37
-
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Pendulum ESP32 Starting...");
-
+  
   senderESP.setUp();
+  
+  ENC1.begin();
+  Serial.println("Encoder 1 initialized (Pendulum)");
+  
+  ENC2.begin();
+  Serial.println("Encoder 2 initialized (Pendulum)");
 
-  ENC1.begin();  Serial.println("Encoder 1 initialized (Pendulum)");
-  ENC2.begin();  Serial.println("Encoder 2 initialized (Pendulum)");
-
-  pinMode(ZERO_BTN, INPUT_PULLUP);           // or INPUT if using GPIO37 with external pull-up
+  pinMode(ZERO_BTN, INPUT_PULLUP);
+    
+  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  
   Serial.println("Button interrupt initialized");
+
   Serial.println("Pendulum setup complete!");
+  Serial.flush();
 }
 
+// Pendulum-specific loop
 void loop() {
-  // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
-  static uint32_t next_tick = micros();
-  uint32_t now = micros();
+  // Pendulum-specific control code
+  // This will handle sensor readings and send data to gantry
+  
+  int angle1 = ENC1.getTotalAngle();
+  delay(1);
+  Serial.print("E1: ");
+  Serial.print(angle1);
 
-  int32_t until_tick = (int32_t)(next_tick - now);
-  if (until_tick > 0) { delayMicroseconds((uint32_t)until_tick); now = micros(); }
+  int angle2 = ENC2.getTotalAngle();
+  delay(1);
+  Serial.print(", E2: ");
+  Serial.print(angle2);
 
-  uint32_t missed = 0;
-  while ((int32_t)(now - next_tick) >= 0) { next_tick += 10000; ++missed; }
-  // overrun_count += missed;  // optional
+  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
 
-  // ---- pendulum work ----
-  const int angle1 = ENC1.getTotalAngle();
-  const int angle2 = ENC2.getTotalAngle();
-
-  static uint32_t k = 0;
-  if ((k++ % 25) == 0) {                   // ~40 Hz debug
-    Serial.print("E1: "); Serial.print(angle1);
-    Serial.print(", E2: "); Serial.println(angle2);
-  }
-
-  // Send at 200 Hz, avoid String allocations
-  static uint32_t t = 0;
-  if ((t++ % 5) == 0) {
-    static char msg[40];
-    snprintf(msg, sizeof(msg), "E1:%d\nE2:%d", angle1, angle2);
-    senderESP.sendMessage(msg);
-  }
-
-  // Debounce example (optional)
+  // Check if button was pressed
   if (buttonPressed) {
-    static uint32_t lastPressUs = 0;
-    uint32_t usNow = micros();
-    if ((int32_t)(usNow - lastPressUs) > 15000) { // ~15 ms
-      handleButtonPress();
-      lastPressUs = usNow;
-    }
-    buttonPressed = false;
+    handleButtonPress();
+    buttonPressed = false;  // Reset the flag
   }
 }
 
 #else
 #error "Please select either ESP_GANTRY or ESP_PENDULUM for CURRENT_ESP"
 #endif
-
-void printBinary16(uint16_t n) {
-  for (int i = 15; i >= 0; i--) {
-    Serial.print((n >> i) & 1);
-  }
-  Serial.println();
-}
-
-unsigned long getTime(unsigned long startTime) {
-  unsigned long currentTime = millis();
-  unsigned long duration = currentTime - startTime;
-  return duration;
-}
