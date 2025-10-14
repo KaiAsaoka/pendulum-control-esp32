@@ -5,12 +5,14 @@
 #include <Driver.h>
 #include <Move.h>
 #include <getMACAddress.h>
+#include <PL_Telemetry_ESP32.h>
 #include <ESPNow.h>
 #include <PID.h>
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
+#define ESP_GANTRY_IP 1 //NEED TO FIND
 
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
@@ -28,6 +30,11 @@
 #define ENC_CS1  32    // Chip Select (active LOW)
 #define ENC_CS2  33    // Chip Select (active LOW)
 #define ENC_MOSI 9    // MOSI pin for encoder communication
+
+#define STACK_SIZE 10000 // Memory size for tasks, 10 000 words (32bits) each
+#define CORE_0 0
+#define CORE_1 1
+#define TASK_PRIORITY 0
 
 #define TARGET_POSX 0
 #define TARGET_POSY 0
@@ -64,6 +71,23 @@
 
 #define ganlpfy 0.75
 #define ganintcutoffy 5
+
+// Telemetry Setup - Please change when flashing before tests
+#define PC_IP 123,456,789,0
+
+const char* ssid = "pcWifi";
+const char* password = "password";
+
+const char* telemVars[] = {
+  "carriageXPosition", "carriageYPosition", "pendulumXAngle", "pendulumYAngle",
+  "xPositionKP", "xPositionKI", "xPositionKD", "xSetPointAngle",
+  "yPositionKP", "yPositionKI", "yPositionKD", "ySetPointAngle",
+  "xAngleKP", "xAngleKI", "xAngleKD", "xPWM",
+  "yAngleKP", "yAngleKI", "yAngleKD", "yPWM",
+  "loopTime", "loopWaitTime"
+  };
+
+TaskHandle_t controlLoop;
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
@@ -132,6 +156,15 @@ Driver DVR2(PWM2, DIR2);
 
 Move move(DVR1, DVR2, ENC1, ENC2);
 
+PL_Telemetry_ESP32 telemetry(
+  ssid,
+  password,
+  IPAddress(ESP_GANTRY_IP),
+  IPAddress(PC_IP),
+  12345,
+  telemVars
+);
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Gantry ESP32 Starting...");
@@ -168,57 +201,65 @@ void setup() {
 
   Serial.println("Gantry setup complete!");
   Serial.flush();
+
+  telemetry.begin();
+
+  // ESP32 Should make loop on core 1 anyways, but just to be sure
+  xTaskCreatePinnedToCore(
+    [](void* arg) { control(); },
+    "Control Loop",
+    STACK_SIZE,
+    NULL,
+    TASK_PRIORITY,
+    &controlLoop,
+    CORE_1
+  );
 }
 
+void loop() { }
+
 // Gantry-specific loop
-void loop() {
-  // Gantry-specific control code
-  // This will handle motor control and position management
-  
-  int e1 = - receiverESP.data.int_message_1;
-
-  int e2 = receiverESP.data.int_message_2;
-
-  // int g1 = ENC1.getTotalAngle();
-
-  // int g2 = ENC2.getTotalAngle();
-
+// This will handle motor control and position management
+void control() {
+  float telemetryVariables[22];
 
   int posX = move.returnPosX();
   int posY = move.returnPosY();
 
-  float posError1 = (TARGET_POSX - posX);
-  float posError2 = (TARGET_POSY - posY);
+  float posErrorX = (TARGET_POSX - posX);
+  float posErrorY = (TARGET_POSY - posY);
 
-
-  auto [setPointAngle1, angle1p, angle1i, angle1d] = ganPIDx.calculate(posError1);
-  auto [setPointAngle2, angle2p, angle2i, angle2d] = ganPIDy.calculate(posError2);
+  auto [setPointAngleX, setAngleXp, setAngleXi, setAngleXd] = ganPIDx.calculate(posErrorX);
+  auto [setPointAngleY, setAngleYp, setAngleYi, setAngleYd] = ganPIDy.calculate(posErrorY);
   
-  setPointAngle1 = constrain(setPointAngle1, -8, 8);
-  setPointAngle2 = constrain(setPointAngle2, -11, 11);
+  // setPointAngle1 = constrain(setPointAngle1, -8, 8);
+  // setPointAngle2 = constrain(setPointAngle2, -11, 11);
 
-  float error1 = -(setPointAngle1 - e1);
-  float error2 = -(setPointAngle2 - e2);
+  int pendulumAngleX = -receiverESP.data.int_message_1;
+  int pendulumAngleY = receiverESP.data.int_message_2;
+
+  float angleErrorX = -(setPointAngleX - pendulumAngleX);
+  float angleErrorY = -(setPointAngleY - pendulumAngleY);
 
 
-  auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(error1);
-  auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(error2);
+  auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(angleErrorX);
+  auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(angleErrorY);
 
-  if (error1 < 0) {
-    xVel -= X_DEADZONE;
-  } else if (error1 > 0) {
-    xVel += X_DEADZONE ;
-  }else{
-    xVel += 0;
-  }
+  // if (angleErrorX < 0) {
+  //   xVel -= X_DEADZONE;
+  // } else if (angleErrorX > 0) {
+  //   xVel += X_DEADZONE ;
+  // }else{
+  //   xVel += 0;
+  // }
 
-  if (error2 < 0) {
-    yVel -= Y_DEADZONE;
-  } else if (error2 > 0) {
-    yVel += Y_DEADZONE ;
-  }else{
-    yVel += 0;
-  }
+  // if (angleErrorY < 0) {
+  //   yVel -= Y_DEADZONE;
+  // } else if (angleErrorY > 0) {
+  //   yVel += Y_DEADZONE ;
+  // }else{
+  //   yVel += 0;
+  // }
 
   // Extract direction (true for positive, false for negative)
   bool xDir = (xVel >= 0);
@@ -226,74 +267,49 @@ void loop() {
 
   // Get absolute values for speed
   int xSpeed = round(abs(xVel));
-  // int xSpeed = 0;
-
   int ySpeed = round(abs(yVel));
-  // int ySpeed = 0;
 
-  xSpeed = constrain(xSpeed, 0, 255);
-  ySpeed = constrain(ySpeed, 0, 255);
+  // Should these constraints be here?
+  // xSpeed = constrain(xSpeed, 0, 255);
+  // ySpeed = constrain(ySpeed, 0, 255);
 
   // Apply to motors
-  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) && abs(e1) < 2000 && abs(e2) < 2000){
+  // Need to change soft limits to match new coordinates
+  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(pendulumAngleX) < 2000 && abs(pendulumAngleY) < 2000){
     // Calculate PID outputs
     move.moveXY(xSpeed, xDir, ySpeed, yDir);
   } else {
     move.moveXY(0, xDir, 0, yDir);
   }
-  Serial.print("E1: ");
-  Serial.print(e1);
-  Serial.print(", E2: ");
-  Serial.print(e2);
-  Serial.print(", G1: ");
-  Serial.print(posX);
-  Serial.print(", G2: ");
-  Serial.print(posY);
-  Serial.print(", xV: ");
-  Serial.print(xVel);
-  Serial.print(", yV: ");
-  Serial.print(yVel);
-  Serial.print(", px: ");
-  Serial.print(error1);
-  Serial.print(", py: ");
-  Serial.print(error2);
-  Serial.print(", gx: ");
-  Serial.print(posError1);
-  Serial.print(", gy: ");
-  Serial.print(posError2);
-  Serial.print(", xVelp: ");
-  Serial.print(xVelp);
-  Serial.print(", xVeli: ");
-  Serial.print(xVeli);
-  Serial.print(", xVeld: ");
-  Serial.print(xVeld);
-  Serial.print(", yVelp: ");
-  Serial.print(yVelp);
-  Serial.print(", yVeli: ");
-  Serial.print(yVeli);
-  Serial.print(", yVeld: ");
-  Serial.print(yVeld);
-  Serial.print(", setPointAngle1: ");
-  Serial.print(setPointAngle1);
-  Serial.print(", angle1p: ");
-  Serial.print(angle1p);
-  Serial.print(", angle1i: ");
-  Serial.print(angle1i);
-  Serial.print(", angle1d: ");
-  Serial.print(angle1d);
-  Serial.print(", setPointAngle2: ");
-  Serial.print(setPointAngle2);
-  Serial.print(", angle2p: ");
-  Serial.print(angle2p);
-  Serial.print(", angle2i: ");
-  Serial.print(angle2i);
-  Serial.print(", angle2d: ");
-  Serial.println(angle2d);
 
+  // Set up and send Telemetry
+  // There is probably a better way to do this (global vars? set up the array beforehand, add read/write blocking for race)
+  telemetryVariables[0] = float(posX);
+  telemetryVariables[1] = float(posY);
+  telemetryVariables[2] = float(pendulumAngleX);
+  telemetryVariables[3] = float(pendulumAngleY);
+  telemetryVariables[4] = setAngleXp;
+  telemetryVariables[5] = setAngleXi;
+  telemetryVariables[6] = setAngleXd;
+  telemetryVariables[7] = setPointAngleX;
+  telemetryVariables[8] = setAngleYp;
+  telemetryVariables[9] = setAngleYi;
+  telemetryVariables[10] = setAngleYd;
+  telemetryVariables[11] = setPointAngleY;
+  telemetryVariables[12] = xVelp;
+  telemetryVariables[13] = xVeli;
+  telemetryVariables[14] = xVeld;
+  telemetryVariables[15] = xVel;
+  telemetryVariables[16] = yVelp;
+  telemetryVariables[17] = yVeli;
+  telemetryVariables[18] = yVeld;
+  telemetryVariables[19] = yVel;
+  //placeholders for now, until I get the stuff from Cyrus' branch
+  telemetryVariables[20] = 0;
+  telemetryVariables[21] = 0;
 
-  Serial.flush();
-  // Example movement patterns (commented out for safety)
-  
+  telemetry.sendSnapshot(telemetryVariables, micros());
+
    // Check if button was pressed
   if (buttonPressed) {
     handleButtonPress();
@@ -301,7 +317,6 @@ void loop() {
   }
 
 }
-
 
 // Initialize pendulum-specific hardware
 #elif CURRENT_ESP == ESP_PENDULUM

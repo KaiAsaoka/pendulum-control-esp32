@@ -7,6 +7,10 @@
 
 #define STATIC_BRAKE 0
 #define DYNAMIC_BRAKE 0
+#define BELT_DRIVE_RADIUS 16.1671f
+#define ENCODER_360 0x3FFF
+
+constexpr float SCALE_FACTOR = (M_PI * BELT_DRIVE_RADIUS) / ENCODER_360;
 
 Move::Move(Driver& dvr1, Driver& dvr2, Encoder& enc1, Encoder& enc2) : dvr1(dvr1), dvr2(dvr2), enc1(enc1), enc2(enc2) {}
 
@@ -140,10 +144,8 @@ float Move::returnPosX(){
     long angle2 = enc2.getTotalAngle();
 
     // Convert to float and scale appropriately
-    // The sqrt(2) factor comes from the mechanical coupling of the motors
     // We'll multiply by a scaling factor to get to physical units (mm)
-    const float SCALE_FACTOR = 0.1; // Adjust this based on your mechanical setup
-    float posX = (float(angle1) + float(angle2)) * SCALE_FACTOR / sqrt(2.0f);
+    float posX = (float(angle1) + float(angle2)) * SCALE_FACTOR;
     return posX;
 }
 
@@ -153,10 +155,8 @@ float Move::returnPosY(){
     long angle2 = enc2.getTotalAngle();
     
     // Convert to float and scale appropriately
-    // The sqrt(2) factor comes from the mechanical coupling of the motors
     // We'll multiply by a scaling factor to get to physical units (mm)
-    const float SCALE_FACTOR = 0.1; // Adjust this based on your mechanical setup
-    float posY = (float(angle1)-(angle2)) * SCALE_FACTOR / sqrt(2.0f);
+    float posY = (float(angle1) - float(angle2)) * SCALE_FACTOR;
     return posY;
 }
 
