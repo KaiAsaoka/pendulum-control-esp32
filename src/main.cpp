@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include <Encoder.h>
+#include "Encoder.h" // Remove <> to avoid accidental using Arduino version
 #include <chrono>
 #include <Driver.h>
 #include <Move.h>
@@ -8,11 +8,19 @@
 #include <PL_Telemetry_ESP32.h>
 #include <ESPNow.h>
 #include <PID.h>
+#include <math.h>   
+
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 #define ESP_GANTRY_IP 1 //NEED TO FIND
+
+
+// Define 1 ms loop timing
+constexpr uint32_t LOOP_US = 10000;     // 10 ms
+static volatile uint32_t overrun_count = 0;
+
 
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
@@ -45,29 +53,29 @@
 #define SPEED 20
 
 #define pendKPx 0.045
-#define pendKIx 0.018
+#define pendKIx 0
 #define pendKDx 0
 
 #define pendlpfx 0
-#define pendintcutoffx 1000 / 0.018
+#define pendintcutoffx (1000 / 0.018)
 
 #define pendKPy 0.015
-#define pendKIy 0.018
+#define pendKIy 0
 #define pendKDy 0
 
 #define pendlpfy 0
-#define pendintcutoffy 2000 / 0.016
+#define pendintcutoffy (2000 / 0.016)
 
-#define ganKPx 0.0030  // 0.05
-#define ganKIx 0.00000
-#define ganKDx 0.1100
+#define ganKPx 0  
+#define ganKIx 0
+#define ganKDx 0
 
 #define ganlpfx 0.75
 #define ganintcutoffx 5
 
-#define ganKPy 0.0055  // 0.05
-#define ganKIy 0.00000
-#define ganKDy 0.0300
+#define ganKPy 0  
+#define ganKIy 0
+#define ganKDy 0
 
 #define ganlpfy 0.75
 #define ganintcutoffy 5
@@ -169,7 +177,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Gantry ESP32 Starting...");
 
-  pinMode(ZERO_BTN, INPUT_PULLUP);
+  pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
@@ -218,9 +226,30 @@ void setup() {
 
 void loop() { }
 
-// Gantry-specific loop
 // This will handle motor control and position management
 void control() {
+  // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
+  static uint32_t next_tick = micros();
+  uint32_t now = micros();
+
+  // Sleep if early
+  int32_t until_tick = (int32_t)(next_tick - now);
+  if (until_tick > 0) {
+    delayMicroseconds((uint32_t)until_tick);
+    now = micros();
+  }
+
+  // Catch up if we’re late by >= 1 period (no drift even on overruns)
+  uint32_t missed = 0;
+  while ((int32_t)(now - next_tick) >= 0) {
+    next_tick += LOOP_US;   // LOOP_US = 1000
+    ++missed;
+  }
+  overrun_count += missed;
+
+  // Fixed dt (exactly 10 ms)
+  const float dt = 0.01f;
+
   float telemetryVariables[22];
 
   int posX = move.returnPosX();
@@ -315,7 +344,6 @@ void control() {
     handleButtonPress();
     buttonPressed = false;  // Reset the flag
   }
-
 }
 
 // Initialize pendulum-specific hardware
@@ -374,16 +402,3 @@ void loop() {
 #else
 #error "Please select either ESP_GANTRY or ESP_PENDULUM for CURRENT_ESP"
 #endif
-
-void printBinary16(uint16_t n) {
-  for (int i = 15; i >= 0; i--) {
-    Serial.print((n >> i) & 1);
-  }
-  Serial.println();
-}
-
-unsigned long getTime(unsigned long startTime) {
-  unsigned long currentTime = millis();
-  unsigned long duration = currentTime - startTime;
-  return duration;
-}
