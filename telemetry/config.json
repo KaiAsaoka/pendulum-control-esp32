@@ -1,8 +1,8 @@
 {
     "TIME_PER_DIV": 1000,
     "NUM_DIVS": 10,
-    "MAX_POINTS": 20000,
+    "MAX_POINTS": 200000,
     "ESP_IP": "192.168.137.50",
-    "UDP_IP": "0.0.0.0",
+    "UDP_IP": "192.168.137.1",
     "UDP_PORT": 12345
 }

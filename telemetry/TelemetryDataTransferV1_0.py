@@ -75,6 +75,14 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
 
             for i, val in enumerate(vars_values):
                 name = variable_names[i]
+                print(name)
+                print(val)
+                ## REMOVE THIS LATER ###################
+                if name == "carriageXPosition":
+                    print("X Position: ", val)
+                elif name == "carriageYPosition":
+                    print("Y Position: ", val)
+                ########################################
                 data_buffers[name].append((timestamp_us/1000.0, val))  # ms
 
 def start_telemetry(variable_names, esp_addr):

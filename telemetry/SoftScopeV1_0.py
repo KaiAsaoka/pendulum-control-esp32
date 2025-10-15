@@ -220,6 +220,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 if __name__ == "__main__":
     variable_names, esp_addr = receive_metadata()
     data_buffers = start_telemetry(variable_names, esp_addr)
+    print("Started Telemetry!")
 
     app = QtWidgets.QApplication([])
     gui = TelemetryGUI(variable_names, data_buffers)

@@ -6,6 +6,8 @@ void PL_Telemetry_ESP32::wifiBegin() {
 
     WiFi.config(_localIP, gateway, subnet);
     WiFi.begin(_ssid, _password);
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
 
     while(WiFi.status() != WL_CONNECTED) {
         delay(500);
