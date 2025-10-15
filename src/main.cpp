@@ -47,7 +47,7 @@ static volatile uint32_t overrun_count = 0;
 
 #define pendKPx 0.045
 #define pendKIx 0
-#define pendKDx 0.005
+#define pendKDx 0.0005
 
 #define pendlpfx 0
 #define pendintcutoffx (1000 / 0.018)
