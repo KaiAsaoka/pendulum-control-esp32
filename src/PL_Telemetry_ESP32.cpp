@@ -7,7 +7,9 @@ void PL_Telemetry_ESP32::wifiBegin() {
     WiFi.config(_localIP, gateway, subnet);
     WiFi.begin(_ssid, _password);
     Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
+    if(WiFi.status() == WL_CONNECTED) {
+        Serial.println(WiFi.localIP());
+    }
 
     while(WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -47,10 +49,12 @@ void PL_Telemetry_ESP32::checkCommands() {
 
         if(strcmp(buf,"METADATA") == 0) {
             _metadataRequested = true;
+            Serial.println("METADATA recieved!");
         }
         else if(strcmp(buf,"START") == 0) {
             _telemetryStarted = true;
             _lastPulseTime = millis();
+            Serial.println("START received!");
             // Serial.println("Telemetry started!");
         }
         else if(strcmp(buf,"PULSE") == 0) {

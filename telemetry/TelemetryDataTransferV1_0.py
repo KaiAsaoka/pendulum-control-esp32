@@ -52,8 +52,11 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
     while True:
         try:
             data, addr = sock.recvfrom(4096)
-        except (socket.timeout, ConnectionResetError):
+        except (socket.timeout):
+            print("Socket Timeout")
             continue
+        except (ConnectionResetError): 
+            print("Connection Reset Error")
 
         if len(data) < 6:
             continue
@@ -91,9 +94,12 @@ def start_telemetry(variable_names, esp_addr):
 
     sock.sendto(b"START", esp_addr)
     print(f"Start command sent to {esp_addr}, ESP should begin transmitting...")
+    send_pulse(esp_addr)
 
     thread = threading.Thread(target=receive_telemetry, args=(len(variable_names), variable_names, data_buffers), daemon=True)
     thread.start()
+    if thread.is_alive():
+        print("Thread Started")
     return data_buffers
 
 def send_pulse(esp_addr):

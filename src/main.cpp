@@ -87,12 +87,13 @@ const char* ssid = "Tjoe-Surface";
 const char* password = "d70%2D23";
 
 const char* telemVars[] = {
-  "carriageXPosition", "carriageYPosition", "pendulumXAngle", "pendulumYAngle",
-  "xPositionKP", "xPositionKI", "xPositionKD", "xSetPointAngle",
-  "yPositionKP", "yPositionKI", "yPositionKD", "ySetPointAngle",
-  "xAngleKP", "xAngleKI", "xAngleKD", "xPWM",
-  "yAngleKP", "yAngleKI", "yAngleKD", "yPWM",
-  "loopTime", "loopWaitTime"
+  "carriageXPosition", "carriageYPosition"
+  // "pendulumXAngle", "pendulumYAngle",
+  // "xPositionKP", "xPositionKI", "xPositionKD", "xSetPointAngle",
+  // "yPositionKP", "yPositionKI", "yPositionKD", "ySetPointAngle",
+  // "xAngleKP", "xAngleKI", "xAngleKD", "xPWM",
+  // "yAngleKP", "yAngleKI", "yAngleKD", "yPWM",
+  // "loopTime", "loopWaitTime"
   };
 
 TaskHandle_t controlLoop;
@@ -230,29 +231,29 @@ void setup() {
 
 // This will handle motor control and position management
 void loop() {
-  // // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
-  // static uint32_t next_tick = micros();
-  // uint32_t now = micros();
+  // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
+  static uint32_t next_tick = micros();
+  uint32_t now = micros();
 
-  // // Sleep if early
-  // int32_t until_tick = (int32_t)(next_tick - now);
-  // if (until_tick > 0) {
-  //   delayMicroseconds((uint32_t)until_tick);
-  //   now = micros();
-  // }
+  // Sleep if early
+  int32_t until_tick = (int32_t)(next_tick - now);
+  if (until_tick > 0) {
+    delayMicroseconds((uint32_t)until_tick);
+    now = micros();
+  }
 
-  // // Catch up if we’re late by >= 1 period (no drift even on overruns)
-  // uint32_t missed = 0;
-  // while ((int32_t)(now - next_tick) >= 0) {
-  //   next_tick += LOOP_US;   // LOOP_US = 1000
-  //   ++missed;
-  // }
-  // overrun_count += missed;
+  // Catch up if we’re late by >= 1 period (no drift even on overruns)
+  uint32_t missed = 0;
+  while ((int32_t)(now - next_tick) >= 0) {
+    next_tick += LOOP_US;   // LOOP_US = 1000
+    ++missed;
+  }
+  overrun_count += missed;
 
   // // Fixed dt (exactly 10 ms)
   // const float dt = 0.01f;
 
-  float telemetryVariables[22];
+  float telemetryVariables[2];
 
   int posX = move.returnPosX();
   int posY = move.returnPosY();
@@ -319,9 +320,9 @@ void loop() {
   // // There is probably a better way to do this (global vars? set up the array beforehand, add read/write blocking for race)
   telemetryVariables[0] = float(posX);
   telemetryVariables[1] = float(posY);
-  for (int i = 2; i < 22; i++) {
-    telemetryVariables[i] = 0;
-  }
+  // for (int i = 2; i < 22; i++) {
+  //   telemetryVariables[i] = 0;
+  // }
   // telemetryVariables[2] = float(pendulumAngleX);
   // telemetryVariables[3] = float(pendulumAngleY);
   // telemetryVariables[4] = setAngleXp;
@@ -345,6 +346,7 @@ void loop() {
   // telemetryVariables[21] = 0;
 
   telemetry.sendSnapshot(telemetryVariables, micros());
+  // Serial.println("Send Snapshot");
 
   // Serial.print(posX);
   // Serial.print(" ");
