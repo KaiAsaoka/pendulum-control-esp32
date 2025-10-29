@@ -5,6 +5,10 @@ import pyqtgraph as pg
 from TelemetryDataTransferV1_0 import receive_metadata, start_telemetry, data_buffers, variable_names, sock
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
 
+# TODO - change checkboxes to turn on/off individual plots rather than data
+# TODO - change update_selected function to work with unique plots
+# TODO - change update_plot to plot on unique plots
+
 # Predefined color options
 COLOR_OPTIONS = {
     "Red": (255, 0, 0),
@@ -70,12 +74,63 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.checkbox_layout.addStretch(1)
 
         # Right panel: plot
-        self.plot_widget = pg.PlotWidget(title="Live Telemetry")
-        main_split.addWidget(self.plot_widget)
-        self.plot_widget.addLegend()
-        self.plot_widget.setLabel("left", "Value")
-        self.plot_widget.setLabel("bottom", "Time (ms)")
-        self.curves = {}
+        # self.plot_widget = pg.PlotWidget(title="Live Telemetry")
+        # main_split.addWidget(self.plot_widget)
+        # self.plot_widget.addLegend()
+        # self.plot_widget.setLabel("left", "Value")
+        # self.plot_widget.setLabel("bottom", "Time (ms)")
+        # self.curves = {}
+
+        # TODO - Add Specific Plot Widgets here 
+
+        # XY Position
+        self.plot_xy = pg.PlotWidget(title = "XY Position")
+        main_split.addWidget(self.plot_xy)
+        self.plot_xy.setLabel("left", "Y (mm)")
+        self.plot_xy.setLabel("right", "X (mm)")
+        self.xy_vals = {}
+
+        # Gantry X PID
+        self.plot_gan_x_pid = pg.PlotWidget(title = "Gantry X PID")
+        main_split.addWidget(self.plot_gan_x_pid)
+        self.plot_gan_x_pid.setLabel("left", "Value")
+        self.plot_gan_x_pid.setLabel("right", "Time (ms)")
+        self.gan_x_pid_vals = {}
+
+        # Gantry Y PID
+        self.plot_gan_y_pid = pg.PlotWidget(title = "Gantry Y PID")
+        main_split.addWidget(self.plot_gan_y_pid)
+        self.plot_gan_y_pid.setLabel("left", "Value")
+        self.plot_gan_y_pid.setLabel("right", "Time (ms)")
+        self.gan_y_pid_vals = {}
+
+        # Pendulum X PID
+        self.plot_pen_x_pid = pg.PlotWidget(title = "Pendulum X PID")
+        main_split.addWidget(self.plot_pen_x_pid)
+        self.plot_pen_x_pid.setLabel("left", "Value")
+        self.plot_pen_x_pid.setLabel("right", "Time (ms)")
+        self.pen_x_pid_vals = {}
+
+        # Pendulum Y PID
+        self.plot_pen_y_pid = pg.PlotWidget(title = "Pendulum Y PID")
+        main_split.addWidget(self.plot_pen_y_pid)
+        self.plot_pen_y_pid.setLabel("left", "Value")
+        self.plot_pen_y_pid.setLabel("right", "Time (ms)")
+        self.pen_y_pid_vals = {}
+
+        # X Angle
+        self.plot_x_angle = pg.PlotWidget(title = "X Angle")
+        main_split.addWidget(self.plot_x_angle)
+        self.plot_x_angle.setLabel("left", "Angle (deg)")
+        self.plot_x_angle.setLabel("right", "Time (ms)")
+        self.x_angle_vals = {}
+
+        # Y Angle
+        self.plot_y_angle = pg.PlotWidget(title = "Y Angle")
+        main_split.addWidget(self.plot_y_angle)
+        self.plot_y_angle.setLabel("left", "Angle (deg)")
+        self.plot_y_angle.setLabel("right", "Time (ms)")
+        self.y_angle_vals = {}
 
         # Controls below the plot
         controls = QtWidgets.QHBoxLayout()
