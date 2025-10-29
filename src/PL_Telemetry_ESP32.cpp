@@ -1,6 +1,9 @@
 #include "PL_Telemetry_ESP32.h"
 
 void PL_Telemetry_ESP32::wifiBegin() {
+    if (strcmp(_ssid, "na") == 0 || strcmp(_password, "na") == 0)
+        return;
+
     IPAddress gateway(192,168,137,1);
     IPAddress subnet(255,255,255,0);
 
@@ -9,6 +12,7 @@ void PL_Telemetry_ESP32::wifiBegin() {
     Serial.print("IP: ");
     if(WiFi.status() == WL_CONNECTED) {
         Serial.println(WiFi.localIP());
+        _wifiStarted = true;
     }
 
     while(WiFi.status() != WL_CONNECTED) {
@@ -18,6 +22,23 @@ void PL_Telemetry_ESP32::wifiBegin() {
     // Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
 
     _udp.begin(_udpPort);
+}
+
+void PL_Telemetry_ESP32::serialBegin() {
+    Serial.begin(115200);
+    while (!Serial) delay(10);
+    _serialStarted = true;
+    Serial.println("Serial Telemetry Initialized")
+}
+
+void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
+    if (_wifiStarted) {
+        _udp.beginPacket(_pcIP, _udpPort);
+        _udp.write(buffer, size);
+        _udp.endPacket();
+    } else if (_serialStarted) {
+        Serial.write(buffer, size);
+    }
 }
 
 void PL_Telemetry_ESP32::sendMetadata() {
@@ -35,9 +56,7 @@ void PL_Telemetry_ESP32::sendMetadata() {
         offset += len;
     }
 
-    _udp.beginPacket(_pcIP, _udpPort);
-    _udp.write(buffer, offset);
-    _udp.endPacket();
+    sendPacket(buffer, offset);  
 }
 
 void PL_Telemetry_ESP32::checkCommands() {
@@ -125,10 +144,8 @@ void PL_Telemetry_ESP32::telemetryTask() {
         uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 2);
         *crcPtr = 0;
 
-        // Send UDP packet
-        _udp.beginPacket(_pcIP, _udpPort);
-        _udp.write(buffer, packetSize);
-        _udp.endPacket();
+        // Send packet
+        sendPacket(buffer, packetSize); 
 
         delete[] buffer;
 

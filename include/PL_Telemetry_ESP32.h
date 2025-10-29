@@ -37,8 +37,10 @@ public:
 
 private:
     void wifiBegin();
+    void serialBegin();
     void telemetryTask();
     void sendMetadata();
+    void sendPacket(uint8_t* buffer, size_t size);
     void checkCommands();
 
     const char* _ssid;
@@ -50,6 +52,8 @@ private:
     size_t _numVars;
 
     WiFiUDP _udp;
+    bool _wifiStarted = false;
+    bool _serialStarted = false;
     bool _telemetryStarted = false;
     bool _metadataRequested = false;
     unsigned long _lastPulseTime = 0;
