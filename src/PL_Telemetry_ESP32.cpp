@@ -1,7 +1,7 @@
 #include "PL_Telemetry_ESP32.h"
 
 void PL_Telemetry_ESP32::wifiBegin() {
-    if (strcmp(_ssid, "na") == 0 || strcmp(_password, "na") == 0)
+    if (_ssid == "na" || _password == "na")
         return;
 
     IPAddress gateway(192,168,137,1);
@@ -28,7 +28,7 @@ void PL_Telemetry_ESP32::serialBegin() {
     Serial.begin(115200);
     while (!Serial) delay(10);
     _serialStarted = true;
-    Serial.println("Serial Telemetry Initialized")
+    Serial.println("Serial Telemetry Initialized");
 }
 
 void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
@@ -60,26 +60,36 @@ void PL_Telemetry_ESP32::sendMetadata() {
 }
 
 void PL_Telemetry_ESP32::checkCommands() {
-    int packetSize = _udp.parsePacket();
-    if(packetSize) {
-        char buf[16];
-        int len = _udp.read(buf, sizeof(buf)-1);
-        buf[len] = 0;
+    char buf[16];
+    if (_wifiStarted) {
+        int packetSize = _udp.parsePacket();
 
-        if(strcmp(buf,"METADATA") == 0) {
-            _metadataRequested = true;
-            Serial.println("METADATA recieved!");
+        if(packetSize) {
+            int len = _udp.read(buf, sizeof(buf)-1);
+            buf[len] = 0;
         }
-        else if(strcmp(buf,"START") == 0) {
-            _telemetryStarted = true;
-            _lastPulseTime = millis();
-            Serial.println("START received!");
-            // Serial.println("Telemetry started!");
+    }
+    else if (_serialStarted) {
+        int packetSize = Serial.available();
+
+        if(packetSize) {
+            int len = Serial.readBytesUntil('\n', buf, sizeof(buf)-1);
         }
-        else if(strcmp(buf,"PULSE") == 0) {
-            _lastPulseTime = millis();
-            // Serial.println("Pulse received");
-        }
+    }
+
+    if(strcmp(buf,"METADATA") == 0) {
+        _metadataRequested = true;
+        Serial.println("METADATA recieved!");
+    }
+    else if(strcmp(buf,"START") == 0) {
+        _telemetryStarted = true;
+        _lastPulseTime = millis();
+        Serial.println("START received!");
+        // Serial.println("Telemetry started!");
+    }
+    else if(strcmp(buf,"PULSE") == 0) {
+        _lastPulseTime = millis();
+        // Serial.println("Pulse received");
     }
 }
 
@@ -87,7 +97,8 @@ void PL_Telemetry_ESP32::checkCommands() {
 void PL_Telemetry_ESP32::telemetryTask() {
     // Use internal snapshot array
     InternalSnapshot batch[_BATCH_SIZE];
-    wifiBegin(); // initialize Wi-Fi and UDP
+    // wifiBegin(); // initialize Wi-Fi and UDP
+    serialBegin();
 
     for (;;) {
         checkCommands();
@@ -142,7 +153,7 @@ void PL_Telemetry_ESP32::telemetryTask() {
 
         // CRC placeholder
         uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 2);
-        *crcPtr = 0;
+        *crcPtr = 0xFFFF;   
 
         // Send packet
         sendPacket(buffer, packetSize); 

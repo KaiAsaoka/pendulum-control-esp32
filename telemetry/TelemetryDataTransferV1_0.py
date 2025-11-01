@@ -81,7 +81,7 @@ def receive_metadata_udp():
 def receive_metadata_serial():
     ser.write(b"METADATA\n")
     while True:
-        data = ser.read(512)
+        data = ser.read_until(b'\xFF\xFF')
         if len(data) < 3:
             sleep(0.05)
             continue

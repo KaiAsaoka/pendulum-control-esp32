@@ -4,12 +4,13 @@ import json
 import os
 import sys
 
-CONFIG_PATH = "config.json"
+CONFIG_PATH = "telemetry/config.json"
 
 if os.path.exists(CONFIG_PATH):
     with open(CONFIG_PATH, "r") as f:
         config = json.load(f)
 else:
+    print(CONFIG_PATH)
     sys.exit("Failed to load config")
 
 ESP_IP = config["ESP_IP"]  # Change to your ESP32 IP

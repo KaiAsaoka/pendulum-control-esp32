@@ -80,22 +80,6 @@ static volatile uint32_t overrun_count = 0;
 #define ganlpfy 0.75
 #define ganintcutoffy 5
 
-// Telemetry Setup - Please change when flashing before tests
-#define PC_IP 192,168,137,1
-
-const char* ssid = "Tjoe-Surface";
-const char* password = "d70%2D23";
-
-const char* telemVars[] = {
-  "carriageXPosition", "carriageYPosition"
-  // "pendulumXAngle", "pendulumYAngle",
-  // "xPositionKP", "xPositionKI", "xPositionKD", "xSetPointAngle",
-  // "yPositionKP", "yPositionKI", "yPositionKD", "ySetPointAngle",
-  // "xAngleKP", "xAngleKI", "xAngleKD", "xPWM",
-  // "yAngleKP", "yAngleKI", "yAngleKD", "yPWM",
-  // "loopTime", "loopWaitTime"
-  };
-
 TaskHandle_t controlLoop;
 
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
@@ -165,9 +149,35 @@ Driver DVR2(PWM2, DIR2);
 
 Move move(DVR1, DVR2, ENC1, ENC2);
 
+// Telemetry Setup - Please change when flashing before tests
+#define PC_IP 192,168,137,1
+
+const char* ssid = "Tjoe-Surface";
+const char* password = "d70%2D23";
+
+const char* telemVars[] = {
+  "carriageXPosition", "carriageYPosition"
+  "pendulumXAngle", "pendulumYAngle",
+  "xPositionKP", "xPositionKI", "xPositionKD", "xSetPointAngle",
+  "yPositionKP", "yPositionKI", "yPositionKD", "ySetPointAngle",
+  "xAngleKP", "xAngleKI", "xAngleKD", "xPWM",
+  "yAngleKP", "yAngleKI", "yAngleKD", "yPWM",
+  "loopTime", "loopWaitTime"
+  };
+
+// PL_Telemetry_ESP32 telemetry(
+//   ssid,
+//   password,
+//   IPAddress(ESP_GANTRY_IP),
+//   IPAddress(PC_IP),
+//   12345,
+//   0,
+//   telemVars
+// );
+
 PL_Telemetry_ESP32 telemetry(
-  ssid,
-  password,
+  "na",
+  "na",
   IPAddress(ESP_GANTRY_IP),
   IPAddress(PC_IP),
   12345,
@@ -227,8 +237,6 @@ void setup() {
   // );
 }
 
-// void loop() { }
-
 // This will handle motor control and position management
 void loop() {
   // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
@@ -253,10 +261,10 @@ void loop() {
   // // Fixed dt (exactly 10 ms)
   // const float dt = 0.01f;
 
-  float telemetryVariables[2];
+  float telemetryVariables[22];
 
-  int posX = move.returnPosX();
-  int posY = move.returnPosY();
+  // int posX = move.returnPosX();
+  // int posY = move.returnPosY();
 
   // float posErrorX = (TARGET_POSX - posX);
   // float posErrorY = (TARGET_POSY - posY);
@@ -307,22 +315,19 @@ void loop() {
   // // xSpeed = constrain(xSpeed, 0, 255);
   // // ySpeed = constrain(ySpeed, 0, 255);
 
-  // // Apply to motors
-  // // Need to change soft limits to match new coordinates
-  // // if (abs(posX) < 8000 && abs(posY) < 10000 && abs(pendulumAngleX) < 2000 && abs(pendulumAngleY) < 2000){
-  // //   // Calculate PID outputs
-  // //   move.moveXY(xSpeed, xDir, ySpeed, yDir);
-  // // } else {
-  // //   move.moveXY(0, xDir, 0, yDir);
-  // // }
+  // Apply to motors
+  // Need to change soft limits to match new coordinates
+  // if (abs(posX) < 8000 && abs(posY) < 10000 && abs(pendulumAngleX) < 2000 && abs(pendulumAngleY) < 2000){
+  //   // Calculate PID outputs
+  //   move.moveXY(xSpeed, xDir, ySpeed, yDir);
+  // } else {
+  //   move.moveXY(0, xDir, 0, yDir);
+  // }
 
   // // Set up and send Telemetry
   // // There is probably a better way to do this (global vars? set up the array beforehand, add read/write blocking for race)
-  telemetryVariables[0] = float(posX);
-  telemetryVariables[1] = float(posY);
-  // for (int i = 2; i < 22; i++) {
-  //   telemetryVariables[i] = 0;
-  // }
+  // telemetryVariables[0] = float(posX);
+  // telemetryVariables[1] = float(posY);
   // telemetryVariables[2] = float(pendulumAngleX);
   // telemetryVariables[3] = float(pendulumAngleY);
   // telemetryVariables[4] = setAngleXp;
@@ -345,12 +350,11 @@ void loop() {
   // telemetryVariables[20] = 0;
   // telemetryVariables[21] = 0;
 
-  telemetry.sendSnapshot(telemetryVariables, micros());
-  // Serial.println("Send Snapshot");
+  for (int i = 0; i++; i < 22) {
+    telemetryVariables[i] = i;
+  }
 
-  // Serial.print(posX);
-  // Serial.print(" ");
-  // Serial.println(posY);
+  telemetry.sendSnapshot(telemetryVariables, micros());
 
    // Check if button was pressed
   if (buttonPressed) {
