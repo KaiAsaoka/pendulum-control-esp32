@@ -70,11 +70,17 @@ void PL_Telemetry_ESP32::checkCommands() {
         }
     }
     else if (_serialStarted) {
-        int packetSize = Serial.available();
-
-        if(packetSize) {
-            int len = Serial.readBytesUntil('\n', buf, sizeof(buf)-1);
+        uint8_t len = 0;
+        // int packetSize = Serial.available();
+        while(Serial.available() > 0) {
+            buf[len++] = Serial.read();
         }
+
+        buf[len] = '\0'; //Convert to str
+
+        // if(packetSize) {
+        //     int len = Serial.readBytesUntil('\n', buf, sizeof(buf)-1);
+        // }
     }
 
     if(strcmp(buf,"METADATA") == 0) {
@@ -90,6 +96,10 @@ void PL_Telemetry_ESP32::checkCommands() {
     else if(strcmp(buf,"PULSE") == 0) {
         _lastPulseTime = millis();
         // Serial.println("Pulse received");
+    }
+    else if (strcmp(buf,"PID") == 0) {
+        _lastPulseTime = millis();
+        
     }
 }
 
