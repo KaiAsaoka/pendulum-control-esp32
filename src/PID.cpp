@@ -2,7 +2,7 @@
 #include <Arduino.h>   // for constrain()
 #include <tuple>
 
-PID::PID(float kp, float ki, float kd, float lpf_gain, float int_cutoff)
+PID::PID(volatile float& kp, volatile float& ki, volatile float& kd, volatile float& lpf_gain, volatile float& int_cutoff)
 : kp(kp), ki(ki), kd(kd),
   previous_error(0.0f), integral(0.0f), d_term(0.0f),
   lpf_gain(lpf_gain), int_cutoff(int_cutoff) {}
