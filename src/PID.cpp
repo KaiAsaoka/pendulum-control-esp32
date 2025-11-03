@@ -2,15 +2,10 @@
 #include <tuple>
 #include <Arduino.h>
 
-<<<<<<< HEAD
-PID::PID(float kp, float ki, float kd, float lpf_gain, float int_cutoff) : kp(kp), ki(ki), kd(kd), previous_error(0), integral(0), d_term(0), lpf_gain(lpf_gain), int_cutoff(int_cutoff){}
-//PID::PID(float kp, float ki, float kd) : kp(kp), ki(ki), kd(kd), previous_error(0), integral(0), d_term(0), lpf_gain(0.75), int_cutoff(100000) {}
-=======
 PID::PID(volatile float& kp, volatile float& ki, volatile float& kd, volatile float& lpf_gain, volatile float& int_cutoff)
 : kp(kp), ki(ki), kd(kd),
   previous_error(0.0f), integral(0.0f), d_term(0.0f),
   lpf_gain(lpf_gain), int_cutoff(int_cutoff) {}
->>>>>>> 7693d39 (Changed loop variables to global to allow for the telemetry task to access them)
 
 std::tuple<float, float, float, float> PID::calculate(float error) {
 

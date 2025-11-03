@@ -9,6 +9,7 @@
 #include <ESPNow.h>
 #include <PID.h>
 #include <math.h>   
+#include <any>
 #include <freertos/semphr.h>
 
 
@@ -49,41 +50,6 @@ static volatile uint32_t overrun_count = 0;
 #define X_DEADZONE 4
 #define Y_DEADZONE 2
 
-<<<<<<< HEAD
-#define SPEED 20
-
-#define pendKPx 0.045
-#define pendKIx 0
-#define pendKDx 0
-
-#define pendlpfx 0
-#define pendintcutoffx (1000 / 0.018)
-
-#define pendKPy 0.015
-#define pendKIy 0
-#define pendKDy 0
-
-#define pendlpfy 0
-#define pendintcutoffy (2000 / 0.016)
-
-#define ganKPx 0  
-#define ganKIx 0
-#define ganKDx 0
-
-#define ganlpfx 0.75
-#define ganintcutoffx 5
-
-#define ganKPy 0  
-#define ganKIy 0
-#define ganKDy 0
-
-#define ganlpfy 0.75
-#define ganintcutoffy 5
-
-TaskHandle_t controlLoop;
-
-=======
->>>>>>> 7693d39 (Changed loop variables to global to allow for the telemetry task to access them)
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
@@ -163,15 +129,14 @@ void handleButtonPress() {
 
 SemaphoreHandle_t xMyMutex;
 
-//26 Telemetry variables
+//24 Telemetry variables
 const char* telemVars[] = {
   "carriageXPosition", "carriageYPostion",
   "pendulumXAngle", "pendulumYAngle",
   "xPositionError", "xSetAngleP", "xSetAngleI", "xSetAngleD", "xSetPointAngle",
   "yPositionError", "ySetAngleP", "ySetAngleI", "ySetAngleD", "ySetPointAngle",
   "xAngleError", "xSetPWMP", "xSetPWMI", "xSetPWMD", "xPWM",
-  "yAngleError", "ySetPWMP", "ySetPWMI", "ySetPWMD", "yPWM",
-  "loopTime", "loopWaitTime"
+  "yAngleError", "ySetPWMP", "ySetPWMI", "ySetPWMD", "yPWM"
 };
 
 volatile int posX;
@@ -203,8 +168,7 @@ volatile float setPWMIY;
 volatile float setPWMDY;
 volatile float pwmY;
 
-volatile uint32_t loopTime;
-volatile uint32_t loopWaitTime;
+float telemVals[24];
 
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
@@ -225,16 +189,6 @@ Move move(DVR1, DVR2, ENC1, ENC2);
 
 const char* ssid = "Tjoe-Surface";
 const char* password = "d70%2D23";
-
-const char* telemVars[] = {
-  "carriageXPosition", "carriageYPosition"
-  "pendulumXAngle", "pendulumYAngle",
-  "xPositionKP", "xPositionKI", "xPositionKD", "xSetPointAngle",
-  "yPositionKP", "yPositionKI", "yPositionKD", "ySetPointAngle",
-  "xAngleKP", "xAngleKI", "xAngleKD", "xPWM",
-  "yAngleKP", "yAngleKI", "yAngleKD", "yPWM",
-  "loopTime", "loopWaitTime"
-  };
 
 // PL_Telemetry_ESP32 telemetry(
 //   ssid,
@@ -314,11 +268,9 @@ void loop() {
   // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
   static uint32_t next_tick = micros();
   uint32_t now = micros();
-  loopTime = now;
 
   // Sleep if early
   int32_t until_tick = (int32_t)(next_tick - now);
-  loopWaitTime = until_tick;
   if (until_tick > 0) {
     delayMicroseconds((uint32_t)until_tick);
     now = micros();
@@ -332,102 +284,6 @@ void loop() {
   }
   overrun_count += missed;
 
-<<<<<<< HEAD
-  // // Fixed dt (exactly 10 ms)
-  // const float dt = 0.01f;
-
-  float telemetryVariables[22];
-
-  // int posX = move.returnPosX();
-  // int posY = move.returnPosY();
-
-  // float posErrorX = (TARGET_POSX - posX);
-  // float posErrorY = (TARGET_POSY - posY);
-
-  // auto [setPointAngleX, setAngleXp, setAngleXi, setAngleXd] = ganPIDx.calculate(posErrorX);
-  // auto [setPointAngleY, setAngleYp, setAngleYi, setAngleYd] = ganPIDy.calculate(posErrorY);
-  
-  // // setPointAngle1 = constrain(setPointAngle1, -8, 8);
-  // // setPointAngle2 = constrain(setPointAngle2, -11, 11);
-
-  // // int pendulumAngleX = -receiverESP.data.int_message_1;
-  // // int pendulumAngleY = receiverESP.data.int_message_2;
-  // int pendulumAngleX = 0;
-  // int pendulumAngleY = 0;
-
-  // float angleErrorX = -(setPointAngleX - pendulumAngleX);
-  // float angleErrorY = -(setPointAngleY - pendulumAngleY);
-
-
-  // auto [xVel, xVelp, xVeli, xVeld] = pendPIDx.calculate(angleErrorX);
-  // auto [yVel, yVelp, yVeli, yVeld] = pendPIDy.calculate(angleErrorY);
-
-  // // if (angleErrorX < 0) {
-  // //   xVel -= X_DEADZONE;
-  // // } else if (angleErrorX > 0) {
-  // //   xVel += X_DEADZONE ;
-  // // }else{
-  // //   xVel += 0;
-  // // }
-
-  // // if (angleErrorY < 0) {
-  // //   yVel -= Y_DEADZONE;
-  // // } else if (angleErrorY > 0) {
-  // //   yVel += Y_DEADZONE ;
-  // // }else{
-  // //   yVel += 0;
-  // // }
-
-  // // Extract direction (true for positive, false for negative)
-  // bool xDir = (xVel >= 0);
-  // bool yDir = (yVel >= 0);
-
-  // // Get absolute values for speed
-  // int xSpeed = round(abs(xVel));
-  // int ySpeed = round(abs(yVel));
-
-  // // Should these constraints be here?
-  // // xSpeed = constrain(xSpeed, 0, 255);
-  // // ySpeed = constrain(ySpeed, 0, 255);
-
-  // Apply to motors
-  // Need to change soft limits to match new coordinates
-  // if (abs(posX) < 8000 && abs(posY) < 10000 && abs(pendulumAngleX) < 2000 && abs(pendulumAngleY) < 2000){
-  //   // Calculate PID outputs
-  //   move.moveXY(xSpeed, xDir, ySpeed, yDir);
-  // } else {
-  //   move.moveXY(0, xDir, 0, yDir);
-  // }
-
-  // // Set up and send Telemetry
-  // // There is probably a better way to do this (global vars? set up the array beforehand, add read/write blocking for race)
-  // telemetryVariables[0] = float(posX);
-  // telemetryVariables[1] = float(posY);
-  // telemetryVariables[2] = float(pendulumAngleX);
-  // telemetryVariables[3] = float(pendulumAngleY);
-  // telemetryVariables[4] = setAngleXp;
-  // telemetryVariables[5] = setAngleXi;
-  // telemetryVariables[6] = setAngleXd;
-  // telemetryVariables[7] = setPointAngleX;
-  // telemetryVariables[8] = setAngleYp;
-  // telemetryVariables[9] = setAngleYi;
-  // telemetryVariables[10] = setAngleYd;
-  // telemetryVariables[11] = setPointAngleY;
-  // telemetryVariables[12] = xVelp;
-  // telemetryVariables[13] = xVeli;
-  // telemetryVariables[14] = xVeld;
-  // telemetryVariables[15] = xVel;
-  // telemetryVariables[16] = yVelp;
-  // telemetryVariables[17] = yVeli;
-  // telemetryVariables[18] = yVeld;
-  // telemetryVariables[19] = yVel;
-  // //placeholders for now, until I get the stuff from Cyrus' branch
-  // telemetryVariables[20] = 0;
-  // telemetryVariables[21] = 0;
-
-  for (int i = 0; i++; i < 22) {
-    telemetryVariables[i] = i;
-=======
   // Fixed dt (exactly 10 ms)
   const float dt = 0.01f;
   // Acquire the mutex after the loop wait time
@@ -484,16 +340,43 @@ void loop() {
     }
     // Give the mutex back after calculations - all telemetry should be able to run during this time
     xSemaphoreGive(xMyMutex);
->>>>>>> 7693d39 (Changed loop variables to global to allow for the telemetry task to access them)
+    
+    updateTelemetry();
+    telemetry.sendSnapshot(telemVals, millis());
   }
-
-  telemetry.sendSnapshot(telemetryVariables, micros());
 
    // Check if button was pressed
   if (buttonPressed) {
     handleButtonPress();
     buttonPressed = false;  // Reset the flag
   }
+}
+
+void updateTelemetry() {
+  telemVals[0] = (float)posX;
+  telemVals[1] = (float)posY;
+  telemVals[2] = (float)angleX;
+  telemVals[3] = (float)angleY;
+  telemVals[4] = positionErrorX;
+  telemVals[5] = setAnglePX;
+  telemVals[6] = setAngleIX;
+  telemVals[7] = setAngleDX;
+  telemVals[8] = setPointAngleX;
+  telemVals[9] = positionErrorY;
+  telemVals[10] = setAnglePY;
+  telemVals[11] = setAngleIY;
+  telemVals[12] = setAngleDY;
+  telemVals[13] = setPointAngleY;
+  telemVals[14] = angleErrorX;
+  telemVals[15] = setPWMPX;
+  telemVals[16] = setPWMIX;
+  telemVals[17] = setPWMDX;
+  telemVals[18] = pwmX;
+  telemVals[19] = angleErrorY;
+  telemVals[20] = setPWMPY;
+  telemVals[21] = setPWMIY;
+  telemVals[22] = setPWMDY;
+  telemVals[23] = pwmY;
 }
 
 // Initialize pendulum-specific hardware
