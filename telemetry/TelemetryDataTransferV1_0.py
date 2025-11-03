@@ -79,9 +79,10 @@ def receive_metadata_udp():
             return names, addr
 
 def receive_metadata_serial():
-    ser.write(b"METADATA\n")
+    ser.write(b"METADATA")
     while True:
-        data = ser.read_until(b'\xFF\xFF')
+        data = ser.readline()
+        # print(data)
         if len(data) < 3:
             sleep(0.05)
             continue
@@ -94,6 +95,7 @@ def receive_metadata_serial():
                 name_len = data[offset]
                 offset += 1
                 name = data[offset:offset+name_len].decode('ascii')
+                # print(name)
                 offset += name_len
                 names.append(name)
             print("Metadata received (Serial)! Variable names:", names)
@@ -146,7 +148,8 @@ def receive_telemetry_serial(num_vars, variable_names, data_buffers):
 
     buffer = b""
     while True:
-        new_data = ser.read(4096)
+        new_data = ser.readline()
+        # print(new_data)
         if not new_data:
             continue
         buffer += new_data
@@ -161,7 +164,7 @@ def receive_telemetry_serial(num_vars, variable_names, data_buffers):
                 break
 
             _, seq, num_snapshots, num_vars_in_packet = struct.unpack_from("<HHBB", buffer, 0)
-            packet_size = 6 + num_snapshots * (4*num_vars + 8) + 2
+            packet_size = 6 + num_snapshots * (4*num_vars + 8) + 3
 
             if len(buffer) < packet_size:
                 break
@@ -187,7 +190,7 @@ def start_telemetry(variable_names, esp_addr=None):
         data_buffers[name] = deque(maxlen=MAX_POINTS)
 
     if use_serial:
-        ser.write(b"START\n")
+        ser.write(b"START")
         print("START command sent (Serial).")
     else:
         sock.sendto(b"START", esp_addr)
@@ -201,10 +204,9 @@ def start_telemetry(variable_names, esp_addr=None):
     return data_buffers
 
 def send_pulse(esp_addr=None):
-    if use_serial:
-        ser.write(b"PULSE\n")
-        print("PULSE command sent (Serial).")
-    else:
+    ser.write(b"PULSE")
+    # print("PULSE command sent (Serial).")
+    if (esp_addr != None):
         sock.sendto(b"PULSE", esp_addr)
         print(f"PULSE command sent to {esp_addr} (UDP).")
 

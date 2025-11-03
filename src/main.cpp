@@ -133,8 +133,8 @@ SemaphoreHandle_t xMyMutex;
 const char* telemVars[] = {
   "carriageXPosition", "carriageYPostion",
   "pendulumXAngle", "pendulumYAngle",
-  "xPositionError", "xSetAngleP", "xSetAngleI", "xSetAngleD", "xSetPointAngle",
-  "yPositionError", "ySetAngleP", "ySetAngleI", "ySetAngleD", "ySetPointAngle",
+  "xPositionError", "xSetsAngleP", "xSetsAngleI", "xSetsAngleD", "xSetPointAngle",
+  "yPositionError", "ySetsAngleP", "ySetsAngleI", "ySetsAngleD", "ySetPointAngle",
   "xAngleError", "xSetPWMP", "xSetPWMI", "xSetPWMD", "xPWM",
   "yAngleError", "ySetPWMP", "ySetPWMI", "ySetPWMD", "yPWM"
 };
@@ -189,6 +189,8 @@ Move move(DVR1, DVR2, ENC1, ENC2);
 
 const char* ssid = "Tjoe-Surface";
 const char* password = "d70%2D23";
+
+uint32_t count = 0;
 
 // PL_Telemetry_ESP32 telemetry(
 //   ssid,
@@ -263,6 +265,37 @@ void setup() {
   // );
 }
 
+void updateTelemetry() {
+  for (int i = 0; i < 24; i++) {
+    telemVals[i] = i;
+  }
+  telemVals[0] = count++;
+  // telemVals[0] = (float)posX;
+  // telemVals[1] = (float)posY;
+  // telemVals[2] = (float)angleX;
+  // telemVals[3] = (float)angleY;
+  // telemVals[4] = positionErrorX;
+  // telemVals[5] = setAnglePX;
+  // telemVals[6] = setAngleIX;
+  // telemVals[7] = setAngleDX;
+  // telemVals[8] = setPointAngleX;
+  // telemVals[9] = positionErrorY;
+  // telemVals[10] = setAnglePY;
+  // telemVals[11] = setAngleIY;
+  // telemVals[12] = setAngleDY;
+  // telemVals[13] = setPointAngleY;
+  // telemVals[14] = angleErrorX;
+  // telemVals[15] = setPWMPX;
+  // telemVals[16] = setPWMIX;
+  // telemVals[17] = setPWMDX;
+  // telemVals[18] = pwmX;
+  // telemVals[19] = angleErrorY;
+  // telemVals[20] = setPWMPY;
+  // telemVals[21] = setPWMIY;
+  // telemVals[22] = setPWMDY;
+  // telemVals[23] = pwmY;
+}
+
 // This will handle motor control and position management
 void loop() {
   // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
@@ -287,96 +320,69 @@ void loop() {
   // Fixed dt (exactly 10 ms)
   const float dt = 0.01f;
   // Acquire the mutex after the loop wait time
-  if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
-    // Snapshot inputs (avoid torn reads)
-    angleX = -receiverESP.data.int_message_1;
-    angleY =  receiverESP.data.int_message_2;
+  // if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
+  //   // Snapshot inputs (avoid torn reads)
+  //   angleX = -receiverESP.data.int_message_1;
+  //   angleY =  receiverESP.data.int_message_2;
 
-    // Read plant state
-    posX = move.returnPosX();
-    posY = move.returnPosY();
+  //   // Read plant state
+  //   posX = move.returnPosX();
+  //   posY = move.returnPosY();
 
-    // Outer-loop (position) errors
-    positionErrorX = (TARGET_POSX - posX);
-    positionErrorY = (TARGET_POSY - posY);
+  //   // Outer-loop (position) errors
+  //   positionErrorX = (TARGET_POSX - posX);
+  //   positionErrorY = (TARGET_POSY - posY);
 
-    // Outer PIDs -> desired angles
-    auto [setAnglePX, setAngleIX, setAngleDX, setPointAngleX] = ganPIDx.calculate(positionErrorX, dt);
-    auto [setAnglePY, setAngleIY, setAngleDY, setPointAngleY] = ganPIDy.calculate(positionErrorY, dt);
+  //   // Outer PIDs -> desired angles
+  //   auto [setAnglePX, setAngleIX, setAngleDX, setPointAngleX] = ganPIDx.calculate(positionErrorX, dt);
+  //   auto [setAnglePY, setAngleIY, setAngleDY, setPointAngleY] = ganPIDy.calculate(positionErrorY, dt);
 
-    // Angle limits (units must match e1/e2)
-    //setPointAngle1 = constrain(setPointAngle1, -8,  8);
-    //setPointAngle2 = constrain(setPointAngle2, -11, 11);
+  //   // Angle limits (units must match e1/e2)
+  //   //setPointAngle1 = constrain(setPointAngle1, -8,  8);
+  //   //setPointAngle2 = constrain(setPointAngle2, -11, 11);
 
-    // Inner-loop (angle) errors
-    angleErrorX = -(setPointAngleX - angleX);
-    angleErrorY = -(setPointAngleY - angleY);
+  //   // Inner-loop (angle) errors
+  //   angleErrorX = -(setPointAngleX - angleX);
+  //   angleErrorY = -(setPointAngleY - angleY);
 
-    // Inner PIDs -> motor velocities
-    auto [setPWMPX, setPWMIX, setPWMDX, pwmX] = pendPIDx.calculate(angleErrorX, dt);
-    auto [setPWMPY, setPWMIY, setPWMDX, pwmY] = pendPIDy.calculate(angleErrorY, dt);
+  //   // Inner PIDs -> motor velocities
+  //   auto [setPWMPX, setPWMIX, setPWMDX, pwmX] = pendPIDx.calculate(angleErrorX, dt);
+  //   auto [setPWMPY, setPWMIY, setPWMDY, pwmY] = pendPIDy.calculate(angleErrorY, dt);
 
-    // Deadzones
-    if (angleErrorX < 0) pwmX -= X_DEADZONE;
-    else if (angleErrorX > 0) pwmX += X_DEADZONE;
+  //   // Deadzones
+  //   if (angleErrorX < 0) pwmX -= X_DEADZONE;
+  //   else if (angleErrorX > 0) pwmX += X_DEADZONE;
 
-    if (angleErrorY < 0) pwmY -= Y_DEADZONE;
-    else if (angleErrorY > 0) pwmY += Y_DEADZONE;
+  //   if (angleErrorY < 0) pwmY -= Y_DEADZONE;
+  //   else if (angleErrorY > 0) pwmY += Y_DEADZONE;
 
-    // Directions and speed limits
-    const bool xDir = (pwmX >= 0);
-    const bool yDir = (pwmY >= 0);
-    int xSpeed = (int)lroundf(fabsf(pwmX));
-    int ySpeed = (int)lroundf(fabsf(pwmY));
-    xSpeed = constrain(xSpeed, 0, 255);
-    ySpeed = constrain(ySpeed, 0, 255);
+  //   // Directions and speed limits
+  //   const bool xDir = (pwmX >= 0);
+  //   const bool yDir = (pwmY >= 0);
+  //   int xSpeed = (int)lroundf(fabsf(pwmX));
+  //   int ySpeed = (int)lroundf(fabsf(pwmY));
+  //   xSpeed = constrain(xSpeed, 0, 255);
+  //   ySpeed = constrain(ySpeed, 0, 255);
 
-    // Safety window + command
-    if (abs(posX) < 8000 && abs(posY) < 10000 && abs(angleX) < 2000 && abs(angleY) < 2000) {
-      move.moveXY(xSpeed, xDir, ySpeed, yDir);
-    } else {
-      move.moveXY(0, xDir, 0, yDir);
-      Serial.print("Out of bounds!");
-    }
-    // Give the mutex back after calculations - all telemetry should be able to run during this time
-    xSemaphoreGive(xMyMutex);
+  //   // Safety window + command
+  //   if (abs(posX) < 8000 && abs(posY) < 10000 && abs(angleX) < 2000 && abs(angleY) < 2000) {
+  //     move.moveXY(xSpeed, xDir, ySpeed, yDir);
+  //   } else {
+  //     move.moveXY(0, xDir, 0, yDir);
+  //     Serial.print("Out of bounds!");
+  //   }
+  //   // Give the mutex back after calculations - all telemetry should be able to run during this time
+  //   xSemaphoreGive(xMyMutex);
     
     updateTelemetry();
-    telemetry.sendSnapshot(telemVals, millis());
-  }
+    telemetry.sendSnapshot(telemVals, micros());
+  // }
 
    // Check if button was pressed
   if (buttonPressed) {
     handleButtonPress();
     buttonPressed = false;  // Reset the flag
   }
-}
-
-void updateTelemetry() {
-  telemVals[0] = (float)posX;
-  telemVals[1] = (float)posY;
-  telemVals[2] = (float)angleX;
-  telemVals[3] = (float)angleY;
-  telemVals[4] = positionErrorX;
-  telemVals[5] = setAnglePX;
-  telemVals[6] = setAngleIX;
-  telemVals[7] = setAngleDX;
-  telemVals[8] = setPointAngleX;
-  telemVals[9] = positionErrorY;
-  telemVals[10] = setAnglePY;
-  telemVals[11] = setAngleIY;
-  telemVals[12] = setAngleDY;
-  telemVals[13] = setPointAngleY;
-  telemVals[14] = angleErrorX;
-  telemVals[15] = setPWMPX;
-  telemVals[16] = setPWMIX;
-  telemVals[17] = setPWMDX;
-  telemVals[18] = pwmX;
-  telemVals[19] = angleErrorY;
-  telemVals[20] = setPWMPY;
-  telemVals[21] = setPWMIY;
-  telemVals[22] = setPWMDY;
-  telemVals[23] = pwmY;
 }
 
 // Initialize pendulum-specific hardware

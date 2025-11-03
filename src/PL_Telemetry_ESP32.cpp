@@ -37,12 +37,13 @@ void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
         _udp.write(buffer, size);
         _udp.endPacket();
     } else if (_serialStarted) {
+        buffer[size - 1] = 0x0A;
         Serial.write(buffer, size);
     }
 }
 
 void PL_Telemetry_ESP32::sendMetadata() {
-    uint8_t buffer[256];
+    uint8_t buffer[2048];
     size_t offset = 0;
 
     buffer[offset++] = 0xCD;
@@ -56,6 +57,7 @@ void PL_Telemetry_ESP32::sendMetadata() {
         offset += len;
     }
 
+    offset++;
     sendPacket(buffer, offset);  
 }
 
@@ -115,7 +117,7 @@ void PL_Telemetry_ESP32::telemetryTask() {
 
         // If telemetry started but no pulse received within timeout, reset
         if (_telemetryStarted && (millis() - _lastPulseTime > _PULSE_TIMEOUT)) {
-            // Serial.println("Keepalive lost! Returning to metadata mode.");
+            Serial.println("Keepalive lost! Returning to metadata mode.");
             _telemetryStarted = false;
             _metadataRequested = false;
         }
@@ -143,7 +145,7 @@ void PL_Telemetry_ESP32::telemetryTask() {
         }
 
         // Build telemetry packet
-        size_t packetSize = sizeof(TelemetryPacketHeader) + count * (sizeof(float) * _numVars + sizeof(uint64_t)) + 2;
+        size_t packetSize = sizeof(TelemetryPacketHeader) + count * (sizeof(float) * _numVars + sizeof(uint64_t)) + 3;
         uint8_t* buffer = new uint8_t[packetSize];
 
         TelemetryPacketHeader* header = (TelemetryPacketHeader*)buffer;
@@ -162,7 +164,7 @@ void PL_Telemetry_ESP32::telemetryTask() {
         }
 
         // CRC placeholder
-        uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 2);
+        uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 3);
         *crcPtr = 0xFFFF;   
 
         // Send packet

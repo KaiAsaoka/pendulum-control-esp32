@@ -60,7 +60,7 @@ private:
     uint16_t _packetSeq = 0;
 
     static const uint8_t _BATCH_SIZE = 50;
-    static const unsigned long _PULSE_TIMEOUT = 2000; // ms
+    static const unsigned long _PULSE_TIMEOUT = 3000; // ms
 
     struct InternalSnapshot {
         float vars[64];   // max supported vars
