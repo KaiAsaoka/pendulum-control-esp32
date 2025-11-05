@@ -245,7 +245,6 @@ void loop() {
   // Acquire the mutex after the loop wait time
   if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
     // Snapshot inputs (avoid torn reads)
-    // changed name from e1/e2 to angleX/angleY for clarity
     angleX = -receiverESP.data.int_message_1;
     angleY =  receiverESP.data.int_message_2;
 
