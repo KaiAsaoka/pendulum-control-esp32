@@ -373,7 +373,7 @@ void loop() {
     ySpeed = constrain(ySpeed, 0, 255);
 
     // Safety window + command
-    if (abs(posX) < 8000 && abs(posY) < 10000 && abs(angleX) < 2000 && abs(angleY) < 2000) {
+    if (abs(posX) < 275 && abs(posY) < 400 && abs(angleX) < 2000 && abs(angleY) < 2000) {
       //move.moveXY(0, xDir, 0, yDir);
       move.moveXY(xSpeed, xDir, ySpeed, yDir);
       Serial.print("X pos: ");
