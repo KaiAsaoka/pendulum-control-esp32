@@ -6,7 +6,7 @@ from time import sleep
 import serial
 import serial.tools.list_ports
 
-from TelemetryConfigV1_0 import UDP_IP, UDP_PORT, ESP_IP, MAX_POINTS
+from TelemetryConfigV1_0 import MAX_POINTS
 
 # ----------------- GLOBALS -----------------
 sock = None
@@ -17,12 +17,12 @@ selected_vars = []
 use_serial = False
 
 # ----------------- UDP SETUP -----------------
-def setup_udp():
-    global sock
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((UDP_IP, UDP_PORT))
-    sock.settimeout(0.1)
-    print(f"UDP listening on {UDP_IP}:{UDP_PORT}")
+# def setup_udp():
+#     global sock
+#     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#     sock.bind((UDP_IP, UDP_PORT))
+#     sock.settimeout(0.1)
+#     print(f"UDP listening on {UDP_IP}:{UDP_PORT}")
 
 # ----------------- SERIAL SETUP -----------------
 def setup_serial(port=None, baudrate=115200):
@@ -100,6 +100,18 @@ def receive_metadata_serial():
                 names.append(name)
             print("Metadata received (Serial)! Variable names:", names)
             return names, None
+        
+def receive_pid():
+    ser.write(b"SEND PID")
+    while True:
+        header = ser.read(2)
+        if len(data) < 3:
+            sleep(0.05)
+            continue
+        if header[0] == 0xCD and header[1] == 0xAC:
+            data = ser.read(80)
+            pid_vals = struct.unpack("<20f", data)
+            return list(pid_vals)
 
 # ----------------- RECEIVE TELEMETRY -----------------
 def receive_telemetry(num_vars, variable_names, data_buffers):
@@ -183,6 +195,17 @@ def receive_telemetry_serial(num_vars, variable_names, data_buffers):
                 for i, val in enumerate(vars_values):
                     name = variable_names[i]
                     data_buffers[name].append((timestamp_us/1000.0, val))
+
+# ----------------- SEND PID -----------------
+def send_pid(pid_vals):
+    ser.write(b"PID")
+
+    resp = ser.readline().decode().strip()
+    if resp == "PID received!":
+        payload = struct.pack("<20f", *pid_vals)
+        ser.write(payload)
+    else:
+        print(f"Unexpected response: {resp}")
 
 # ----------------- CONTROL COMMANDS -----------------
 def start_telemetry(variable_names, esp_addr=None):

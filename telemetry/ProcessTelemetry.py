@@ -36,7 +36,7 @@ groups = {
         "carriageXPosition"
     ],
     "Y Position": [
-        "carriageYPostion"
+        "carriageYPosition"
     ],
     "X Angle": [
         "pendulumXAngle"

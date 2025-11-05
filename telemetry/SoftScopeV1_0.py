@@ -3,7 +3,7 @@ from PyQt6 import QtWidgets, QtCore
 import pyqtgraph as pg
 import csv
 
-from TelemetryDataTransferV1_0 import setup_udp, setup_serial, receive_metadata, start_telemetry, data_buffers, variable_names, sock
+from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, start_telemetry, data_buffers, variable_names, sock
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
 
 # TODO - change checkboxes to turn on/off individual plots rather than data
@@ -323,6 +323,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 if __name__ == "__main__":
     setup_serial()
     variable_names, esp_addr = receive_metadata()
+    pid_gain_vals = receive_pid()
     data_buffers = start_telemetry(variable_names, esp_addr)
     print("Started Telemetry!")
 

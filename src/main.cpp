@@ -87,6 +87,13 @@ volatile float ganIntegralCutoffy = 5;
 PID ganPIDx(ganKPx, ganKIx, ganKDx, ganLPFx, ganIntegralCutoffx);
 PID ganPIDy(ganKPy, ganKIy, ganKDy, ganLPFy, ganIntegralCutoffy);
 
+volatile float* pidVals[20] = {
+    &pendKPx, &pendKIx, &pendKDx, &pendLPFx, &pendIntegralCutoffx,
+    &pendKPy, &pendKIy, &pendKDy, &pendLPFy, &pendIntegralCutoffy,
+    &ganKPx,  &ganKIx,  &ganKDx,  &ganLPFx,  &ganIntegralCutoffx,
+    &ganKPy,  &ganKIy,  &ganKDy,  &ganLPFy,  &ganIntegralCutoffy
+};
+
 ESPNowReceiver receiverESP;
 
 uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9c, 0x5b, 0xb0};
@@ -184,31 +191,12 @@ Driver DVR2(PWM2, DIR2);
 
 Move move(DVR1, DVR2, ENC1, ENC2);
 
-// Telemetry Setup - Please change when flashing before tests
-#define PC_IP 192,168,137,1
-
-const char* ssid = "Tjoe-Surface";
-const char* password = "d70%2D23";
-
+// TELEM dummy var
 uint32_t count = 0;
 
-// PL_Telemetry_ESP32 telemetry(
-//   ssid,
-//   password,
-//   IPAddress(ESP_GANTRY_IP),
-//   IPAddress(PC_IP),
-//   12345,
-//   0,
-//   telemVars
-// );
-
 PL_Telemetry_ESP32 telemetry(
-  "na",
-  "na",
-  IPAddress(ESP_GANTRY_IP),
-  IPAddress(PC_IP),
-  12345,
-  telemVars
+  telemVars,
+  pidVals
 );
 
 void setup() {

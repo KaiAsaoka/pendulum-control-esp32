@@ -1,45 +1,30 @@
 #include "PL_Telemetry_ESP32.h"
 
-void PL_Telemetry_ESP32::wifiBegin() {
-    if (_ssid == "na" || _password == "na")
-        return;
-
-    IPAddress gateway(192,168,137,1);
-    IPAddress subnet(255,255,255,0);
-
-    WiFi.config(_localIP, gateway, subnet);
-    WiFi.begin(_ssid, _password);
-    Serial.print("IP: ");
-    if(WiFi.status() == WL_CONNECTED) {
-        Serial.println(WiFi.localIP());
-        _wifiStarted = true;
-    }
-
-    while(WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        // Serial.print(".");
-    }
-    // Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
-
-    _udp.begin(_udpPort);
-}
-
-void PL_Telemetry_ESP32::serialBegin() {
+void PL_Telemetry_ESP32::beginSerial() {
     Serial.begin(115200);
     while (!Serial) delay(10);
     _serialStarted = true;
     Serial.println("Serial Telemetry Initialized");
 }
 
-void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
-    if (_wifiStarted) {
-        _udp.beginPacket(_pcIP, _udpPort);
-        _udp.write(buffer, size);
-        _udp.endPacket();
-    } else if (_serialStarted) {
-        buffer[size - 1] = 0x0A;
-        Serial.write(buffer, size);
+void PL_Telemetry_ESP32::readGainVals() {
+    size_t expectedBytes = 20 * sizeof(float);
+    uint8_t buf[expectedBytes];
+    size_t bytesRead;
+
+    while(Serial.available() > 0) {
+        bytesRead = Serial.readBytes(buf + bytesRead, expectedBytes - bytesRead);
     }
+    
+    if (bytesRead == expectedBytes) {
+        memcpy(_pidGainVals, buf, expectedBytes);
+        Serial.println("PID gains recieved!");
+    }
+}
+
+void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
+    buffer[size - 1] = 0x0A;
+    Serial.write(buffer, size);
 }
 
 void PL_Telemetry_ESP32::sendMetadata() {
@@ -61,29 +46,32 @@ void PL_Telemetry_ESP32::sendMetadata() {
     sendPacket(buffer, offset);  
 }
 
+void PL_Telemetry_ESP32::sendPID() {
+    uint8_t buffer[128 + 1];
+    size_t offset = 0;
+
+    buffer[offset++] = 0xCD;
+    buffer[offset++] = 0xAC;
+
+    memcpy(buffer + offset, _pidGainVals, 20 * sizeof(float));
+    offset += 20 * sizeof(float);
+
+    sendPacket(buffer, offset);
+}
+
 void PL_Telemetry_ESP32::checkCommands() {
     char buf[16];
-    if (_wifiStarted) {
-        int packetSize = _udp.parsePacket();
-
-        if(packetSize) {
-            int len = _udp.read(buf, sizeof(buf)-1);
-            buf[len] = 0;
-        }
+    uint8_t len = 0;
+    // int packetSize = Serial.available();
+    while(Serial.available() > 0) {
+        buf[len++] = Serial.read();
     }
-    else if (_serialStarted) {
-        uint8_t len = 0;
-        // int packetSize = Serial.available();
-        while(Serial.available() > 0) {
-            buf[len++] = Serial.read();
-        }
 
-        buf[len] = '\0'; //Convert to str
+    buf[len] = '\0'; //Convert to str
 
-        // if(packetSize) {
-        //     int len = Serial.readBytesUntil('\n', buf, sizeof(buf)-1);
-        // }
-    }
+    // if(packetSize) {
+    //     int len = Serial.readBytesUntil('\n', buf, sizeof(buf)-1);
+    // }
 
     if(strcmp(buf,"METADATA") == 0) {
         _metadataRequested = true;
@@ -99,18 +87,23 @@ void PL_Telemetry_ESP32::checkCommands() {
         _lastPulseTime = millis();
         // Serial.println("Pulse received");
     }
+    else if (strcmp(buf,"SEND PID") == 0) {
+        _lastPulseTime = millis();
+        Serial.println("PID sending!");
+        sendPID();
+    }
     else if (strcmp(buf,"PID") == 0) {
         _lastPulseTime = millis();
-        
+        Serial.println("PID received!");
+        readGainVals();
     }
 }
-
 
 void PL_Telemetry_ESP32::telemetryTask() {
     // Use internal snapshot array
     InternalSnapshot batch[_BATCH_SIZE];
     // wifiBegin(); // initialize Wi-Fi and UDP
-    serialBegin();
+    begin();
 
     for (;;) {
         checkCommands();
@@ -179,7 +172,7 @@ void PL_Telemetry_ESP32::telemetryTask() {
 
 void PL_Telemetry_ESP32::begin() {
     _snapshotQueue = xQueueCreate(200,sizeof(InternalSnapshot));
-
+    beginSerial();
     xTaskCreatePinnedToCore(
         [](void* arg) {
             ((PL_Telemetry_ESP32*)arg)->telemetryTask();

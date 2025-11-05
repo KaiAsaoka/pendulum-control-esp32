@@ -18,41 +18,29 @@ public:
     };
 
     template<size_t N>
-    PL_Telemetry_ESP32(const char* ssid,
-                        const char* password,
-                        const IPAddress& localIP,
-                        const IPAddress& pcIP,
-                        unsigned int udpPort,
-                        const char* (&varNames)[N])
-        : _ssid(ssid),
-        _password(password),
-        _localIP(localIP),
-        _pcIP(pcIP),
-        _udpPort(udpPort),
-        _varNames(varNames),   // decay to const char* const*
-        _numVars(N) {}
+    
+    PL_Telemetry_ESP32(const char* (&varNames)[N], volatile float* (&pidGainVals)[20])
+    : _varNames(varNames),
+    _numVars(N),
+    _pidGainVals(pidGainVals) {} 
 
     void begin();
     void sendSnapshot(const float* values, uint64_t timestamp);
 
 private:
-    void wifiBegin();
-    void serialBegin();
+    void begin();
+    void beginSerial();
     void telemetryTask();
     void sendMetadata();
+    void sendPID();
     void sendPacket(uint8_t* buffer, size_t size);
     void checkCommands();
+    void readGainVals(); 
 
-    const char* _ssid;
-    const char* _password;
-    IPAddress _localIP;
-    IPAddress _pcIP;
-    unsigned int _udpPort;
     const char** _varNames;
     size_t _numVars;
+    float* _pidGainVals;
 
-    WiFiUDP _udp;
-    bool _wifiStarted = false;
     bool _serialStarted = false;
     bool _telemetryStarted = false;
     bool _metadataRequested = false;
@@ -60,7 +48,7 @@ private:
     uint16_t _packetSeq = 0;
 
     static const uint8_t _BATCH_SIZE = 50;
-    static const unsigned long _PULSE_TIMEOUT = 3000; // ms
+    static const unsigned long _PULSE_TIMEOUT = 2000; // ms
 
     struct InternalSnapshot {
         float vars[64];   // max supported vars
