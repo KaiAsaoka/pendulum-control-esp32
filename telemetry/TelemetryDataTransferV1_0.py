@@ -102,15 +102,32 @@ def receive_metadata_serial():
             return names, None
         
 def receive_pid():
-    ser.write(b"SEND PID")
+    ser.reset_input_buffer()
+    ser.write(b"SENDPID")
+    print("Request PID")
+
+    expected_bytes = 2 + 20 * 4  # header + 20 floats
     while True:
-        header = ser.read(2)
-        if len(data) < 3:
+        # buffer = b""
+
+        # keep reading until we get the full packet
+        buffer = ser.readline()
+        # while len(buffer) < expected_bytes:
+        #     chunk = ser.read(expected_bytes - len(buffer))
+        #     if chunk:
+        #         buffer += chunk
+        #     else:
+        #         sleep(0.01)
+
+        print(buffer)
+        # validate header
+        if buffer[0] != 0xcd or buffer[1] != 0xac:
+            print("Invalid header:", buffer[:4])
             sleep(0.05)
             continue
-        if header[0] == 0xCD and header[1] == 0xAC:
-            data = ser.read(80)
-            pid_vals = struct.unpack("<20f", data)
+        else:
+            offset = 2
+            pid_vals = struct.unpack("<20f", buffer[offset:offset + 80])
             return list(pid_vals)
 
 # ----------------- RECEIVE TELEMETRY -----------------
@@ -198,12 +215,18 @@ def receive_telemetry_serial(num_vars, variable_names, data_buffers):
 
 # ----------------- SEND PID -----------------
 def send_pid(pid_vals):
-    ser.write(b"PID")
+    axes = ["Gantry X", "Gantry Y", "Pendulum X", "Pendulum Y"]
+    params = ["P", "I", "D", "LPF", "Windup"]
+    ordered_vals = [pid_vals[f"{axis}_{param}"] for axis in axes for param in params]
+
+    ser.reset_input_buffer()
+    ser.write(b"PID\n")
 
     resp = ser.readline().decode().strip()
     if resp == "PID received!":
-        payload = struct.pack("<20f", *pid_vals)
+        payload = struct.pack("<20f", *ordered_vals)
         ser.write(payload)
+        print("PID values sent!")
     else:
         print(f"Unexpected response: {resp}")
 

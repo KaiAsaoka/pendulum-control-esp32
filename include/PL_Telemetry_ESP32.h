@@ -19,16 +19,19 @@ public:
 
     template<size_t N>
     
-    PL_Telemetry_ESP32(const char* (&varNames)[N], volatile float* (&pidGainVals)[20])
-    : _varNames(varNames),
-    _numVars(N),
-    _pidGainVals(pidGainVals) {} 
+    PL_Telemetry_ESP32(const char* (&varNames)[N], float* (&pidGainVals)[20])
+        : _varNames(varNames),
+          _numVars(N)
+    {
+        for (int i = 0; i < 20; i++) {
+            _pidGainVals[i] = pidGainVals[i];
+        }
+    }
 
     void begin();
     void sendSnapshot(const float* values, uint64_t timestamp);
 
 private:
-    void begin();
     void beginSerial();
     void telemetryTask();
     void sendMetadata();
@@ -39,11 +42,12 @@ private:
 
     const char** _varNames;
     size_t _numVars;
-    float* _pidGainVals;
+    float* _pidGainVals[20];
 
     bool _serialStarted = false;
     bool _telemetryStarted = false;
     bool _metadataRequested = false;
+    bool _pidSent = false;
     unsigned long _lastPulseTime = 0;
     uint16_t _packetSeq = 0;
 

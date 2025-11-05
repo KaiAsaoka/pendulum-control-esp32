@@ -55,40 +55,40 @@ Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
 // PENDULUM (ANGLE ERROR) PID X
-volatile float pendKPx = 0.045;
-volatile float pendKIx = 0.05;
-volatile float pendKDx = 0.00016;
-volatile float pendLPFx = 0;
-volatile float pendIntegralCutoffx = (2000 / 0.016);
+float pendKPx = 0.045;
+float pendKIx = 0.05;
+float pendKDx = 0.00016;
+float pendLPFx = 0;
+float pendIntegralCutoffx = (2000 / 0.016);
 
 // PENDULUM (ANGLE ERROR) PID Y
-volatile float pendKPy = 0.015;
-volatile float pendKIy = 0.15;
-volatile float pendKDy = 0.0005;
-volatile float pendLPFy = 0;
-volatile float pendIntegralCutoffy = (1000 / 0.018);
+float pendKPy = 0.015;
+float pendKIy = 0.15;
+float pendKDy = 0.0005;
+float pendLPFy = 0;
+float pendIntegralCutoffy = (1000 / 0.018);
 
 PID pendPIDx(pendKPx, pendKIx, pendKDx, pendLPFx, pendIntegralCutoffx);
 PID pendPIDy(pendKPy, pendKIy, pendKDy, pendLPFy, pendIntegralCutoffy);
 
 // GANTRY (POSITION ERROR) PID X
-volatile float ganKPx = 0;
-volatile float ganKIx = 0;
-volatile float ganKDx = 0;
-volatile float ganLPFx = 0.75;
-volatile float ganIntegralCutoffx = 5;
+float ganKPx = 0;
+float ganKIx = 0;
+float ganKDx = 0;
+float ganLPFx = 0.75;
+float ganIntegralCutoffx = 5;
 
 // GANTRY (POSITION ERROR) PID Y
-volatile float ganKPy = 0;
-volatile float ganKIy = 0;
-volatile float ganKDy = 0;
-volatile float ganLPFy = 0.75;
-volatile float ganIntegralCutoffy = 5;
+float ganKPy = 0;
+float ganKIy = 0;
+float ganKDy = 0;
+float ganLPFy = 0.75;
+float ganIntegralCutoffy = 5;
 
 PID ganPIDx(ganKPx, ganKIx, ganKDx, ganLPFx, ganIntegralCutoffx);
 PID ganPIDy(ganKPy, ganKIy, ganKDy, ganLPFy, ganIntegralCutoffy);
 
-volatile float* pidVals[20] = {
+float* pidVals[20] = {
     &pendKPx, &pendKIx, &pendKDx, &pendLPFx, &pendIntegralCutoffx,
     &pendKPy, &pendKIy, &pendKDy, &pendLPFy, &pendIntegralCutoffy,
     &ganKPx,  &ganKIx,  &ganKDx,  &ganLPFx,  &ganIntegralCutoffx,

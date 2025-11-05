@@ -4,7 +4,7 @@ import pyqtgraph as pg
 import csv
 from time import perf_counter
 
-from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, start_telemetry, data_buffers, variable_names, sock
+from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, send_pid, start_telemetry, data_buffers, variable_names, sock
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
 
 # TODO - change checkboxes to turn on/off individual plots rather than data
@@ -23,6 +23,33 @@ COLOR_OPTIONS = {
     "Orange": (255, 165, 0),
 }
 
+## GPT rounding thing
+
+def nice_round(val):
+    """
+    Rounds a float to a "nice" human-readable format.
+    - Small numbers: keep up to 3-5 significant digits
+    - Large numbers: no decimal if integer
+    """
+    if val == 0:
+        return "0"
+    abs_val = abs(val)
+    
+    # Determine number of digits to keep based on magnitude
+    if abs_val >= 1:
+        # Round to 4 significant digits for medium/large numbers
+        return str(round(val, 4 - int(len(str(int(abs_val))))))
+    elif abs_val < 1:
+        # For small numbers, keep 3 significant digits
+        # Example: 0.000159999995 -> 0.00016
+        from math import log10, floor
+        digits = 3
+        exponent = floor(log10(abs_val))
+        rounded = round(val, -exponent + (digits - 1))
+        return str(rounded)
+    else:
+        return str(val)
+
 class TelemetryGUI(QtWidgets.QWidget):
     def __init__(self, variable_names, data_buffers):
         super().__init__()
@@ -34,6 +61,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.var_colors = {}
         self.channel_scales = {}  # per-channel scale factors
         self.channel_color_boxes = {}  # per-channel color selectors
+        self.pid_inputs = {}
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
@@ -133,6 +161,37 @@ class TelemetryGUI(QtWidgets.QWidget):
         # self.plot_y_angle.setLabel("left", "Angle (deg)")
         # self.plot_y_angle.setLabel("right", "Time (ms)")
         # self.y_angle_vals = {}
+
+        # PID Sending
+        self.pid_group = QtWidgets.QGroupBox("PID Controls")
+        self.pid_group.setCheckable(True)
+        self.pid_group.setChecked(False)  # collapsed by default
+        self.pid_layout = QtWidgets.QVBoxLayout()
+        self.pid_group.setLayout(self.pid_layout)
+        main_split.addWidget(self.pid_group)
+
+        pid_axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
+        pid_params = ["P", "I", "D", "LPF", "Windup"]
+
+        for axis in pid_axes:
+            axis_group = QtWidgets.QGroupBox(axis + " PID")
+            axis_layout = QtWidgets.QHBoxLayout()
+            axis_group.setLayout(axis_layout)
+
+            for param in pid_params:
+                label = QtWidgets.QLabel(param)
+                axis_layout.addWidget(label)
+                line_edit = QtWidgets.QLineEdit("0.0")
+                line_edit.setFixedWidth(50)
+                axis_layout.addWidget(line_edit)
+                self.pid_inputs[f"{axis}_{param}"] = line_edit
+
+            self.pid_layout.addWidget(axis_group)
+
+        # Send PID button
+        self.send_pid_btn = QtWidgets.QPushButton("Send PID")
+        self.send_pid_btn.clicked.connect(self.send_pid_values)
+        self.pid_layout.addWidget(self.send_pid_btn)
 
         # Controls below the plot
         controls = QtWidgets.QHBoxLayout()
@@ -247,6 +306,22 @@ class TelemetryGUI(QtWidgets.QWidget):
             print(f"❌ Error saving telemetry data: {e}")
         finally:
             self.save_btn.setChecked(False)
+
+    def send_pid_values(self):
+        pid_dict = {}
+        for key, line_edit in self.pid_inputs.items():
+            try:
+                pid_dict[key] = float(line_edit.text())
+            except ValueError:
+                pid_dict[key] = 0.0  # fallback if invalid input
+
+        # Call your send_pid function (make sure it accepts a dictionary)
+        try:
+            from TelemetryDataTransferV1_0 import send_pid
+            send_pid(pid_dict)
+            print("✅ PID values sent:", pid_dict)
+        except Exception as e:
+            print(f"❌ Failed to send PID: {e}")
         
 
     def change_timebase(self, val):
@@ -327,14 +402,28 @@ class TelemetryGUI(QtWidgets.QWidget):
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial()
+    setup_serial("COM7")
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
+    print("PID GAINS: ", pid_gain_vals)
     data_buffers = start_telemetry(variable_names, esp_addr)
     print("Started Telemetry!")
 
+    axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
+    params = ["P", "I", "D", "LPF", "Windup"]
+
+    nice_vals = [nice_round(v) for v in pid_gain_vals]
+
+    pid_dict_init = {}
+    for i, axis in enumerate(axes):
+        for j, param in enumerate(params):
+            pid_dict_init[f"{axis}_{param}"] = nice_vals[i*5 + j]
+
     app = QtWidgets.QApplication([])
     gui = TelemetryGUI(variable_names, data_buffers)
+    for key, val in pid_dict_init.items():
+        if key in gui.pid_inputs:
+            gui.pid_inputs[key].setText(str(val))
     gui.esp_addr = esp_addr   # give GUI the ESP address
     gui.show()
     app.exec()
