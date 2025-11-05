@@ -8,17 +8,16 @@
 #include <ESPNow.h>
 #include <PID.h>
 #include <math.h>   
+#include <freertos/semphr.h>
 
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-
 // Define 1 ms loop timing
 constexpr uint32_t LOOP_US = 10000;     // 10 ms
 static volatile uint32_t overrun_count = 0;
-
 
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
@@ -43,50 +42,42 @@ static volatile uint32_t overrun_count = 0;
 #define X_DEADZONE 4
 #define Y_DEADZONE 2
 
-#define SPEED 20
-
-#define pendKPx 0.045
-#define pendKIx 0.15
-#define pendKDx 0.0005
-
-#define pendlpfx 0
-#define pendintcutoffx (1000 / 0.018)
-
-#define pendKPy 0.015
-#define pendKIy 0.05
-#define pendKDy 0.00016
-
-#define pendlpfy 0
-#define pendintcutoffy (2000 / 0.016)
-
-#define ganKPx 0  
-#define ganKIx 0
-#define ganKDx 0
-
-#define ganlpfx 0.75
-#define ganintcutoffx 5
-
-#define ganKPy 0  
-#define ganKIy 0
-#define ganKDy 0
-
-#define ganlpfy 0.75
-#define ganintcutoffy 5
-
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-// PID pendPIDx(pendKPx, pendKIx, pendKDx);
-// PID pendPIDy(pendKPy, pendKIy, pendKDy);
+// PENDULUM (ANGLE ERROR) PID X
+volatile float pendKPx = 0.045;
+volatile float pendKIx = 0.05;
+volatile float pendKDx = 0.00016;
+volatile float pendLPFx = 0;
+volatile float pendIntegralCutoffx = (2000 / 0.016);
 
-// PID ganPIDx(ganKPx, ganKIx, ganKDx);
-// PID ganPIDy(ganKPy, ganKIy, ganKDy);
+// PENDULUM (ANGLE ERROR) PID Y
+volatile float pendKPy = 0.015;
+volatile float pendKIy = 0.15;
+volatile float pendKDy = 0.0005;
+volatile float pendLPFy = 0;
+volatile float pendIntegralCutoffy = (1000 / 0.018);
 
-PID pendPIDx(pendKPx, pendKIx, pendKDx, pendlpfx, pendintcutoffx);
-PID pendPIDy(pendKPy, pendKIy, pendKDy, pendlpfy, pendintcutoffy);
+PID pendPIDx(pendKPx, pendKIx, pendKDx, pendLPFx, pendIntegralCutoffx);
+PID pendPIDy(pendKPy, pendKIy, pendKDy, pendLPFy, pendIntegralCutoffy);
 
-PID ganPIDx(ganKPx, ganKIx, ganKDx, ganlpfx, ganintcutoffx);
-PID ganPIDy(ganKPy, ganKIy, ganKDy, ganlpfy, ganintcutoffy);
+// GANTRY (POSITION ERROR) PID X
+volatile float ganKPx = 0;
+volatile float ganKIx = 0;
+volatile float ganKDx = 0;
+volatile float ganLPFx = 0.75;
+volatile float ganIntegralCutoffx = 5;
+
+// GANTRY (POSITION ERROR) PID Y
+volatile float ganKPy = 0;
+volatile float ganKIy = 0;
+volatile float ganKDy = 0;
+volatile float ganLPFy = 0.75;
+volatile float ganIntegralCutoffy = 5;
+
+PID ganPIDx(ganKPx, ganKIx, ganKDx, ganLPFx, ganIntegralCutoffx);
+PID ganPIDy(ganKPy, ganKIy, ganKDy, ganLPFy, ganIntegralCutoffy);
 
 ESPNowReceiver receiverESP;
 
@@ -126,6 +117,53 @@ void handleButtonPress() {
   ENC2.zero();
 }
 
+// Telemetry Globals
+
+SemaphoreHandle_t xMyMutex;
+
+//26 Telemetry variables
+const char* telemVars[] = {
+  "carriageXPosition", "carriageYPostion",
+  "pendulumXAngle", "pendulumYAngle",
+  "xPositionError", "xSetAngleP", "xSetAngleI", "xSetAngleD", "xSetPointAngle",
+  "yPositionError", "ySetAngleP", "ySetAngleI", "ySetAngleD", "ySetPointAngle",
+  "xAngleError", "xSetPWMP", "xSetPWMI", "xSetPWMD", "xPWM",
+  "yAngleError", "ySetPWMP", "ySetPWMI", "ySetPWMD", "yPWM",
+  "loopTime", "loopWaitTime"
+};
+
+volatile int posX;
+volatile int posY;
+volatile int angleX;
+volatile int angleY;
+
+volatile float positionErrorX;
+volatile float setAnglePX;
+volatile float setAngleIX;
+volatile float setAngleDX;
+volatile float setPointAngleX;
+
+volatile float positionErrorY;
+volatile float setAnglePY;
+volatile float setAngleIY;
+volatile float setAngleDY;
+volatile float setPointAngleY;
+
+volatile float angleErrorX;
+volatile float setPWMPX;
+volatile float setPWMIX;
+volatile float setPWMDX;
+volatile float pwmX;
+
+volatile float angleErrorY;
+volatile float setPWMPY;
+volatile float setPWMIY;
+volatile float setPWMDY;
+volatile float pwmY;
+
+volatile uint32_t loopTime;
+volatile uint32_t loopWaitTime;
+
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
 
@@ -142,6 +180,7 @@ Move move(DVR1, DVR2, ENC1, ENC2);
 
 void setup() {
   Serial.begin(115200);
+  xMyMutex = xSemaphoreCreateMutex(); // Create mutex for variable sharing
   Serial.println("Gantry ESP32 Starting...");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
@@ -183,9 +222,11 @@ void loop() {
   // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
   static uint32_t next_tick = micros();
   uint32_t now = micros();
+  loopTime = now;
 
   // Sleep if early
   int32_t until_tick = (int32_t)(next_tick - now);
+  loopWaitTime = until_tick;
   if (until_tick > 0) {
     delayMicroseconds((uint32_t)until_tick);
     now = micros();
@@ -201,56 +242,61 @@ void loop() {
 
   // Fixed dt (exactly 10 ms)
   const float dt = 0.01f;
+  // Acquire the mutex after the loop wait time
+  if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
+    // Snapshot inputs (avoid torn reads)
+    // changed name from e1/e2 to angleX/angleY for clarity
+    angleX = -receiverESP.data.int_message_1;
+    angleY =  receiverESP.data.int_message_2;
 
-  // Snapshot inputs (avoid torn reads)
-  const int e1 = -receiverESP.data.int_message_1;
-  const int e2 =  receiverESP.data.int_message_2;
+    // Read plant state
+    posX = move.returnPosX();
+    posY = move.returnPosY();
 
-  // Read plant state
-  const int posX = move.returnPosX();
-  const int posY = move.returnPosY();
+    // Outer-loop (position) errors
+    positionErrorX = (TARGET_POSX - posX);
+    positionErrorY = (TARGET_POSY - posY);
 
-  // Outer-loop (position) errors
-  const float posError1 = (TARGET_POSX - posX);
-  const float posError2 = (TARGET_POSY - posY);
+    // Outer PIDs -> desired angles
+    auto [setAnglePX, setAngleIX, setAngleDX, setPointAngleX] = ganPIDx.calculate(positionErrorX, dt);
+    auto [setAnglePY, setAngleIY, setAngleDY, setPointAngleY] = ganPIDy.calculate(positionErrorY, dt);
 
-  // Outer PIDs -> desired angles
-  auto [angle1p, angle1i, angle1d, setPointAngle1] = ganPIDx.calculate(posError1, dt);
-  auto [angle2p, angle2i, angle2d, setPointAngle2] = ganPIDy.calculate(posError2, dt);
+    // Angle limits (units must match e1/e2)
+    //setPointAngle1 = constrain(setPointAngle1, -8,  8);
+    //setPointAngle2 = constrain(setPointAngle2, -11, 11);
 
-  // Angle limits (units must match e1/e2)
-  //setPointAngle1 = constrain(setPointAngle1, -8,  8);
-  //setPointAngle2 = constrain(setPointAngle2, -11, 11);
+    // Inner-loop (angle) errors
+    angleErrorX = -(setPointAngleX - angleX);
+    angleErrorY = -(setPointAngleY - angleY);
 
-  // Inner-loop (angle) errors
-  const float error1 = -(setPointAngle1 - e1);
-  const float error2 = -(setPointAngle2 - e2);
+    // Inner PIDs -> motor velocities
+    auto [setPWMPX, setPWMIX, setPWMDX, pwmX] = pendPIDx.calculate(angleErrorX, dt);
+    auto [setPWMPY, setPWMIY, setPWMDX, pwmY] = pendPIDy.calculate(angleErrorY, dt);
 
-  // Inner PIDs -> motor velocities
-  auto [xVelp, xVeli, xVeld, xVel] = pendPIDx.calculate(error1, dt);
-  auto [yVelp, yVeli, yVeld, yVel] = pendPIDy.calculate(error2, dt);
+    // Deadzones
+    if (angleErrorX < 0) pwmX -= X_DEADZONE;
+    else if (angleErrorX > 0) pwmX += X_DEADZONE;
 
-  // Deadzones
-  if (error1 < 0) xVel -= X_DEADZONE;
-  else if (error1 > 0) xVel += X_DEADZONE;
+    if (angleErrorY < 0) pwmY -= Y_DEADZONE;
+    else if (angleErrorY > 0) pwmY += Y_DEADZONE;
 
-  if (error2 < 0) yVel -= Y_DEADZONE;
-  else if (error2 > 0) yVel += Y_DEADZONE;
+    // Directions and speed limits
+    const bool xDir = (pwmX >= 0);
+    const bool yDir = (pwmY >= 0);
+    int xSpeed = (int)lroundf(fabsf(pwmX));
+    int ySpeed = (int)lroundf(fabsf(pwmY));
+    xSpeed = constrain(xSpeed, 0, 255);
+    ySpeed = constrain(ySpeed, 0, 255);
 
-  // Directions and speed limits
-  const bool xDir = (xVel >= 0);
-  const bool yDir = (yVel >= 0);
-  int xSpeed = (int)lroundf(fabsf(xVel));
-  int ySpeed = (int)lroundf(fabsf(yVel));
-  xSpeed = constrain(xSpeed, 0, 255);
-  ySpeed = constrain(ySpeed, 0, 255);
-
-  // Safety window + command
-  if (abs(posX) < 8000 && abs(posY) < 10000 && abs(e1) < 2000 && abs(e2) < 2000) {
-    move.moveXY(xSpeed, xDir, ySpeed, yDir);
-  } else {
-    move.moveXY(0, xDir, 0, yDir);
-    Serial.print("Out of bounds!");
+    // Safety window + command
+    if (abs(posX) < 8000 && abs(posY) < 10000 && abs(angleX) < 2000 && abs(angleY) < 2000) {
+      move.moveXY(xSpeed, xDir, ySpeed, yDir);
+    } else {
+      move.moveXY(0, xDir, 0, yDir);
+      Serial.print("Out of bounds!");
+    }
+    // Give the mutex back after calculations - all telemetry should be able to run during this time
+    xSemaphoreGive(xMyMutex);
   }
 
    // Old print statements go here
