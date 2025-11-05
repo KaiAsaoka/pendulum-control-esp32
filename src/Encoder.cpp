@@ -6,7 +6,7 @@
 int Encoder::firstReading = true;  // Initialize to 0
 
 
-int CLOCK_SPEED = 10000000; // 10MHz
+int CLOCK_SPEED = 1000000; // 1 MHz
 
 
 Encoder::Encoder(int miso, int clk, int cs, int mosi)

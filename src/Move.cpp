@@ -23,7 +23,7 @@ Move::Move(Driver& dvr1, Driver& dvr2, Encoder& enc1, Encoder& enc2) : dvr1(dvr1
 // }
 
 // Scaling Factor to mm for determining position
-constexpr float SCALE_FACTOR = (2.0f * M_PI * BELT_DRIVE_RADIUS) / ENCODER_360;
+constexpr float SCALE_FACTOR = (0.87f * M_PI * BELT_DRIVE_RADIUS) / ENCODER_360;
 
 void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
     // Convert boolean direction to multiplier (-1 or 1)
