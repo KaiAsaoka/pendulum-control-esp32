@@ -23,7 +23,7 @@ COLOR_OPTIONS = {
     "Orange": (255, 165, 0),
 }
 
-## GPT rounding thing
+## GPT rounding thing - get rid of it if it doensn't work well 
 
 def nice_round(val):
     """
@@ -49,6 +49,62 @@ def nice_round(val):
         return str(rounded)
     else:
         return str(val)
+    
+# class SideBarBase(QtWidgets.QWidget):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.layout() = QtWidgets.QVBoxLayout()
+#         self.setLayout() = self.layout()
+
+#         self.frame = QtWidgets.QFrame()
+#         self.frame.setFrameStyle(QtWidgets.QFrame.Shape.Box | QtWidgets.QFrame.Shadow.Plain)
+#         self.frame.setLineWidth(2)
+#         self.frame.setMidLineWidth(2)
+#         self.layout.addWidget(self.frame)
+
+#         self.frame_layout = QtWidgets.QVBoxLayout()
+#         self.frame.setLayout(self.frame_layout)
+
+# class SideBarCollapsed(SideBarBase):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.init_ui()
+
+# class SideBarExpanded(SideBarBase):
+#     def __init__(self, pid_initial, parent=None):
+#         super().__init__(parent)
+#         self.pid_inputs = pid_initial
+#         self.init_ui()
+    
+#     def init_ui(self):
+#         self.pid_group = QtWidgets.QGroupBox("PID Controls")
+#         self.pid_group.setCheckable(True)
+#         self.pid_group.setChecked(False)  # collapsed by default
+#         self.pid_layout = QtWidgets.QVBoxLayout()
+#         self.pid_group.setLayout(self.pid_layout)
+
+#         pid_axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
+#         pid_params = ["P", "I", "D", "LPF", "Windup"]
+
+#         for axis in pid_axes:
+#             axis_group = QtWidgets.QGroupBox(axis + " PID")
+#             axis_layout = QtWidgets.QHBoxLayout()
+#             axis_group.setLayout(axis_layout)
+
+#             for param in pid_params:
+#                 label = QtWidgets.QLabel(param)
+#                 axis_layout.addWidget(label)
+#                 line_edit = QtWidgets.QLineEdit("0.0")
+#                 line_edit.setFixedWidth(50)
+#                 axis_layout.addWidget(line_edit)
+#                 self.pid_inputs[f"{axis}_{param}"] = line_edit
+
+#             self.pid_layout.addWidget(axis_group)
+
+#         # Send PID button
+#         self.send_pid_btn = QtWidgets.QPushButton("Send PID")
+#         self.send_pid_btn.clicked.connect(self.send_pid_values)
+#         self.pid_layout.addWidget(self.send_pid_btn)
 
 class TelemetryGUI(QtWidgets.QWidget):
     def __init__(self, variable_names, data_buffers):
@@ -61,6 +117,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.var_colors = {}
         self.channel_scales = {}  # per-channel scale factors
         self.channel_color_boxes = {}  # per-channel color selectors
+        self.pid_initial = {}
         self.pid_inputs = {}
 
         layout = QtWidgets.QVBoxLayout()
@@ -111,62 +168,10 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.plot_widget.setLabel("bottom", "Time (ms)")
         self.curves = {}
 
-        # TODO - Add Specific Plot Widgets here 
-
-        # # XY Position
-        # self.plot_xy = pg.PlotWidget(title = "XY Position")
-        # main_split.addWidget(self.plot_xy)
-        # self.plot_xy.setLabel("left", "Y (mm)")
-        # self.plot_xy.setLabel("right", "X (mm)")
-        # self.xy_vals = {}
-
-        # # Gantry X PID
-        # self.plot_gan_x_pid = pg.PlotWidget(title = "Gantry X PID")
-        # main_split.addWidget(self.plot_gan_x_pid)
-        # self.plot_gan_x_pid.setLabel("left", "Value")
-        # self.plot_gan_x_pid.setLabel("right", "Time (ms)")
-        # self.gan_x_pid_vals = {}
-
-        # # Gantry Y PID
-        # self.plot_gan_y_pid = pg.PlotWidget(title = "Gantry Y PID")
-        # main_split.addWidget(self.plot_gan_y_pid)
-        # self.plot_gan_y_pid.setLabel("left", "Value")
-        # self.plot_gan_y_pid.setLabel("right", "Time (ms)")
-        # self.gan_y_pid_vals = {}
-
-        # # Pendulum X PID
-        # self.plot_pen_x_pid = pg.PlotWidget(title = "Pendulum X PID")
-        # main_split.addWidget(self.plot_pen_x_pid)
-        # self.plot_pen_x_pid.setLabel("left", "Value")
-        # self.plot_pen_x_pid.setLabel("right", "Time (ms)")
-        # self.pen_x_pid_vals = {}
-
-        # # Pendulum Y PID
-        # self.plot_pen_y_pid = pg.PlotWidget(title = "Pendulum Y PID")
-        # main_split.addWidget(self.plot_pen_y_pid)
-        # self.plot_pen_y_pid.setLabel("left", "Value")
-        # self.plot_pen_y_pid.setLabel("right", "Time (ms)")
-        # self.pen_y_pid_vals = {}
-
-        # # X Angle
-        # self.plot_x_angle = pg.PlotWidget(title = "X Angle")
-        # main_split.addWidget(self.plot_x_angle)
-        # self.plot_x_angle.setLabel("left", "Angle (deg)")
-        # self.plot_x_angle.setLabel("right", "Time (ms)")
-        # self.x_angle_vals = {}
-
-        # # Y Angle
-        # self.plot_y_angle = pg.PlotWidget(title = "Y Angle")
-        # main_split.addWidget(self.plot_y_angle)
-        # self.plot_y_angle.setLabel("left", "Angle (deg)")
-        # self.plot_y_angle.setLabel("right", "Time (ms)")
-        # self.y_angle_vals = {}
-
         # PID Sending
         self.pid_group = QtWidgets.QGroupBox("PID Controls")
-        self.pid_group.setCheckable(True)
-        self.pid_group.setChecked(False)  # collapsed by default
         self.pid_layout = QtWidgets.QVBoxLayout()
+        self.pid_group.setFixedWidth(300)
         self.pid_group.setLayout(self.pid_layout)
         main_split.addWidget(self.pid_group)
 
@@ -175,16 +180,20 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         for axis in pid_axes:
             axis_group = QtWidgets.QGroupBox(axis + " PID")
-            axis_layout = QtWidgets.QHBoxLayout()
+            axis_layout = QtWidgets.QGridLayout()
             axis_group.setLayout(axis_layout)
-
-            for param in pid_params:
+            
+            for i, param in enumerate(pid_params):
                 label = QtWidgets.QLabel(param)
-                axis_layout.addWidget(label)
                 line_edit = QtWidgets.QLineEdit("0.0")
                 line_edit.setFixedWidth(50)
-                axis_layout.addWidget(line_edit)
                 self.pid_inputs[f"{axis}_{param}"] = line_edit
+
+                row = 0 if i < 3 else 1
+                col = (i % 3) * 2
+
+                axis_layout.addWidget(label, row, col)
+                axis_layout.addWidget(line_edit, row, col + 1)
 
             self.pid_layout.addWidget(axis_group)
 
@@ -292,6 +301,8 @@ class TelemetryGUI(QtWidgets.QWidget):
         try:
             with open(save_path, "w", newline="") as f:
                 writer = csv.writer(f)
+                
+                # --- Write telemetry data ---
                 header = ["Timestamp (ms)"] + list(self.data_buffers.keys())
                 writer.writerow(header)
 
@@ -301,11 +312,32 @@ class TelemetryGUI(QtWidgets.QWidget):
                         row.append(data_dict[name].get(t, ""))
                     writer.writerow(row)
 
-            print(f"✅ Telemetry data saved to: {save_path}")
+                # --- Add a blank line separator ---
+                writer.writerow([])
+
+                # --- Write PID values (if available) ---
+                axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
+                params = ["P", "I", "D", "LPF", "Windup"]
+
+                # Flatten PID values (assumes self.pid_values is a list of 20 floats)
+                if hasattr(self, "pid_values") and len(self.pid_values) == 20:
+                    pid_values = self.pid_values
+                    writer.writerow(["PID Parameters"])
+                    writer.writerow(["Axis"] + params)
+
+                    for i, axis in enumerate(axes):
+                        start = i * len(params)
+                        row = [axis] + [round(pid_values[start + j], 6) for j in range(len(params))]
+                        writer.writerow(row)
+                else:
+                    writer.writerow(["PID Parameters not available or invalid."])
+
+            print(f"Telemetry data + PID values saved to: {save_path}")
         except Exception as e:
-            print(f"❌ Error saving telemetry data: {e}")
+            print(f"Error saving telemetry data: {e}")
         finally:
             self.save_btn.setChecked(False)
+
 
     def send_pid_values(self):
         pid_dict = {}
@@ -313,15 +345,9 @@ class TelemetryGUI(QtWidgets.QWidget):
             try:
                 pid_dict[key] = float(line_edit.text())
             except ValueError:
-                pid_dict[key] = 0.0  # fallback if invalid input
+                pid_dict[key] = self.pid_initial[key]
 
-        # Call your send_pid function (make sure it accepts a dictionary)
-        try:
-            from TelemetryDataTransferV1_0 import send_pid
-            send_pid(pid_dict)
-            print("✅ PID values sent:", pid_dict)
-        except Exception as e:
-            print(f"❌ Failed to send PID: {e}")
+        # send_pid(pid_dict)
         
 
     def change_timebase(self, val):
@@ -367,10 +393,10 @@ class TelemetryGUI(QtWidgets.QWidget):
             buf = self.data_buffers[name]
             if buf:
                 times, values = zip(*buf)
-                print("\nNext values\n")
-                print(perf_counter())
-                print("\n")
-                print(times, values)
+                # print("\nNext values\n")
+                # print(perf_counter())
+                # print("\n")
+                # print(times, values)
                 
                 # Apply per-channel scale
                 try:
@@ -418,12 +444,14 @@ if __name__ == "__main__":
     for i, axis in enumerate(axes):
         for j, param in enumerate(params):
             pid_dict_init[f"{axis}_{param}"] = nice_vals[i*5 + j]
-
+    
     app = QtWidgets.QApplication([])
     gui = TelemetryGUI(variable_names, data_buffers)
+    gui.pid_initial = pid_dict_init
     for key, val in pid_dict_init.items():
-        if key in gui.pid_inputs:
+        if key in gui.pid_initial:
             gui.pid_inputs[key].setText(str(val))
+
     gui.esp_addr = esp_addr   # give GUI the ESP address
     gui.show()
     app.exec()

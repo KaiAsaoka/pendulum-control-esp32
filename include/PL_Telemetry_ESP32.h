@@ -48,6 +48,7 @@ private:
     bool _telemetryStarted = false;
     bool _metadataRequested = false;
     bool _pidSent = false;
+    bool _pidReceived = false;
     unsigned long _lastPulseTime = 0;
     uint16_t _packetSeq = 0;
 

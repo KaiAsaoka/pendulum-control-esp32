@@ -15,14 +15,7 @@ variable_names = []
 data_buffers = {}
 selected_vars = []
 use_serial = False
-
-# ----------------- UDP SETUP -----------------
-# def setup_udp():
-#     global sock
-#     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#     sock.bind((UDP_IP, UDP_PORT))
-#     sock.settimeout(0.1)
-#     print(f"UDP listening on {UDP_IP}:{UDP_PORT}")
+sending_pid = False
 
 # ----------------- SERIAL SETUP -----------------
 def setup_serial(port=None, baudrate=115200):
@@ -44,41 +37,6 @@ def setup_serial(port=None, baudrate=115200):
 
 # ----------------- RECEIVE METADATA -----------------
 def receive_metadata():
-    if use_serial:
-        return receive_metadata_serial()
-    else:
-        return receive_metadata_udp()
-
-def receive_metadata_udp():
-    while True:
-        try:
-            sock.sendto(b"METADATA", (ESP_IP, UDP_PORT))
-        except Exception:
-            pass
-
-        try:
-            data, addr = sock.recvfrom(512)
-        except (socket.timeout, ConnectionResetError):
-            sleep(0.05)
-            continue
-
-        if len(data) < 3:
-            continue
-
-        if data[0] == 0xCD and data[1] == 0xAB:
-            num_vars = data[2]
-            offset = 3
-            names = []
-            for _ in range(num_vars):
-                name_len = data[offset]
-                offset += 1
-                name = data[offset:offset+name_len].decode('ascii')
-                offset += name_len
-                names.append(name)
-            print("Metadata received (UDP)! Variable names:", names)
-            return names, addr
-
-def receive_metadata_serial():
     ser.write(b"METADATA")
     while True:
         data = ser.readline()
@@ -132,53 +90,16 @@ def receive_pid():
 
 # ----------------- RECEIVE TELEMETRY -----------------
 def receive_telemetry(num_vars, variable_names, data_buffers):
-    if use_serial:
-        receive_telemetry_serial(num_vars, variable_names, data_buffers)
-    else:
-        receive_telemetry_udp(num_vars, variable_names, data_buffers)
-
-def receive_telemetry_udp(num_vars, variable_names, data_buffers):
-    snapshot_struct = "<" + "f"*num_vars
-    snapshot_size = 4*num_vars + 8
-
-    while True:
-        try:
-            data, addr = sock.recvfrom(4096)
-        except (socket.timeout):
-            continue
-        except (ConnectionResetError): 
-            continue
-
-        if len(data) < 6:
-            continue
-
-        sync, seq, num_snapshots, num_vars_in_packet = struct.unpack_from("<HHBB", data, 0)
-        if sync != 0xAA55:
-            continue
-        offset = 6
-
-        for _ in range(num_snapshots):
-            if offset + snapshot_size > len(data):
-                break
-
-            vars_values = list(struct.unpack_from(snapshot_struct, data, offset))
-            offset += 4*num_vars
-
-            timestamp_us = struct.unpack_from("<Q", data, offset)[0]
-            offset += 8
-
-            for i, val in enumerate(vars_values):
-                name = variable_names[i]
-                data_buffers[name].append((timestamp_us/1000.0, val))
-
-def receive_telemetry_serial(num_vars, variable_names, data_buffers):
+    global sending_pid
     snapshot_struct = "<" + "f"*num_vars
     snapshot_size = 4*num_vars + 8
 
     buffer = b""
     while True:
+        while(sending_pid):
+            sleep(0.05)
         new_data = ser.readline()
-        # print(new_data)
+        print(new_data)
         if not new_data:
             continue
         buffer += new_data
@@ -215,33 +136,38 @@ def receive_telemetry_serial(num_vars, variable_names, data_buffers):
 
 # ----------------- SEND PID -----------------
 def send_pid(pid_vals):
-    axes = ["Gantry X", "Gantry Y", "Pendulum X", "Pendulum Y"]
+    global sending_pid
+    sending_pid = True
+
+    axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
     params = ["P", "I", "D", "LPF", "Windup"]
     ordered_vals = [pid_vals[f"{axis}_{param}"] for axis in axes for param in params]
 
+    ser.write(b"PIDRECV")
+    print("Sent PIDRECV")
     ser.reset_input_buffer()
-    ser.write(b"PID\n")
 
-    resp = ser.readline().decode().strip()
-    if resp == "PID received!":
+    while True:
+        resp = ser.readline()
+        print("ESP32 Response:", resp)
+        if b"PID received!" not in resp:
+            print("Unexpected response:", resp)
+            continue
+        
         payload = struct.pack("<20f", *ordered_vals)
         ser.write(payload)
         print("PID values sent!")
-    else:
-        print(f"Unexpected response: {resp}")
+
+        sending_pid = False
+        return
 
 # ----------------- CONTROL COMMANDS -----------------
 def start_telemetry(variable_names, esp_addr=None):
     for name in variable_names:
         data_buffers[name] = deque(maxlen=MAX_POINTS)
 
-    if use_serial:
-        ser.write(b"START")
-        print("START command sent (Serial).")
-    else:
-        sock.sendto(b"START", esp_addr)
-        print(f"START command sent to {esp_addr}, ESP should begin transmitting...")
-        send_pulse(esp_addr)
+    ser.write(b"START")
+    print("START command sent (Serial).")
 
     thread = threading.Thread(target=receive_telemetry, args=(len(variable_names), variable_names, data_buffers), daemon=True)
     thread.start()
@@ -250,32 +176,19 @@ def start_telemetry(variable_names, esp_addr=None):
     # print(data_buffers)
     return data_buffers
 
-def send_pulse(esp_addr=None):
+def send_pulse():
     ser.write(b"PULSE")
     # print("PULSE command sent (Serial).")
-    if (esp_addr != None):
-        sock.sendto(b"PULSE", esp_addr)
-        print(f"PULSE command sent to {esp_addr} (UDP).")
 
 # ----------------- MAIN ENTRY -----------------
 if __name__ == "__main__":
-    # ----- Choose Communication Type -----
-    mode = input("Enter mode (udp/serial): ").strip().lower()
-    if mode == "serial":
-        setup_serial()  # auto-select first available
-    else:
-        setup_udp()
-
-    # ----- Get Metadata -----
-    variable_names, esp_addr = receive_metadata()
+    setup_serial()
+    variable_names = receive_metadata()
 
     # ----- Start Telemetry -----
-    start_telemetry(variable_names, esp_addr)
+    start_telemetry(variable_names)
 
     # Keep alive pulses
     while True:
         sleep(1)
-        if not use_serial:
-            send_pulse(esp_addr)
-        else:
-            send_pulse()
+        send_pulse()

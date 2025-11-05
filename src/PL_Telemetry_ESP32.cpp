@@ -53,10 +53,8 @@
         uint8_t buf[expectedBytes];
         size_t bytesRead = 0;
 
-        while (bytesRead < expectedBytes) {
-            if (Serial.available()) {
-                bytesRead += Serial.readBytes(buf + bytesRead, expectedBytes - bytesRead);
-            }
+        while (Serial.available() > 0) {
+            buf[bytesRead++] = Serial.read();
         }
 
         for (int i = 0; i < 20; i++) {
@@ -64,10 +62,11 @@
             memcpy(&val, buf + i * sizeof(float), sizeof(float));
             *(_pidGainVals[i]) = val;
         }
+        _pidReceived = false;
     }
 
     void PL_Telemetry_ESP32::checkCommands() {
-        char buf[16];
+        char buf[1024];
         uint8_t len = 0;
         // int packetSize = Serial.available();
         while(Serial.available() > 0) {
@@ -100,17 +99,16 @@
             Serial.println("PID sending!");
             sendPID();
         }
-        else if (strcmp(buf,"PID") == 0) {
+        else if (strcmp(buf,"PIDRECV") == 0) {
+            _pidReceived = true;
             _lastPulseTime = millis();
             Serial.println("PID received!");
-            readGainVals();
         }
     }
 
     void PL_Telemetry_ESP32::telemetryTask() {
         // Use internal snapshot array
         InternalSnapshot batch[_BATCH_SIZE];
-        // wifiBegin(); // initialize Wi-Fi and UDP
         beginSerial();
 
         for (;;) {
@@ -137,7 +135,13 @@
                 continue;
             }
 
-            // Collect snapshots from queue
+            if (_pidReceived) {
+                if (Serial.available() >= 20 * sizeof(float)) {
+                    readGainVals();
+                    Serial.println("PID values updated!");
+                }
+            }
+
             uint8_t count = 0;
             while (count < _BATCH_SIZE) {
                 if (xQueueReceive(_snapshotQueue, &batch[count], 0) == pdPASS) {
@@ -183,7 +187,6 @@
             vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
-
 
     void PL_Telemetry_ESP32::begin() {
         _snapshotQueue = xQueueCreate(200,sizeof(InternalSnapshot));
