@@ -375,6 +375,10 @@ void loop() {
     // Safety window + command
     if (abs(posX) < 8000 && abs(posY) < 10000 && abs(angleX) < 2000 && abs(angleY) < 2000) {
       move.moveXY(xSpeed, xDir, ySpeed, yDir);
+      Serial.print("X pos: ");
+      Serial.print(posX);
+      Serial.print("Y pos: ");
+      Serial.println(posY);
     } else {
       move.moveXY(0, xDir, 0, yDir);
       Serial.print("Out of bounds!");
