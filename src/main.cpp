@@ -11,6 +11,7 @@
 #include <math.h>   
 #include <any>
 #include <freertos/semphr.h>
+#include <esp_system.h>
 
 
 // Define ESP identifiers
@@ -199,59 +200,7 @@ PL_Telemetry_ESP32 telemetry(
   pidVals
 );
 
-void setup() {
-  Serial.begin(115200);
-  xMyMutex = xSemaphoreCreateMutex(); // Create mutex for variable sharing
-  Serial.println("Gantry ESP32 Starting...");
-
-  pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
-    
-  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
-  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
-  
-  Serial.println("Button interrupt initialized");
-
-  ENC1.begin();
-  Serial.println("Encoder 1 initialized (Gantry)");
-  ENC1.zero();
-
-  ENC2.begin();
-  Serial.println("Encoder 2 initialized (Gantry)");
-  ENC2.zero();
-
-  // Initialize drivers
-  DVR1.begin();
-  delay(1000);
-  Serial.println("Driver 1 initialized");
-  Serial.flush();
-
-  DVR2.begin();
-  delay(1000);
-  Serial.println("Driver 2 initialized");
-  Serial.flush();
-
-  // Initialize ESPNow communication
-  receiverESP.setUp();
-  esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
-    receiverESP.onDataRecv(mac, data, len);
-  });
-
-  Serial.println("Gantry setup complete!");
-  Serial.flush();
-
-  telemetry.begin();
-
-  // ESP32 Should make loop on core 1 anyways, but just to be sure
-  // xTaskCreatePinnedToCore(
-  //   control,
-  //   "Control Loop",
-  //   STACK_SIZE,
-  //   NULL,
-  //   TASK_PRIORITY,
-  //   &controlLoop,
-  //   CORE_1
-  // );
-}
+TaskHandle_t telemTask;
 
 void updateTelemetry() {
   for (int i = 0; i < 24; i++) {
@@ -284,8 +233,92 @@ void updateTelemetry() {
   // telemVals[23] = pwmY;
 }
 
-// This will handle motor control and position management
-void loop() {
+void telemLoop(void *pvParameters){
+  // Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
+  for(;;){
+    static uint32_t next_tick = micros();
+    uint32_t now = micros();
+
+    // Sleep if early
+    int32_t until_tick = (int32_t)(next_tick - now);
+    if (until_tick > 0) {
+      delayMicroseconds((uint32_t)until_tick);
+      now = micros();
+    }
+
+    // Catch up if we’re late by >= 1 period (no drift even on overruns)
+    uint32_t missed = 0;
+    while ((int32_t)(now - next_tick) >= 0) {
+      next_tick += 100;   // LOOP_US = 1000
+      ++missed;
+    }
+    overrun_count += missed;
+    updateTelemetry();
+    telemetry.sendSnapshot(telemVals, micros());
+  }
+}
+
+void setup() {
+  esp_chip_info_t chip_info;
+  esp_chip_info(&chip_info);
+
+  Serial.begin(115200);
+  xMyMutex = xSemaphoreCreateMutex(); // Create mutex for variable sharing
+  Serial.println("Gantry ESP32 Starting...");
+
+  pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
+    
+  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
+  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  
+  Serial.println("Button interrupt initialized");
+
+  Serial.printf("Number of CPU cores: %d\n", chip_info.cores);
+
+  // ENC1.begin();
+  // Serial.println("Encoder 1 initialized (Gantry)");
+  // ENC1.zero();
+
+  // ENC2.begin();
+  // Serial.println("Encoder 2 initialized (Gantry)");
+  // ENC2.zero();
+
+  // // Initialize drivers
+  // DVR1.begin();
+  // delay(1000);
+  // Serial.println("Driver 1 initialized");
+  // Serial.flush();
+
+  // DVR2.begin();
+  // delay(1000);
+  // Serial.println("Driver 2 initialized");
+  // Serial.flush();
+
+  // // Initialize ESPNow communication
+  // receiverESP.setUp();
+  // esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
+  //   receiverESP.onDataRecv(mac, data, len);
+  // });
+
+  Serial.println("Gantry setup complete!");
+  Serial.flush();
+
+  telemetry.begin();
+
+  // ESP32 Should make loop on core 1 anyways, but just to be sure
+  xTaskCreatePinnedToCore(
+    telemLoop,
+    "Telemetry Loop",
+    STACK_SIZE,
+    NULL,
+    TASK_PRIORITY,
+    &telemTask,
+    CORE_0
+  );
+}
+
+void loop(){
+  // Serial.printf("Main loop running on core: %d\n", xPortGetCoreID());
   // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
   static uint32_t next_tick = micros();
   uint32_t now = micros();
@@ -361,12 +394,9 @@ void loop() {
   //   }
   //   // Give the mutex back after calculations - all telemetry should be able to run during this time
   //   xSemaphoreGive(xMyMutex);
-    
-    updateTelemetry();
-    telemetry.sendSnapshot(telemVals, micros());
   // }
 
-   // Check if button was pressed
+  // Check if button was pressed
   if (buttonPressed) {
     handleButtonPress();
     buttonPressed = false;  // Reset the flag

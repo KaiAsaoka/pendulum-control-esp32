@@ -82,7 +82,7 @@ def receive_metadata_serial():
     ser.write(b"METADATA")
     while True:
         data = ser.readline()
-        # print(data)
+        print(data)
         if len(data) < 3:
             sleep(0.05)
             continue
@@ -224,6 +224,7 @@ def start_telemetry(variable_names, esp_addr=None):
     thread.start()
     if thread.is_alive():
         print("Receiver thread started.")
+    # print(data_buffers)
     return data_buffers
 
 def send_pulse(esp_addr=None):

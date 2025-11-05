@@ -2,6 +2,7 @@ import random
 from PyQt6 import QtWidgets, QtCore
 import pyqtgraph as pg
 import csv
+from time import perf_counter
 
 from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, start_telemetry, data_buffers, variable_names, sock
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
@@ -291,6 +292,11 @@ class TelemetryGUI(QtWidgets.QWidget):
             buf = self.data_buffers[name]
             if buf:
                 times, values = zip(*buf)
+                print("\nNext values\n")
+                print(perf_counter())
+                print("\n")
+                print(times, values)
+                
                 # Apply per-channel scale
                 try:
                     scale = float(self.channel_scales[name].text())
