@@ -5,6 +5,7 @@
 #include <Driver.h>
 #include <Move.h>
 #include <getMACAddress.h>
+#include <PL_Telemetry_ESP32.h>
 #include <ESPNow.h>
 #include <PID.h>
 #include <math.h>   
@@ -78,6 +79,13 @@ volatile float ganIntegralCutoffy = 5;
 
 PID ganPIDx(ganKPx, ganKIx, ganKDx, ganLPFx, ganIntegralCutoffx);
 PID ganPIDy(ganKPy, ganKIy, ganKDy, ganLPFy, ganIntegralCutoffy);
+
+float* pidVals[20] = {
+    &pendKPx, &pendKIx, &pendKDx, &pendLPFx, &pendIntegralCutoffx,
+    &pendKPy, &pendKIy, &pendKDy, &pendLPFy, &pendIntegralCutoffy,
+    &ganKPx,  &ganKIx,  &ganKDx,  &ganLPFx,  &ganIntegralCutoffx,
+    &ganKPy,  &ganKIy,  &ganKDy,  &ganLPFy,  &ganIntegralCutoffy
+};
 
 ESPNowReceiver receiverESP;
 
@@ -164,6 +172,15 @@ volatile float pwmY;
 volatile uint32_t loopTime;
 volatile uint32_t loopWaitTime;
 
+float telemVals[24];
+
+PL_Telemetry_ESP32 telemetry(
+  telemVars,
+  pidVals
+);
+
+TaskHandle_t telemTask;
+
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
 
@@ -177,6 +194,31 @@ Driver DVR1(PWM1, DIR1);
 Driver DVR2(PWM2, DIR2);
 
 Move move(DVR1, DVR2, ENC1, ENC2);
+
+void telemLoop(void *pvParameters){
+  // Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
+  for(;;){
+    static uint32_t next_tick = micros();
+    uint32_t now = micros();
+
+    // Sleep if early
+    int32_t until_tick = (int32_t)(next_tick - now);
+    if (until_tick > 0) {
+      delayMicroseconds((uint32_t)until_tick);
+      now = micros();
+    }
+
+    // Catch up if we’re late by >= 1 period (no drift even on overruns)
+    uint32_t missed = 0;
+    while ((int32_t)(now - next_tick) >= 0) {
+      next_tick += 100;   // LOOP_US = 1000
+      ++missed;
+    }
+    overrun_count += missed;
+    updateTelemetry();
+    telemetry.sendSnapshot(telemVals, micros());
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -215,6 +257,44 @@ void setup() {
 
   Serial.println("Gantry setup complete!");
   Serial.flush();
+
+  // ESP32 Should make loop on core 1 anyways, but just to be sure
+  xTaskCreatePinnedToCore(
+    telemLoop,
+    "Telemetry Loop",
+    STACK_SIZE,
+    NULL,
+    TASK_PRIORITY,
+    &telemTask,
+    CORE_0
+  );
+}
+
+void updateTelemetry() {
+  telemVals[0] = (float)posX;
+  telemVals[1] = (float)posY;
+  telemVals[2] = (float)angleX;
+  telemVals[3] = (float)angleY;
+  telemVals[4] = positionErrorX;
+  telemVals[5] = setAnglePX;
+  telemVals[6] = setAngleIX;
+  telemVals[7] = setAngleDX;
+  telemVals[8] = setPointAngleX;
+  telemVals[9] = positionErrorY;
+  telemVals[10] = setAnglePY;
+  telemVals[11] = setAngleIY;
+  telemVals[12] = setAngleDY;
+  telemVals[13] = setPointAngleY;
+  telemVals[14] = angleErrorX;
+  telemVals[15] = setPWMPX;
+  telemVals[16] = setPWMIX;
+  telemVals[17] = setPWMDX;
+  telemVals[18] = pwmX;
+  telemVals[19] = angleErrorY;
+  telemVals[20] = setPWMPY;
+  telemVals[21] = setPWMIY;
+  telemVals[22] = setPWMDY;
+  telemVals[23] = pwmY;
 }
 
 // Gantry-specific loop
