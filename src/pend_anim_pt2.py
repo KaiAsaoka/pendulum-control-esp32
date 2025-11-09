@@ -5,16 +5,14 @@ from matplotlib.patches import Rectangle
 
 def pend_anim_pt2(filename="data.txt", speed=4.0):
     """
-    Reads data from a text file and animates a cart + inverted pendulum
-    in two orthogonal views.
+    Reads data from a text file and animates cart + inverted pendulum
+    motion in two side-by-side views: 
+    x-track and angle vs time and 
+    y-track and angle vs time.
 
-    Parameters
-    ----------
-    filename : str
-        Path to data file with columns [x, y, theta, t].
     speed : float
         0    → as fast as possible (just minimal pause for GUI).
-        1    → real-time.
+        1    → real-time (assuming 1s increments).
         2    → 2× faster than real-time.
         0.5  → half-speed.
     """
@@ -38,7 +36,7 @@ def pend_anim_pt2(filename="data.txt", speed=4.0):
     ch = 0.06
     floorY = 0.0
 
-    # Fixed vertical span tied to x-range (same idea as MATLAB)
+    # Fixed vertical span tied to x-range
     xRange = float(x.max() - x.min())
     if xRange <= 0:
         xRange = L
@@ -51,14 +49,13 @@ def pend_anim_pt2(filename="data.txt", speed=4.0):
     try:
         fig.canvas.manager.set_window_title("Inverted pendulum — speed dial")
     except Exception:
-        # Some backends (e.g., certain notebook environments) don't support this
         pass
     fig.patch.set_facecolor("white")
 
     xlim1 = (x.min() - L - cw, x.max() + L + cw)
     xlim2 = (y.min() - L - cw, y.max() + L + cw)
 
-    # Left axis: X-track
+    # Left axis: X-track and angle vs time
     ax1.set_xlim(xlim1)
     ax1.set_ylim(ymin, ymax)
     ax1.set_aspect("equal", adjustable="box")
@@ -66,7 +63,7 @@ def pend_anim_pt2(filename="data.txt", speed=4.0):
     ax1.set_ylabel("height")
     ax1.set_title("X-track")
 
-    # Right axis: Y-track
+    # Right axis: Y-track and angle vs time
     ax2.set_xlim(xlim2)
     ax2.set_ylim(ymin, ymax)
     ax2.set_aspect("equal", adjustable="box")
@@ -78,7 +75,6 @@ def pend_anim_pt2(filename="data.txt", speed=4.0):
     ax1.plot([xlim1[0], xlim1[1]], [floorY, floorY], "k-", linewidth=1)
     ax2.plot([xlim2[0], xlim2[1]], [floorY, floorY], "k-", linewidth=1)
 
-    # ---------- Graphics objects (created once) ----------
     # Left (x-axis view)
     cart1 = Rectangle((x[0] - cw / 2.0, floorY), cw, ch,
                       linewidth=1, edgecolor="k", facecolor=(0.85, 0.85, 0.85))
@@ -120,7 +116,7 @@ def pend_anim_pt2(filename="data.txt", speed=4.0):
 
         fig.canvas.draw_idle()
 
-        # Timing control (analogous to MATLAB speed dial)
+        # Timing control
         if speed > 0 and k < n - 1:
             dt = t[k + 1] - t[k]
             if dt > 0:
