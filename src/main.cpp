@@ -397,7 +397,6 @@ void loop() {
   }
 }
 
-
 #elif CURRENT_ESP == ESP_PENDULUM
 
 // Pendulum-specific setup
