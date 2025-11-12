@@ -376,10 +376,10 @@ void loop() {
     if (abs(posX) < 275 && abs(posY) < 400 && abs(angleX) < 2000 && abs(angleY) < 2000) {
       //move.moveXY(0, xDir, 0, yDir);
       move.moveXY(xSpeed, xDir, ySpeed, yDir);
-      Serial.print("X pos: ");
-      Serial.print(posX);
-      Serial.print(" Y pos: ");
-      Serial.println(posY);
+      //Serial.print("X pos: ");
+      //Serial.print(posX);
+      //Serial.print(" Y pos: ");
+      //Serial.println(posY);
     } else {
       move.moveXY(0, xDir, 0, yDir);
       Serial.print("Out of bounds!");
