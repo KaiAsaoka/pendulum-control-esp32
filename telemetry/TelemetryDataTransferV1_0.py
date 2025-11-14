@@ -17,6 +17,8 @@ selected_vars = []
 use_serial = False
 sending_pid = False
 
+pause_receive = threading.Event()
+
 # ----------------- SERIAL SETUP -----------------
 def setup_serial(port=None, baudrate=115200):
     global ser, use_serial
@@ -40,7 +42,6 @@ def receive_metadata():
     ser.write(b"METADATA")
     while True:
         data = ser.readline()
-        print(data)
         if len(data) < 3:
             sleep(0.05)
             continue
@@ -50,6 +51,7 @@ def receive_metadata():
             offset = 3
             names = []
             for _ in range(num_vars):
+                # print(offset)
                 name_len = data[offset]
                 offset += 1
                 name = data[offset:offset+name_len].decode('ascii')
@@ -96,10 +98,14 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
 
     buffer = b""
     while True:
+        if pause_receive.is_set():
+            continue
+        
         while(sending_pid):
             sleep(0.05)
+
         new_data = ser.readline()
-        print(new_data)
+        # print(new_data)
         if not new_data:
             continue
         buffer += new_data
@@ -137,6 +143,9 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
 # ----------------- SEND PID -----------------
 def send_pid(pid_vals):
     global sending_pid
+    stop_telemetry()
+    sleep(0.1)
+
     sending_pid = True
 
     axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
@@ -145,7 +154,6 @@ def send_pid(pid_vals):
 
     ser.write(b"PIDRECV")
     print("Sent PIDRECV")
-    ser.reset_input_buffer()
 
     while True:
         resp = ser.readline()
@@ -156,6 +164,7 @@ def send_pid(pid_vals):
         
         payload = struct.pack("<20f", *ordered_vals)
         ser.write(payload)
+        print(payload)
         print("PID values sent!")
 
         sending_pid = False
@@ -169,6 +178,7 @@ def start_telemetry(variable_names, esp_addr=None):
     ser.write(b"START")
     print("START command sent (Serial).")
 
+    pause_receive.clear()
     thread = threading.Thread(target=receive_telemetry, args=(len(variable_names), variable_names, data_buffers), daemon=True)
     thread.start()
     if thread.is_alive():
@@ -179,6 +189,16 @@ def start_telemetry(variable_names, esp_addr=None):
 def send_pulse():
     ser.write(b"PULSE")
     # print("PULSE command sent (Serial).")
+
+def stop_telemetry():
+    ser.write(b"STOP")
+    pause_receive.set()
+    sleep(0.05)
+
+def simple_start():
+    ser.write(b"START")
+    pause_receive.clear()
+    sleep(0.05)
 
 # ----------------- MAIN ENTRY -----------------
 if __name__ == "__main__":
