@@ -231,7 +231,6 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.stop_btn.setText("Start" if checked else "Stop")
         if(checked):
             stop_telemetry()
-            self.reset_buffer()
         else:
             simple_start()
 
