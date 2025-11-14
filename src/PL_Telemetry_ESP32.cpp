@@ -1,4 +1,5 @@
     #include "PL_Telemetry_ESP32.h"
+    #include <iostream>
 
     void PL_Telemetry_ESP32::beginSerial() {
         Serial.begin(115200);
@@ -13,7 +14,7 @@
     }
 
     void PL_Telemetry_ESP32::sendMetadata() {
-        uint8_t buffer[2048];
+        uint8_t buffer[512];
         size_t offset = 0;
 
         buffer[offset++] = 0xCD;
@@ -26,9 +27,9 @@
             memcpy(buffer+offset, _varNames[i], len);
             offset += len;
         }
-
+        
         offset++;
-        sendPacket(buffer, offset);  
+        sendPacket(buffer, offset); 
     }
 
     void PL_Telemetry_ESP32::sendPID() {
@@ -45,6 +46,7 @@
         }
 
         offset++;
+        vTaskDelay(pdMS_TO_TICKS(10));
         sendPacket(buffer, offset);
     }
 
@@ -62,7 +64,7 @@
             memcpy(&val, buf + i * sizeof(float), sizeof(float));
             *(_pidGainVals[i]) = val;
         }
-        _pidReceived = false;
+        _pidReceive = false;
     }
 
     void PL_Telemetry_ESP32::checkCommands() {
@@ -82,16 +84,21 @@
         if(strcmp(buf,"METADATA") == 0) {
             _metadataRequested = true;
             Serial.println("METADATA recieved!");
+            vTaskDelay(pdMS_TO_TICKS(10));
+            sendMetadata();
         }
         else if(strcmp(buf,"START") == 0) {
             _telemetryStarted = true;
             _lastPulseTime = millis();
             Serial.println("START received!");
-            // Serial.println("Telemetry started!");
+        }
+        else if(strcmp(buf,"STOP") == 0) {
+            _telemetryStarted = false;
+            _lastPulseTime = millis();
+            Serial.println("STOP recieved!");
         }
         else if(strcmp(buf,"PULSE") == 0) {
             _lastPulseTime = millis();
-            // Serial.println("Pulse received");
         }
         else if (strcmp(buf,"SENDPID") == 0) {
             _lastPulseTime = millis();
@@ -100,7 +107,7 @@
             sendPID();
         }
         else if (strcmp(buf,"PIDRECV") == 0) {
-            _pidReceived = true;
+            _pidReceive = true;
             _lastPulseTime = millis();
             Serial.println("PID received!");
         }
@@ -114,77 +121,64 @@
         for (;;) {
             checkCommands();
 
-            // If telemetry started but no pulse received within timeout, reset
-            if (_telemetryStarted && (millis() - _lastPulseTime > _PULSE_TIMEOUT)) {
-                Serial.println("Keepalive lost! Returning to metadata mode.");
-                _telemetryStarted = false;
-                _metadataRequested = false;
-                _pidSent = false;
-            }
-
-            // If metadata requested but telemetry not started, keep sending
-            if (_metadataRequested && !_pidSent && !_telemetryStarted) {
-                sendMetadata();
-                vTaskDelay(pdMS_TO_TICKS(10)); // send every 10ms until START
-                continue;
-            }
-
-            if (_metadataRequested && _pidSent && !_telemetryStarted) {
-                sendPID();
+            if (!_telemetryStarted) {
+                xQueueReset(_snapshotQueue);
                 vTaskDelay(pdMS_TO_TICKS(10));
-                continue;
             }
-
-            if (_pidReceived) {
+            if (!_telemetryStarted && _pidReceive) {
+                Serial.println("PID receiving...");
                 if (Serial.available() >= 20 * sizeof(float)) {
                     readGainVals();
                     Serial.println("PID values updated!");
+                    vTaskDelay(pdMS_TO_TICKS(10));
+                    sendPID();
                 }
             }
-
-            uint8_t count = 0;
-            while (count < _BATCH_SIZE) {
-                if (xQueueReceive(_snapshotQueue, &batch[count], 0) == pdPASS) {
-                    count++;
-                } else {
-                    break;
+            if (_telemetryStarted && _metadataRequested && _pidSent) {
+                uint8_t count = 0;
+                while (count < _BATCH_SIZE) {
+                    if (xQueueReceive(_snapshotQueue, &batch[count], 0) == pdPASS) {
+                        count++;
+                    } else {
+                        break;
+                    }
                 }
+
+                if (count == 0) {
+                    vTaskDelay(pdMS_TO_TICKS(1));
+                    continue;
+                }
+
+                // Build telemetry packet
+                size_t packetSize = sizeof(TelemetryPacketHeader) + count * (sizeof(float) * _numVars + sizeof(uint64_t)) + 3;
+                uint8_t* buffer = new uint8_t[packetSize];
+
+                TelemetryPacketHeader* header = (TelemetryPacketHeader*)buffer;
+                header->sync = 0xAA55;
+                header->seq = _packetSeq++;
+                header->num_snapshots = count;
+                header->num_vars = _numVars;
+
+                uint8_t* ptr = buffer + sizeof(TelemetryPacketHeader);
+                for (uint8_t i = 0; i < count; i++) {
+                    // Copy floats first, timestamp last (matches old GUI)
+                    memcpy(ptr, batch[i].vars, _numVars * sizeof(float));
+                    ptr += _numVars * sizeof(float);
+                    memcpy(ptr, &batch[i].timestamp_us, sizeof(uint64_t));
+                    ptr += sizeof(uint64_t);
+                }
+
+                // CRC placeholder
+                uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 3);
+                *crcPtr = 0xFFFF;   
+
+                // Send packet
+                sendPacket(buffer, packetSize); 
+
+                delete[] buffer;
+
+                vTaskDelay(pdMS_TO_TICKS(10));
             }
-
-            if (count == 0) {
-                vTaskDelay(pdMS_TO_TICKS(1));
-                continue;
-            }
-
-            // Build telemetry packet
-            size_t packetSize = sizeof(TelemetryPacketHeader) + count * (sizeof(float) * _numVars + sizeof(uint64_t)) + 3;
-            uint8_t* buffer = new uint8_t[packetSize];
-
-            TelemetryPacketHeader* header = (TelemetryPacketHeader*)buffer;
-            header->sync = 0xAA55;
-            header->seq = _packetSeq++;
-            header->num_snapshots = count;
-            header->num_vars = _numVars;
-
-            uint8_t* ptr = buffer + sizeof(TelemetryPacketHeader);
-            for (uint8_t i = 0; i < count; i++) {
-                // Copy floats first, timestamp last (matches old GUI)
-                memcpy(ptr, batch[i].vars, _numVars * sizeof(float));
-                ptr += _numVars * sizeof(float);
-                memcpy(ptr, &batch[i].timestamp_us, sizeof(uint64_t));
-                ptr += sizeof(uint64_t);
-            }
-
-            // CRC placeholder
-            uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 3);
-            *crcPtr = 0xFFFF;   
-
-            // Send packet
-            sendPacket(buffer, packetSize); 
-
-            delete[] buffer;
-
-            vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
 

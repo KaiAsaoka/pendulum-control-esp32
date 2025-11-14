@@ -4,12 +4,8 @@ import pyqtgraph as pg
 import csv
 from time import perf_counter
 
-from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, send_pid, start_telemetry, data_buffers, variable_names, sock
+from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, simple_start, send_pid, stop_telemetry, start_telemetry, data_buffers, variable_names, sock
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
-
-# TODO - change checkboxes to turn on/off individual plots rather than data
-# TODO - change update_selected function to work with unique plots
-# TODO - change update_plot to plot on unique plots
 
 # Predefined color options
 COLOR_OPTIONS = {
@@ -49,62 +45,6 @@ def nice_round(val):
         return str(rounded)
     else:
         return str(val)
-    
-# class SideBarBase(QtWidgets.QWidget):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.layout() = QtWidgets.QVBoxLayout()
-#         self.setLayout() = self.layout()
-
-#         self.frame = QtWidgets.QFrame()
-#         self.frame.setFrameStyle(QtWidgets.QFrame.Shape.Box | QtWidgets.QFrame.Shadow.Plain)
-#         self.frame.setLineWidth(2)
-#         self.frame.setMidLineWidth(2)
-#         self.layout.addWidget(self.frame)
-
-#         self.frame_layout = QtWidgets.QVBoxLayout()
-#         self.frame.setLayout(self.frame_layout)
-
-# class SideBarCollapsed(SideBarBase):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.init_ui()
-
-# class SideBarExpanded(SideBarBase):
-#     def __init__(self, pid_initial, parent=None):
-#         super().__init__(parent)
-#         self.pid_inputs = pid_initial
-#         self.init_ui()
-    
-#     def init_ui(self):
-#         self.pid_group = QtWidgets.QGroupBox("PID Controls")
-#         self.pid_group.setCheckable(True)
-#         self.pid_group.setChecked(False)  # collapsed by default
-#         self.pid_layout = QtWidgets.QVBoxLayout()
-#         self.pid_group.setLayout(self.pid_layout)
-
-#         pid_axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-#         pid_params = ["P", "I", "D", "LPF", "Windup"]
-
-#         for axis in pid_axes:
-#             axis_group = QtWidgets.QGroupBox(axis + " PID")
-#             axis_layout = QtWidgets.QHBoxLayout()
-#             axis_group.setLayout(axis_layout)
-
-#             for param in pid_params:
-#                 label = QtWidgets.QLabel(param)
-#                 axis_layout.addWidget(label)
-#                 line_edit = QtWidgets.QLineEdit("0.0")
-#                 line_edit.setFixedWidth(50)
-#                 axis_layout.addWidget(line_edit)
-#                 self.pid_inputs[f"{axis}_{param}"] = line_edit
-
-#             self.pid_layout.addWidget(axis_group)
-
-#         # Send PID button
-#         self.send_pid_btn = QtWidgets.QPushButton("Send PID")
-#         self.send_pid_btn.clicked.connect(self.send_pid_values)
-#         self.pid_layout.addWidget(self.send_pid_btn)
 
 class TelemetryGUI(QtWidgets.QWidget):
     def __init__(self, variable_names, data_buffers):
@@ -212,6 +152,12 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.pause_btn.toggled.connect(self.toggle_pause)
         controls.addWidget(self.pause_btn)
 
+        # Start/Stop telem button
+        self.stop_btn = QtWidgets.QPushButton("Stop")
+        self.stop_btn.setCheckable(True)
+        self.stop_btn.toggled.connect(self.toggle_stop)
+        controls.addWidget(self.stop_btn)
+
         self.save_btn = QtWidgets.QPushButton("Save")
         self.save_btn.setCheckable(True)
         self.save_btn.toggled.connect(self.save)
@@ -277,6 +223,18 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.paused = checked
         self.pause_btn.setText("Resume" if checked else "Pause")
 
+    def reset_buffer(self):
+        for name in self.variable_names:
+            self.data_buffers[name].clear()
+
+    def toggle_stop(self, checked):
+        self.stop_btn.setText("Start" if checked else "Stop")
+        if(checked):
+            stop_telemetry()
+            self.reset_buffer()
+        else:
+            simple_start()
+
     def save(self, checked):
         if not checked:
             return
@@ -319,27 +277,31 @@ class TelemetryGUI(QtWidgets.QWidget):
                 axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
                 params = ["P", "I", "D", "LPF", "Windup"]
 
-                # Flatten PID values (assumes self.pid_values is a list of 20 floats)
-                if hasattr(self, "pid_values") and len(self.pid_values) == 20:
-                    pid_values = self.pid_values
-                    writer.writerow(["PID Parameters"])
-                    writer.writerow(["Axis"] + params)
+                writer.writerow(["PID Parameters"])
+                writer.writerow(["Axis"] + params)
 
-                    for i, axis in enumerate(axes):
-                        start = i * len(params)
-                        row = [axis] + [round(pid_values[start + j], 6) for j in range(len(params))]
-                        writer.writerow(row)
-                else:
-                    writer.writerow(["PID Parameters not available or invalid."])
+                pid_dict = {}
+                for key, line_edit in self.pid_inputs.items():
+                    try:
+                        pid_dict[key] = float(line_edit.text())
+                    except ValueError:
+                        pid_dict[key] = self.pid_initial[key]
+
+                for i, axis in enumerate(axes):
+                    row = [axis]
+                    for j, param in enumerate(params):
+                        row.append(pid_dict[f"{axis}_{param}"])
+                    writer.writerow([row])
 
             print(f"Telemetry data + PID values saved to: {save_path}")
         except Exception as e:
             print(f"Error saving telemetry data: {e}")
         finally:
             self.save_btn.setChecked(False)
-
+            self.reset_buffer()
 
     def send_pid_values(self):
+        self.toggle_stop(checked=True)
         pid_dict = {}
         for key, line_edit in self.pid_inputs.items():
             try:
@@ -347,8 +309,7 @@ class TelemetryGUI(QtWidgets.QWidget):
             except ValueError:
                 pid_dict[key] = self.pid_initial[key]
 
-        # send_pid(pid_dict)
-        
+        send_pid(pid_dict)
 
     def change_timebase(self, val):
         # self.time_per_div = int(val)
@@ -424,7 +385,6 @@ class TelemetryGUI(QtWidgets.QWidget):
                 print(f"Failed to send pulse: {e}")
         else:
             self.send_pulse()
-
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
