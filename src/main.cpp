@@ -138,8 +138,8 @@ SemaphoreHandle_t xMyMutex;
 const char* telemVars[] = {
   "carriageXPosition", "carriageYPostion",
   "pendulumXAngle", "pendulumYAngle",
-  "xPositionError", "xSetAngleP", "xSetAngleI", "xSetAngleD", "xSetPointAngle",
-  "yPositionError", "ySetAngleP", "ySetAngleI", "ySetAngleD", "ySetPointAngle",
+  "xPositionError", "xSetsAngleP", "xSetsAngleI", "xSetsAngleD", "xSetPointAngle",
+  "yPositionError", "ySetsAngleP", "ySetsAngleI", "ySetsAngleD", "ySetPointAngle",
   "xAngleError", "xSetPWMP", "xSetPWMI", "xSetPWMD", "xPWM",
   "yAngleError", "ySetPWMP", "ySetPWMI", "ySetPWMD", "yPWM",
   "loopTime", "loopWaitTime"
