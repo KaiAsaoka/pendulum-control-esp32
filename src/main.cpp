@@ -52,16 +52,16 @@ Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
 // PENDULUM (ANGLE ERROR) PID X
-float pendKPx = 0.045;
-float pendKIx = 0.05;
-float pendKDx = 0.00016;
+float pendKPx = 0; //0.045;
+float pendKIx = 0; //0.05;
+float pendKDx =  0; //0.00016;
 float pendLPFx = 0;
 float pendIntegralCutoffx = (2000 / 0.016);
 
 // PENDULUM (ANGLE ERROR) PID Y
-float pendKPy = 0.015;
-float pendKIy = 0.15;
-float pendKDy = 0.0005;
+float pendKPy = 0; //0.015;
+float pendKIy = 0; //0.15;
+float pendKDy = 0; //0.0005;
 float pendLPFy = 0;
 float pendIntegralCutoffy = (1000 / 0.018);
 
@@ -373,13 +373,17 @@ void loop() {
     ySpeed = constrain(ySpeed, 0, 255);
 
     // Safety window + command
-    if (abs(posX) < 275 && abs(posY) < 400 && abs(angleX) < 2000 && abs(angleY) < 2000) {
+    if (abs(posX) < 275 && abs(posY) < 400 && abs(angleX) < 1400 && abs(angleY) < 1500) {
       //move.moveXY(0, xDir, 0, yDir);
       move.moveXY(xSpeed, xDir, ySpeed, yDir);
       //Serial.print("X pos: ");
       //Serial.print(posX);
       //Serial.print(" Y pos: ");
-      //Serial.println(posY);
+      //Serial.print(posY);
+      //Serial.print(" X angle: ");
+      //Serial.print(angleX);
+      //Serial.print(" Y angle: ");
+      //Serial.println(angleY);
     } else {
       move.moveXY(0, xDir, 0, yDir);
       Serial.print("Out of bounds!");
