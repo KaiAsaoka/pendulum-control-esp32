@@ -52,7 +52,7 @@ private:
     unsigned long _lastPulseTime = 0;
     uint16_t _packetSeq = 0;
 
-    static const uint8_t _BATCH_SIZE = 50;
+    static const uint8_t _BATCH_SIZE = 1;
     static const unsigned long _PULSE_TIMEOUT = 2000; // ms
 
     struct InternalSnapshot {

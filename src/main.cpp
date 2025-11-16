@@ -16,7 +16,7 @@
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-// Define 1 ms loop timing
+// Define 10 ms loop timing
 constexpr uint32_t LOOP_US = 10000;     // 10 ms
 static volatile uint32_t overrun_count = 0;
 
@@ -248,7 +248,7 @@ void telemLoop(void *pvParameters){
     // Catch up if we’re late by >= 1 period (no drift even on overruns)
     uint32_t missed = 0;
     while ((int32_t)(now - next_tick) >= 0) {
-      next_tick += 1000;   // LOOP_US = 1000
+      next_tick += 10000;   // LOOP_US = 1000
       ++missed;
     }
     overrun_count += missed;
@@ -326,7 +326,7 @@ void loop() {
   // Catch up if we’re late by >= 1 period (no drift even on overruns)
   uint32_t missed = 0;
   while ((int32_t)(now - next_tick) >= 0) {
-    next_tick += LOOP_US;   // LOOP_US = 1000
+    next_tick += LOOP_US;   // LOOP_US = 10000
     ++missed;
   }
   overrun_count += missed;

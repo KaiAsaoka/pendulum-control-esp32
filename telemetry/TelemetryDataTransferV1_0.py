@@ -20,7 +20,7 @@ sending_pid = False
 pause_receive = threading.Event()
 
 # ----------------- SERIAL SETUP -----------------
-def setup_serial(port=None, baudrate=115200):
+def setup_serial(port=None, baudrate=230400):
     global ser, use_serial
     use_serial = True
 
@@ -210,6 +210,3 @@ if __name__ == "__main__":
     start_telemetry(variable_names)
 
     # Keep alive pulses
-    while True:
-        sleep(1)
-        send_pulse()

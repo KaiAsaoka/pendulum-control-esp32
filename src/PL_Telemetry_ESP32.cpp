@@ -2,7 +2,7 @@
     #include <iostream>
 
     void PL_Telemetry_ESP32::beginSerial() {
-        Serial.begin(115200);
+        Serial.begin(230400);
         while (!Serial) delay(10);
         _serialStarted = true;
         Serial.println("Serial Telemetry Initialized");
