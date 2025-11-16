@@ -407,7 +407,7 @@ void loop() {
       move.moveXY(0, xDir, 0, yDir);
       // Serial.print("Out of bounds!");
     }
-    // Give the mutex back after calculations - all telemetry should be able to run during this time
+    // Give mutex back after calculations - all telemetry should be able to run during this time
     xSemaphoreGive(xMyMutex);
   }
 
