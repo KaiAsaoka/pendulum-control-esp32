@@ -206,7 +206,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         # Timer for updating plot
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(50)
+        self.timer.setInterval(1)
         self.timer.timeout.connect(self.update_plot)
         self.timer.start()
 
@@ -387,7 +387,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial("COM7")
+    setup_serial()
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
     print("PID GAINS: ", pid_gain_vals)

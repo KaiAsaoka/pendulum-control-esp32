@@ -42,6 +42,7 @@ def receive_metadata():
     ser.write(b"METADATA")
     while True:
         data = ser.readline()
+        print(data)
         if len(data) < 3:
             sleep(0.05)
             continue

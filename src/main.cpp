@@ -133,8 +133,9 @@ void handleButtonPress() {
 // Telemetry Globals
 
 SemaphoreHandle_t xMyMutex;
+bool stopTesting = false;
 
-//26 Telemetry variables
+//24 Telemetry variables
 const char* telemVars[] = {
   "carriageXPosition", "carriageYPostion",
   "pendulumXAngle", "pendulumYAngle",
@@ -142,7 +143,6 @@ const char* telemVars[] = {
   "yPositionError", "ySetsAngleP", "ySetsAngleI", "ySetsAngleD", "ySetPointAngle",
   "xAngleError", "xSetPWMP", "xSetPWMI", "xSetPWMD", "xPWM",
   "yAngleError", "ySetPWMP", "ySetPWMI", "ySetPWMD", "yPWM",
-  "loopTime", "loopWaitTime"
 };
 
 volatile int posX;
@@ -201,6 +201,10 @@ Driver DVR2(PWM2, DIR2);
 Move move(DVR1, DVR2, ENC1, ENC2);
 
 void updateTelemetry() {
+  // telemVals[0] = (float)move.returnPosX();
+  // telemVals[1] = (float)move.returnPosY();
+  // telemVals[2] = -(float)receiverESP.data.int_message_1;
+  // telemVals[3] = (float)receiverESP.data.int_message_2;
   telemVals[0] = (float)posX;
   telemVals[1] = (float)posY;
   telemVals[2] = (float)angleX;
@@ -228,6 +232,7 @@ void updateTelemetry() {
 }
 
 void telemLoop(void *pvParameters){
+  telemetry.begin();
   // Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
   for(;;){
     static uint32_t next_tick = micros();
@@ -243,12 +248,13 @@ void telemLoop(void *pvParameters){
     // Catch up if we’re late by >= 1 period (no drift even on overruns)
     uint32_t missed = 0;
     while ((int32_t)(now - next_tick) >= 0) {
-      next_tick += 100;   // LOOP_US = 1000
+      next_tick += 1000;   // LOOP_US = 1000
       ++missed;
     }
     overrun_count += missed;
     updateTelemetry();
     telemetry.sendSnapshot(telemVals, micros());
+    // if (telemetry)
   }
 }
 
@@ -386,7 +392,7 @@ void loop() {
       //Serial.println(angleY);
     } else {
       move.moveXY(0, xDir, 0, yDir);
-      Serial.print("Out of bounds!");
+      // Serial.print("Out of bounds!");
     }
     // Give the mutex back after calculations - all telemetry should be able to run during this time
     xSemaphoreGive(xMyMutex);
