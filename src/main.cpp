@@ -133,7 +133,7 @@ void handleButtonPress() {
 // Telemetry Globals
 
 SemaphoreHandle_t xMyMutex;
-bool stopTesting = false;
+bool pauseTesting = false;
 
 //24 Telemetry variables
 const char* telemVars[] = {
@@ -200,11 +200,12 @@ Driver DVR2(PWM2, DIR2);
 
 Move move(DVR1, DVR2, ENC1, ENC2);
 
+
 void updateTelemetry() {
-  // telemVals[0] = (float)move.returnPosX();
-  // telemVals[1] = (float)move.returnPosY();
-  // telemVals[2] = -(float)receiverESP.data.int_message_1;
-  // telemVals[3] = (float)receiverESP.data.int_message_2;
+  telemVals[0] = (float)move.returnPosX();
+  telemVals[1] = (float)move.returnPosY();
+  telemVals[2] = -(float)receiverESP.data.int_message_1;
+  telemVals[3] = (float)receiverESP.data.int_message_2;
   telemVals[0] = (float)posX;
   telemVals[1] = (float)posY;
   telemVals[2] = (float)angleX;
@@ -235,6 +236,13 @@ void telemLoop(void *pvParameters){
   telemetry.begin();
   // Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
   for(;;){
+    if(telemetry.pauseTesting()) {
+      pauseTesting = true;
+      continue;
+    }
+    else {
+      pauseTesting = false;
+    }
     static uint32_t next_tick = micros();
     uint32_t now = micros();
 
@@ -251,9 +259,13 @@ void telemLoop(void *pvParameters){
       next_tick += 10000;   // LOOP_US = 1000
       ++missed;
     }
-    overrun_count += missed;
-    updateTelemetry();
-    telemetry.sendSnapshot(telemVals, micros());
+
+    if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
+      overrun_count += missed;
+      updateTelemetry();
+      telemetry.sendSnapshot(telemVals, micros());
+      xSemaphoreGive(xMyMutex);
+    }
     // if (telemetry)
   }
 }
@@ -333,8 +345,9 @@ void loop() {
 
   // Fixed dt (exactly 10 ms)
   const float dt = 0.01f;
+
   // Acquire the mutex after the loop wait time
-  if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
+  if (!pauseTesting && (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE)) {
     // Snapshot inputs (avoid torn reads)
     angleX = -receiverESP.data.int_message_1;
     angleY =  receiverESP.data.int_message_2;

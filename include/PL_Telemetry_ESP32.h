@@ -30,6 +30,7 @@ public:
 
     void begin();
     void sendSnapshot(const float* values, uint64_t timestamp);
+    bool pauseTesting();
 
 private:
     void beginSerial();

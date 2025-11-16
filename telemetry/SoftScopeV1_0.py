@@ -301,6 +301,9 @@ class TelemetryGUI(QtWidgets.QWidget):
 
     def send_pid_values(self):
         self.toggle_stop(checked=True)
+        self.stop_btn.setText("Start")
+        stop_telemetry()
+        
         pid_dict = {}
         for key, line_edit in self.pid_inputs.items():
             try:
@@ -387,7 +390,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial()
+    setup_serial("COM8")
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
     print("PID GAINS: ", pid_gain_vals)
