@@ -8,6 +8,10 @@
         Serial.println("Serial Telemetry Initialized");
     }
 
+    bool PL_Telemetry_ESP32::pauseTesting() {
+        return(!_telemetryStarted);
+    }
+
     void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
         buffer[size - 1] = 0x0A;
         Serial.write(buffer, size);
