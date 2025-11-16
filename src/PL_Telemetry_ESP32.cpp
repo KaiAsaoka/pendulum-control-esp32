@@ -193,7 +193,7 @@
                 ((PL_Telemetry_ESP32*)arg)->telemetryTask();
             },
             "TelemetryTask",
-            16382,
+            1024,
             this,
             1,
             NULL,
