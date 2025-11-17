@@ -39,6 +39,7 @@ def animate_parametric(t, x, y):
     txt = ax.text(0.02, 0.98, "", transform=ax.transAxes, va="top", ha="left", animated=True)
     ax.set_xlabel("x")
     ax.set_ylabel("y")
+    ax.set_title("Parametric Animation of (x, y) over Time")
     ax.set_aspect("equal", adjustable="box")
     ax.grid(True)
 
