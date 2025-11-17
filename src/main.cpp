@@ -40,8 +40,10 @@ static volatile uint32_t overrun_count = 0;
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 4
-#define Y_DEADZONE 2
+#define X_DEADZONE 0
+#define Y_DEADZONE 0
+
+#define SPEED_LIMIT 100 // Constrains PWN signal magnitude down from [0, 255] (full range) to [0, SPEED_LIMIT]
 
 #define STACK_SIZE 10000
 #define TASK_PRIORITY 0
@@ -102,32 +104,48 @@ unsigned long startTime;
 void printBinary16(uint16_t n);
 unsigned long getTime(unsigned long startTime);
 
-// Flag to indicate button was pressed (must be volatile)
-volatile bool buttonPressed = false;
+// Flags to indicate button presses (must be volatile)
+volatile bool zeroButtonPressed = false;
+volatile bool zeroButtonState = false; //false = "off", true = "on"
+volatile bool auxButtonPressed = false;
 
 // Time tracking for debouncing
 volatile unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50;  // milliseconds
 
 // Interrupt Service Routine (ISR)
-void IRAM_ATTR buttonISR() {
+void IRAM_ATTR zeroButtonISR() {
   unsigned long currentTime = millis();
   if (currentTime - lastDebounceTime > debounceDelay) {
-    buttonPressed = true;
+    zeroButtonPressed = true;
     lastDebounceTime = currentTime;
   }
 }
 
-// The function to run when button is pressed
-void handleButtonPress() {
-  // Your button handling code here
-  Serial.println("Button was pressed!");
+void IRAM_ATTR auxButtonISR() {
+  unsigned long currentTime = millis();
+  if (currentTime - lastDebounceTime > debounceDelay) {
+    auxButtonPressed = true;
+    lastDebounceTime = currentTime;
+  }
+}
+
+// The function to run when zero button is pressed
+void handleZeroButtonPress() {
+  Serial.println("Zero Button was pressed!");
   pendPIDx.reset_I();
   pendPIDy.reset_I();
   ganPIDx.reset_I();
   ganPIDy.reset_I();
-  ENC1.zero(); //Old zeroing button
+  ENC1.zero();
   ENC2.zero();
+  digitalWrite(BLUE_LED, !digitalRead(BLUE_LED)) // Toggle BLUE STATUS LED
+  zeroButtonState = !zeroButtonState // Toggle State
+
+}
+
+void handleAuxButtonPress() {
+  Serial.println("Aux Button was pressed!");
 }
 
 // Telemetry Globals
@@ -190,6 +208,9 @@ TaskHandle_t telemTask;
 #if CURRENT_ESP == ESP_GANTRY
 
 #define ZERO_BTN 37
+#define AUX_BTN 38 // Currently unused (future-proofing)
+#define BLUE_LED 35
+#define RED_LED 34
 #define PWM2 19
 #define DIR2 22
 #define PWM1 21
@@ -276,9 +297,13 @@ void setup() {
   Serial.println("Gantry ESP32 Starting...");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
+  pinMode(AUX_BTN, INPUT_PULLUP);
+  pinMode(BLUE_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
-  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), startButtonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(AUX_BTN), auxButtonISR, FALLING);
   
   Serial.println("Button interrupt initialized");
 
@@ -322,10 +347,42 @@ void setup() {
 
 // Gantry-specific loop
 void loop() {
+  // Check if button was pressed
+  if (zeroPressed) {
+    handleZeroButtonPress();
+    zeroButtonPressed = false;  // Reset the flag
+  }
+  if (auxButtonPressed) {
+    handleAuxButtonPress();
+    auxButtonPressed = false;  // Reset the flag
+  }
+  // Stall until start button is pressed (Blue LED is ON)
+  if !(zeroButtonState) {
+    return
+  }
+
   // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
   static uint32_t next_tick = micros();
   uint32_t now = micros();
   loopTime = now;
+
+    // Catch up if we’re late by >= 1 period (no drift even on overruns)
+    // RC: Moved this ahead of the "until_tick" check since otherwise we could 
+    // lose quantization 
+    // (e.g., next_tick = 3s, now = 3.5s, LOOP_US = 1s:
+    // "until_tick" is negative therefore do not delayMicroseconds
+    // but "now - next_tick" is 0.5, so increment next_tick to 4s and continue
+    // code continues but "now" is 3.5s instead of an integer.)
+    // BTW yall can delete these comments after merging 
+  uint32_t missed = 0;
+  while ((int32_t)(now - next_tick) >= 0) {
+    next_tick += LOOP_US;   // LOOP_US = 1000 //RC: This looks like the only place
+                            // next_tick is getting incremented, so are we not running
+                            // up "overrun_count" by necessity? We should never enter
+                            // this loop during proper operation
+    ++missed;
+  }
+  overrun_count += missed;
 
   // Sleep if early
   int32_t until_tick = (int32_t)(next_tick - now);
@@ -334,14 +391,6 @@ void loop() {
     delayMicroseconds((uint32_t)until_tick);
     now = micros();
   }
-
-  // Catch up if we’re late by >= 1 period (no drift even on overruns)
-  uint32_t missed = 0;
-  while ((int32_t)(now - next_tick) >= 0) {
-    next_tick += LOOP_US;   // LOOP_US = 1000
-    ++missed;
-  }
-  overrun_count += missed;
 
   // Fixed dt (exactly 10 ms)
   const float dt = 0.01f;
@@ -388,35 +437,22 @@ void loop() {
     const bool yDir = (pwmY >= 0);
     int xSpeed = (int)lroundf(fabsf(pwmX));
     int ySpeed = (int)lroundf(fabsf(pwmY));
-    xSpeed = constrain(xSpeed, 0, 255);
-    ySpeed = constrain(ySpeed, 0, 255);
+    // xSpeed = constrain(xSpeed, 0, 255);
+    // ySpeed = constrain(ySpeed, 0, 255);
+    xSpeed = constrain(xSpeed, 0, SPEED_LIMIT); // Clip to a given max speed value instead of just
+    ySpeed = constrain(ySpeed, 0, SPEED_LIMIT); // 255 (literally as fast as the motors can go)
 
     // Safety window + command
     if (abs(posX) < 275 && abs(posY) < 400 && abs(angleX) < 1400 && abs(angleY) < 1500) {
-      //move.moveXY(0, xDir, 0, yDir);
+      digitalWrite(RED_LED, LOW) // Turn out-of-bounds LED back off
       move.moveXY(xSpeed, xDir, ySpeed, yDir);
-      //Serial.print("X pos: ");
-      //Serial.print(posX);
-      //Serial.print(" Y pos: ");
-      //Serial.print(posY);
-      //Serial.print(" X angle: ");
-      //Serial.print(angleX);
-      //Serial.print(" Y angle: ");
-      //Serial.println(angleY);
     } else {
       move.moveXY(0, xDir, 0, yDir);
+      digitalWrite(RED_LED, HIGH) // Turn out-of-bounds LED on
       // Serial.print("Out of bounds!");
     }
     // Give the mutex back after calculations - all telemetry should be able to run during this time
     xSemaphoreGive(xMyMutex);
-  }
-
-   // Old print statements go here
-
-   // Check if button was pressed
-  if (buttonPressed) {
-    handleButtonPress();
-    buttonPressed = false;  // Reset the flag
   }
 }
 
@@ -440,7 +476,7 @@ void setup() {
   pinMode(ZERO_BTN, INPUT_PULLUP);
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
-  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), ButtonISR, FALLING);
   
   Serial.println("Button interrupt initialized");
 
