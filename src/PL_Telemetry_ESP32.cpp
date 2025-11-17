@@ -2,7 +2,7 @@
     #include <iostream>
 
     void PL_Telemetry_ESP32::beginSerial() {
-        Serial.begin(230400);
+        Serial.begin(115200);
         while (!Serial) delay(10);
         _serialStarted = true;
         Serial.println("Serial Telemetry Initialized");
@@ -135,10 +135,13 @@
                     readGainVals();
                     Serial.println("PID values updated!");
                     vTaskDelay(pdMS_TO_TICKS(10));
-                    sendPID();
                 }
             }
             if (_telemetryStarted && _metadataRequested && _pidSent) {
+                Serial.println(uxQueueSpacesAvailable(_snapshotQueue));
+                //vTaskDelay(pdMS_TO_TICKS(10));
+                //continue;
+
                 uint8_t count = 0;
                 while (count < _BATCH_SIZE) {
                     if (xQueueReceive(_snapshotQueue, &batch[count], 0) == pdPASS) {

@@ -20,7 +20,7 @@ sending_pid = False
 pause_receive = threading.Event()
 
 # ----------------- SERIAL SETUP -----------------
-def setup_serial(port=None, baudrate=230400):
+def setup_serial(port=None, baudrate=115200):
     global ser, use_serial
     use_serial = True
 
@@ -106,7 +106,7 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
             sleep(0.05)
 
         new_data = ser.readline()
-        # print(new_data)
+        #print(new_data)
         if not new_data:
             continue
         buffer += new_data

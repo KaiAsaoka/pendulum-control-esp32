@@ -2,7 +2,8 @@ import random
 from PyQt6 import QtWidgets, QtCore
 import pyqtgraph as pg
 import csv
-from time import perf_counter
+import time
+#from time import perf_counter
 
 from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, simple_start, send_pid, stop_telemetry, start_telemetry, data_buffers, variable_names, sock
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
@@ -206,7 +207,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         # Timer for updating plot
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(1)
+        self.timer.setInterval(20)
         self.timer.timeout.connect(self.update_plot)
         self.timer.start()
 
@@ -333,6 +334,7 @@ class TelemetryGUI(QtWidgets.QWidget):
             self.curves[channel_name].setPen(pg.mkPen(color=COLOR_OPTIONS[color_name], width=2))
 
     def update_selected(self):
+
         self.selected_vars = [name for name, cb in self.checkboxes.items() if cb.isChecked()]
 
         # Remove unselected curves
@@ -346,15 +348,20 @@ class TelemetryGUI(QtWidgets.QWidget):
             if name not in self.curves:
                 color = self.var_colors.get(name, (255, 255, 255))
                 self.curves[name] = self.plot_widget.plot([], [], pen=pg.mkPen(color=color, width=2), name=name)
+        
 
     def update_plot(self):
+
         if self.paused or not self.selected_vars:
             return
 
         now = None
         for name in self.selected_vars:
             buf = self.data_buffers[name]
+           
             if buf:
+                k = max(-1000,-len(buf))
+                buf = list(buf)[k:]  # last 10k points max
                 times, values = zip(*buf)
                 # print("\nNext values\n")
                 # print(perf_counter())
@@ -370,11 +377,12 @@ class TelemetryGUI(QtWidgets.QWidget):
 
                 if now is None:
                     now = times[-1]
-                window_start = now - self.time_window_ms
-                mask = [t >= window_start for t in times]
+                    
+                # window_start = now - self.time_window_ms
+                # mask = [t >= window_start for t in times]
 
-                self.curves[name].setData([t for t, m in zip(times, mask) if m],
-                                          [v for v, m in zip(scaled_values, mask) if m])
+                self.curves[name].setData([t for t in times],
+                                          [v for v in values])
 
         if now is not None:
             self.plot_widget.setXRange(now - self.time_window_ms, now)
