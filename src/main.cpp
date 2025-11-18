@@ -322,29 +322,11 @@ void setup() {
 
 // Gantry-specific loop
 void loop() {
-  // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
-  static uint32_t next_tick = micros();
-  uint32_t now = micros();
-  loopTime = now;
 
-  // Sleep if early
-  int32_t until_tick = (int32_t)(next_tick - now);
-  loopWaitTime = until_tick;
-  if (until_tick > 0) {
-    delayMicroseconds((uint32_t)until_tick);
-    now = micros();
-  }
-
-  // Catch up if we’re late by >= 1 period (no drift even on overruns)
-  uint32_t missed = 0;
-  while ((int32_t)(now - next_tick) >= 0) {
-    next_tick += LOOP_US;   // LOOP_US = 10000
-    ++missed;
-  }
-  overrun_count += missed;
-
-  // Fixed dt (exactly 10 ms)
   const float dt = 0.01f;
+
+  uint32_t start_us = micros();
+  loopTime = start_us;
 
   // Acquire the mutex after the loop wait time
   if (!pauseTesting && (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE)) {
@@ -411,12 +393,24 @@ void loop() {
     xSemaphoreGive(xMyMutex);
   }
 
-   // Old print statements go here
-
-   // Check if button was pressed
+  // Button handling block stays as-is
   if (buttonPressed) {
     handleButtonPress();
-    buttonPressed = false;  // Reset the flag
+    buttonPressed = false;
+  }
+
+  // New timing epilogue
+  uint32_t elapsed = (uint32_t)(micros() - start_us);
+
+  if (elapsed >= LOOP_US) {
+    overrun_count++;
+    loopWaitTime = 0;
+    Serial.println("Overtime!");
+  } else {
+    loopWaitTime = LOOP_US - elapsed;
+    while ((uint32_t)(micros() - start_us) < LOOP_US) {
+      // Busy wait
+    }
   }
 }
 
