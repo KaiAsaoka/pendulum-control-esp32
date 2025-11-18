@@ -258,7 +258,7 @@ void telemLoop(void *pvParameters){
       overrun_count++;
       Serial.println("Telemetry Overtime!");
     } else {
-      // Busy-wait until full 10 ms period has elapsed
+      // Busy --> wait until full 10 ms period has elapsed
       while ((uint32_t)(micros() - start_us) < LOOP_US) {
         // spin
       }
