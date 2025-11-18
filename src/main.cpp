@@ -236,39 +236,36 @@ void telemLoop(void *pvParameters){
   telemetry.begin();
   // Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
   for(;;){
-    if(telemetry.pauseTesting()) {
+    if (telemetry.pauseTesting()) {
       pauseTesting = true;
       continue;
-    }
-    else {
+    } else {
       pauseTesting = false;
     }
-    static uint32_t next_tick = micros();
-    uint32_t now = micros();
 
-    // Sleep if early
-    int32_t until_tick = (int32_t)(next_tick - now);
-    if (until_tick > 0) {
-      delayMicroseconds((uint32_t)until_tick);
-      now = micros();
-    }
-
-    // Catch up if we’re late by >= 1 period (no drift even on overruns)
-    uint32_t missed = 0;
-    while ((int32_t)(now - next_tick) >= 0) {
-      next_tick += 10000;   // LOOP_US = 1000
-      ++missed;
-    }
+    uint32_t start_us = micros();
 
     if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
-      overrun_count += missed;
       updateTelemetry();
-      telemetry.sendSnapshot(telemVals, micros());
+      // Use start_us or micros() for timestamp; both are fine for your scope
+      telemetry.sendSnapshot(telemVals, start_us);
       xSemaphoreGive(xMyMutex);
     }
-    // if (telemetry)
+
+    uint32_t elapsed = (uint32_t)(micros() - start_us);
+
+    if (elapsed >= LOOP_US) {
+      overrun_count++;
+      Serial.println("Telemetry Overtime!");
+    } else {
+      // Busy-wait until full 10 ms period has elapsed
+      while ((uint32_t)(micros() - start_us) < LOOP_US) {
+        // spin
+      }
+    }
   }
 }
+
 
 void setup() {
   Serial.begin(115200);
