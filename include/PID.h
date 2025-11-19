@@ -2,22 +2,39 @@
 #define PID_H
 #include <tuple>
 
+struct pidParams {
+  int p;
+  int i;
+  int d;
+  int lpf;
+  int iCutoff;
+};
+
+// should these be ints?
+struct pidOutputs {
+  float pOut;
+  float iOut;
+  float dOut;
+  int output;
+};
 
 class PID {
 public:
     //PID(float kp, float ki, float kd);
-    PID(volatile float& kp, volatile float& ki, volatile float& kd, volatile float& lpf_gain, volatile float& int_cutoff);
+    PID(pidParams pidParams);
     
-    std::tuple<float,float,float,float> calculate(float error, float dt);
+    pidOutputs calculate(float error, float dt);
+    pidOutputs calculate(float error);
 
-    std::tuple<float, float, float, float> calculate(float error);
-    void reset_I();
+    void reset();
+    void readNewGains(pidParams newParams);
+    
 private:
-    volatile float& kp;
-    volatile float& ki;
-    volatile float& kd;
-    volatile float& lpf_gain;
-    volatile float& int_cutoff;
+    int kp;
+    int ki;
+    int kd;
+    int lpf_gain;
+    int int_cutoff;
     float previous_error;
     float integral;
     float d_term;

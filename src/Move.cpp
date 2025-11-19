@@ -23,16 +23,14 @@ Move::Move(Driver& dvr1, Driver& dvr2, Encoder& enc1, Encoder& enc2) : dvr1(dvr1
 // }
 
 // Scaling Factor to mm for determining position
-constexpr float SCALE_FACTOR = (0.87f * M_PI * BELT_DRIVE_RADIUS) / ENCODER_360;
+constexpr float SCALE_FACTOR = 10 * (0.87f * M_PI * BELT_DRIVE_RADIUS) / ENCODER_360;
 
-void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
-    // Convert boolean direction to multiplier (-1 or 1)
-    int dirX = !directionX ? 1 : -1;
-    int dirY = directionY ? 1 : -1;
+void Move::moveXY(int speedX, int speedY) {
+    speedX = -speedX;
     
     // Calculate motor speeds by combining X and Y components
-    int motor1Speed = (speedX * dirX) + (speedY * dirY);
-    int motor2Speed = (speedX * dirX) - (speedY * dirY);
+    int motor1Speed = (speedX) + (speedY);
+    int motor2Speed = (speedX) - (speedY);
     
     vel1 = motor1Speed;
     vel2 = motor2Speed;
@@ -44,15 +42,6 @@ void Move::moveXY(int speedX, bool directionX, int speedY, bool directionY) {
     // Get absolute values for motor speeds
     motor1Speed = abs(motor1Speed);
     motor2Speed = abs(motor2Speed);
-    
-    // Scale speeds if they exceed maximum
-    int maxSpeed = max(motor1Speed, motor2Speed);
-    if (maxSpeed > 255) {
-        float scaleFactor = 255.0 / maxSpeed;
-        motor1Speed = round(motor1Speed * scaleFactor);
-        motor2Speed = round(motor2Speed * scaleFactor);
-    }
-    
 
     if (motor1Speed!=0 && motor2Speed==0) {
         // Move motors with calculated speeds and directions
@@ -139,26 +128,22 @@ void Move::brake() {
     }
 }
 
-float Move::returnPosX(){
+int Move::returnPosX(){
     // Get raw encoder values
     long angle1 = enc1.getTotalAngle();
     long angle2 = enc2.getTotalAngle();
 
-    // Convert to float and scale appropriately
-    // The sqrt(2) factor comes from the mechanical coupling of the motors
-    // We'll multiply by a scaling factor to get to physical units (mm)
-    float posX = (float(angle1) + float(angle2)) * SCALE_FACTOR;
+    // We'll multiply by a scaling factor to get to physical units (mm * 10)
+    int posX = (float(angle1) + float(angle2)) * SCALE_FACTOR;
     return posX;
 }
 
-float Move::returnPosY(){
+int Move::returnPosY(){
     // Get raw encoder values
     long angle1 = enc1.getTotalAngle();
     long angle2 = enc2.getTotalAngle();
     
-    // Convert to float and scale appropriately
-    // The sqrt(2) factor comes from the mechanical coupling of the motors
-    // We'll multiply by a scaling factor to get to physical units (mm)
-    float posY = (float(angle1) - float(angle2)) * SCALE_FACTOR;
+    // We'll multiply by a scaling factor to get to physical units (mm * 10)
+    int posY = (float(angle1) - float(angle2)) * SCALE_FACTOR;
     return posY;
 }

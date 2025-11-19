@@ -2,13 +2,16 @@
 #include <Arduino.h>   // for constrain()
 #include <tuple>
 
-PID::PID(volatile float& kp, volatile float& ki, volatile float& kd, volatile float& lpf_gain, volatile float& int_cutoff)
-: kp(kp), ki(ki), kd(kd),
+PID::PID(pidParams pidParams)
+: kp(static_cast<float>(pidParams.p/1000)), 
+  ki(static_cast<float>(pidParams.i/1000)), 
+  kd(static_cast<float>(pidParams.d)/1000),
   previous_error(0.0f), integral(0.0f), d_term(0.0f),
-  lpf_gain(lpf_gain), int_cutoff(int_cutoff) {}
+  lpf_gain(static_cast<float>(pidParams.lpf/1000)), 
+  int_cutoff(static_cast<float>(pidParams.iCutoff/1000)) {}
 
 // Time-aware PID: dt in seconds
-std::tuple<float, float, float, float> PID::calculate(float error, float dt) {
+pidOutputs PID::calculate(float error, float dt) {
     // Guard against bad dt
     if (dt <= 0.0f) dt = 1.0f;
 
@@ -29,17 +32,28 @@ std::tuple<float, float, float, float> PID::calculate(float error, float dt) {
     float d_unf = kd * d_raw;
     d_term = alpha * d_term + (1.0f - alpha) * d_unf;
 
-    float u = p_term + i_term + d_term;
-    return {p_term, i_term, d_term, u};
+    float sum = p_term + i_term + d_term;
+
+    pidOutputs outputs = {p_term, i_term, d_term, sum};
+
+    return outputs;
 }
 
 // Compatibility: dt defaults to 1.0 s if you call the 1-arg version
-std::tuple<float, float, float, float> PID::calculate(float error) {
+pidOutputs PID::calculate(float error) {
     return calculate(error, 1.0f);
 }
 
-void PID::reset_I() {
+void PID::reset() {
     integral = 0.0f;
     previous_error = 0.0f;
     d_term = 0.0f;
+}
+
+void PID::readNewGains(pidParams newParams) {
+    kp = static_cast<float>(newParams.p/1000);
+    ki = static_cast<float>(newParams.i/1000);
+    kd = static_cast<float>(newParams.d/1000);
+    lpf_gain = static_cast<float>(newParams.lpf/1000);
+    int_cutoff = static_cast<float>(newParams.iCutoff/1000);
 }
