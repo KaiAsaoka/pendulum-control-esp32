@@ -245,12 +245,14 @@ void telemLoop(void *pvParameters){
 
     uint32_t start_us = micros();
 
+    // 1) Copy shared state into telemVals while holding the mutex
     if (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE) {
-      updateTelemetry();
-      // Use start_us or micros() for timestamp; both are fine for your scope
-      telemetry.sendSnapshot(telemVals, start_us);
+      updateTelemetry();        // reads globals into telemVals[]
       xSemaphoreGive(xMyMutex);
     }
+
+    // 2) Send the snapshot without holding the mutex
+    telemetry.sendSnapshot(telemVals, start_us);
 
     uint32_t elapsed = (uint32_t)(micros() - start_us);
 
@@ -258,11 +260,11 @@ void telemLoop(void *pvParameters){
       overrun_count++;
       Serial.println("Telemetry Overtime!");
     } else {
-      // Busy --> wait until full 10 ms period has elapsed
       while ((uint32_t)(micros() - start_us) < LOOP_US) {
         // spin
       }
     }
+
   }
 }
 
