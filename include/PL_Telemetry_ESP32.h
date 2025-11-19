@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <PID.h>
 
 class PL_Telemetry_ESP32 {
 public:
@@ -19,14 +20,15 @@ public:
 
     template<size_t N>
     
-    PL_Telemetry_ESP32(const char* (&varNames)[N], float* (&pidGainVals)[20])
+    PL_Telemetry_ESP32(const char* (&varNames)[N], pidParams setAngleXParams, pidParams setAngleYParams,
+                        pidParams setPWMXParams, pidParams setPWMYParams)
         : _varNames(varNames),
-          _numVars(N)
-    {
-        for (int i = 0; i < 20; i++) {
-            _pidGainVals[i] = pidGainVals[i];
-        }
-    }
+          _numVars(N),
+          _setAngleXParams(setAngleXParams),
+          _setAngleYParams(setAngleYParams),
+          _setPWMXParams(setPWMXParams),
+          _setPWMYParams(setPWMYParams)
+    {}
 
     void begin();
     void sendSnapshot(const float* values, uint64_t timestamp);
@@ -43,7 +45,12 @@ private:
 
     const char** _varNames;
     size_t _numVars;
-    float* _pidGainVals[20];
+    pidParams _setAngleXParams;
+    pidParams _setAngleYParams;
+    pidParams _setPWMXParams;
+    pidParams _setPWMYParams;
+    
+    std::array<pidParams, 4> _pidParams = {_setAngleXParams, _setAngleYParams, _setPWMXParams, _setPWMYParams};
 
     bool _serialStarted = false;
     bool _telemetryStarted = false;

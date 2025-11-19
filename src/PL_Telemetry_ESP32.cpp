@@ -13,7 +13,6 @@
     }
 
     void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
-        buffer[size - 1] = 0x0A;
         Serial.write(buffer, size);
     }
 
@@ -32,6 +31,8 @@
             offset += len;
         }
         
+        // Serial.write(buffer, offset);
+
         offset++;
         sendPacket(buffer, offset); 
     }
@@ -39,23 +40,32 @@
     void PL_Telemetry_ESP32::sendPID() {
         uint8_t buffer[128 + 1];
         size_t offset = 0;
+        size_t offsetIncrement = sizeof(int);
 
         buffer[offset++] = 0xCD;
         buffer[offset++] = 0xAC;
-        
-        for (int i = 0; i < 20; i++) {
-            float val = *(_pidGainVals[i]);
-            memcpy(buffer + offset, &val, sizeof(float));
-            offset += sizeof(float);
+        buffer[offset++] = 3 + 20 * sizeof(int);
+
+        for (pidParams paramSet : _pidParams) {
+            memcpy(buffer + offset, &paramSet.p, sizeof(int));
+            offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet.i, sizeof(int));
+            offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet.d, sizeof(int));
+            offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet.lpf, sizeof(int));
+            offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet.iCutoff, sizeof(int));
+            offset += sizeof(int);
         }
 
+        // Serial.write(buffer, offset)
         offset++;
-        vTaskDelay(pdMS_TO_TICKS(10));
         sendPacket(buffer, offset);
     }
 
     void PL_Telemetry_ESP32::readGainVals() {
-        size_t expectedBytes = 20 * sizeof(float);
+        size_t expectedBytes = 20 * sizeof(int) + 1;
         uint8_t buf[expectedBytes];
         size_t bytesRead = 0;
 
@@ -63,12 +73,25 @@
             buf[bytesRead++] = Serial.read();
         }
 
-        for (int i = 0; i < 20; i++) {
-            float val;
-            memcpy(&val, buf + i * sizeof(float), sizeof(float));
-            *(_pidGainVals[i]) = val;
+        if (bytesRead != expectedBytes) {
+            Serial.print("Failed Read - not expected size");
+            return;
         }
-        _pidReceive = false;
+
+        size_t offset = 1;
+
+        for (pidParams paramSet : _pidParams) {
+            memcpy(&paramSet.p, buf+offset, sizeof(int));
+            offset += sizeof(int);
+            memcpy(&paramSet.i, buf+offset, sizeof(int));
+            offset += sizeof(int);
+            memcpy(&paramSet.d, buf+offset, sizeof(int));
+            offset += sizeof(int);
+            memcpy(&paramSet.lpf, buf+offset, sizeof(int));
+            offset += sizeof(int);
+            memcpy(&paramSet.iCutoff, buf+offset, sizeof(int));
+            offset += sizeof(int);
+        }
     }
 
     void PL_Telemetry_ESP32::checkCommands() {

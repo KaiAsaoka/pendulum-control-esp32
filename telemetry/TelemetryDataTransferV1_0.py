@@ -67,7 +67,7 @@ def receive_pid():
     ser.write(b"SENDPID")
     print("Request PID")
 
-    expected_bytes = 2 + 20 * 4  # header + 20 floats
+    expected_bytes = 3 + 20 * 4  # header + len + 20 ints
     while True:
         # buffer = b""
 
@@ -87,8 +87,8 @@ def receive_pid():
             sleep(0.05)
             continue
         else:
-            offset = 2
-            pid_vals = struct.unpack("<20f", buffer[offset:offset + 80])
+            offset = 3
+            pid_vals = struct.unpack("<20i", buffer[offset:offset + 80])
             return list(pid_vals)
 
 # ----------------- RECEIVE TELEMETRY -----------------

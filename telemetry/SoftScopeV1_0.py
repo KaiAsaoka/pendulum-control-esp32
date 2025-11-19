@@ -398,7 +398,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial("COM3")
+    setup_serial()
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
     print("PID GAINS: ", pid_gain_vals)
