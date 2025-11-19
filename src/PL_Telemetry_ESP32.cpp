@@ -46,16 +46,16 @@
         buffer[offset++] = 0xAC;
         buffer[offset++] = 3 + 20 * sizeof(int);
 
-        for (pidParams paramSet : _pidParams) {
-            memcpy(buffer + offset, &paramSet.p, sizeof(int));
+        for (pidParams* paramSet : _pidParams) {
+            memcpy(buffer + offset, &paramSet->p, sizeof(int));
             offset += sizeof(int);
-            memcpy(buffer + offset, &paramSet.i, sizeof(int));
+            memcpy(buffer + offset, &paramSet->i, sizeof(int));
             offset += sizeof(int);
-            memcpy(buffer + offset, &paramSet.d, sizeof(int));
+            memcpy(buffer + offset, &paramSet->d, sizeof(int));
             offset += sizeof(int);
-            memcpy(buffer + offset, &paramSet.lpf, sizeof(int));
+            memcpy(buffer + offset, &paramSet->lpf, sizeof(int));
             offset += sizeof(int);
-            memcpy(buffer + offset, &paramSet.iCutoff, sizeof(int));
+            memcpy(buffer + offset, &paramSet->iCutoff, sizeof(int));
             offset += sizeof(int);
         }
 
@@ -65,31 +65,28 @@
     }
 
     void PL_Telemetry_ESP32::readGainVals() {
-        size_t expectedBytes = 20 * sizeof(int) + 1;
-        uint8_t buf[expectedBytes];
+        size_t expectedBytes = 20 * sizeof(int);
+        uint8_t buf[expectedBytes + 1];
         size_t bytesRead = 0;
 
-        while (Serial.available() > 0) {
-            buf[bytesRead++] = Serial.read();
+        while (bytesRead < expectedBytes) {
+            if (Serial.available()) {
+                buf[bytesRead++] = Serial.read();
+            }
         }
 
-        if (bytesRead != expectedBytes) {
-            Serial.print("Failed Read - not expected size");
-            return;
-        }
+        size_t offset = 0;
 
-        size_t offset = 1;
-
-        for (pidParams paramSet : _pidParams) {
-            memcpy(&paramSet.p, buf+offset, sizeof(int));
+        for (pidParams* paramSet : _pidParams) {
+            memcpy(&paramSet->p, buf+offset, sizeof(int));
             offset += sizeof(int);
-            memcpy(&paramSet.i, buf+offset, sizeof(int));
+            memcpy(&paramSet->i, buf+offset, sizeof(int));
             offset += sizeof(int);
-            memcpy(&paramSet.d, buf+offset, sizeof(int));
+            memcpy(&paramSet->d, buf+offset, sizeof(int));
             offset += sizeof(int);
-            memcpy(&paramSet.lpf, buf+offset, sizeof(int));
+            memcpy(&paramSet->lpf, buf+offset, sizeof(int));
             offset += sizeof(int);
-            memcpy(&paramSet.iCutoff, buf+offset, sizeof(int));
+            memcpy(&paramSet->iCutoff, buf+offset, sizeof(int));
             offset += sizeof(int);
         }
     }
@@ -116,27 +113,27 @@
         }
         else if(strcmp(buf,"START") == 0) {
             _telemetryStarted = true;
-            _lastPulseTime = millis();
             Serial.println("START received!");
         }
         else if(strcmp(buf,"STOP") == 0) {
             _telemetryStarted = false;
-            _lastPulseTime = millis();
             Serial.println("STOP recieved!");
         }
-        else if(strcmp(buf,"PULSE") == 0) {
-            _lastPulseTime = millis();
-        }
         else if (strcmp(buf,"SENDPID") == 0) {
-            _lastPulseTime = millis();
             _pidSent = true;
             Serial.println("PID sending!");
             sendPID();
         }
         else if (strcmp(buf,"PIDRECV") == 0) {
             _pidReceive = true;
-            _lastPulseTime = millis();
             Serial.println("PID received!");
+            vTaskDelay(pdMS_TO_TICKS(10));
+            readGainVals();
+        }
+        else if (strcmp(buf,"END") == 0) {
+            _pidSent = false;
+            _telemetryStarted = false;
+            _metadataRequested = false;
         }
     }
 
@@ -151,14 +148,6 @@
             if (!_telemetryStarted) {
                 xQueueReset(_snapshotQueue);
                 vTaskDelay(pdMS_TO_TICKS(10));
-            }
-            if (!_telemetryStarted && _pidReceive) {
-                Serial.println("PID receiving...");
-                if (Serial.available() >= 20 * sizeof(float)) {
-                    readGainVals();
-                    Serial.println("PID values updated!");
-                    vTaskDelay(pdMS_TO_TICKS(10));
-                }
             }
             if (_telemetryStarted && _metadataRequested && _pidSent) {
                 Serial.println(uxQueueSpacesAvailable(_snapshotQueue));
@@ -237,4 +226,12 @@
         snap.timestamp_us = timestamp;
 
         xQueueSend(_snapshotQueue, &snap, 0);
+    }
+
+    bool PL_Telemetry_ESP32::updateGainVals() {
+        if (_pidReceive) {
+            _pidReceive = false;
+            return true; 
+        }
+        else return false;
     }

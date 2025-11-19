@@ -24,15 +24,21 @@ public:
                         pidParams setPWMXParams, pidParams setPWMYParams)
         : _varNames(varNames),
           _numVars(N),
-          _setAngleXParams(setAngleXParams),
-          _setAngleYParams(setAngleYParams),
-          _setPWMXParams(setPWMXParams),
-          _setPWMYParams(setPWMYParams)
+          setAngleXParams(setAngleXParams),
+          setAngleYParams(setAngleYParams),
+          setPWMXParams(setPWMXParams),
+          setPWMYParams(setPWMYParams)
     {}
 
     void begin();
     void sendSnapshot(const float* values, uint64_t timestamp);
+    bool updateGainVals();
     bool pauseTesting();
+
+    pidParams setAngleXParams;
+    pidParams setAngleYParams;
+    pidParams setPWMXParams;
+    pidParams setPWMYParams;
 
 private:
     void beginSerial();
@@ -45,12 +51,8 @@ private:
 
     const char** _varNames;
     size_t _numVars;
-    pidParams _setAngleXParams;
-    pidParams _setAngleYParams;
-    pidParams _setPWMXParams;
-    pidParams _setPWMYParams;
     
-    std::array<pidParams, 4> _pidParams = {_setAngleXParams, _setAngleYParams, _setPWMXParams, _setPWMYParams};
+    std::array<pidParams*, 4> _pidParams = {&setAngleXParams, &setAngleYParams, &setPWMXParams, &setPWMYParams};
 
     bool _serialStarted = false;
     bool _telemetryStarted = false;

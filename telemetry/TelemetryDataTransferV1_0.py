@@ -83,7 +83,7 @@ def receive_pid():
         print(buffer)
         # validate header
         if buffer[0] != 0xcd or buffer[1] != 0xac:
-            print("Invalid header:", buffer[:4])
+            # print("Invalid header:", buffer[:4])
             sleep(0.05)
             continue
         else:
@@ -106,7 +106,7 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
             sleep(0.05)
 
         new_data = ser.readline()
-        #print(new_data)
+        # print(new_data)
         if not new_data:
             continue
         buffer += new_data
@@ -144,14 +144,12 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
 # ----------------- SEND PID -----------------
 def send_pid(pid_vals):
     global sending_pid
-    stop_telemetry()
-    sleep(0.1)
 
     sending_pid = True
 
     axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
     params = ["P", "I", "D", "LPF", "Windup"]
-    ordered_vals = [pid_vals[f"{axis}_{param}"] for axis in axes for param in params]
+    ordered_vals = [int(pid_vals[f"{axis}_{param}"]) for axis in axes for param in params]
 
     ser.write(b"PIDRECV")
     print("Sent PIDRECV")
@@ -159,11 +157,12 @@ def send_pid(pid_vals):
     while True:
         resp = ser.readline()
         print("ESP32 Response:", resp)
+
         if b"PID received!" not in resp:
             print("Unexpected response:", resp)
             continue
         
-        payload = struct.pack("<20f", *ordered_vals)
+        payload = struct.pack("<20i", *ordered_vals)
         ser.write(payload)
         print(payload)
         print("PID values sent!")
@@ -194,12 +193,18 @@ def send_pulse():
 def stop_telemetry():
     ser.write(b"STOP")
     pause_receive.set()
+    ser.flush()
+    ser.reset_input_buffer()
     sleep(0.05)
 
 def simple_start():
     ser.write(b"START")
     pause_receive.clear()
     sleep(0.05)
+
+def end_telemetry():
+    ser.write(b"END")
+    quit()
 
 # ----------------- MAIN ENTRY -----------------
 if __name__ == "__main__":

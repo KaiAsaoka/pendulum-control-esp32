@@ -5,7 +5,7 @@ import csv
 import time
 #from time import perf_counter
 
-from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, simple_start, send_pid, stop_telemetry, start_telemetry, data_buffers, variable_names, sock
+from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, simple_start, send_pid, stop_telemetry, start_telemetry, data_buffers, variable_names, end_telemetry
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
 
 # Predefined color options
@@ -211,14 +211,6 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.timer.timeout.connect(self.update_plot)
         self.timer.start()
 
-        from TelemetryDataTransferV1_0 import send_pulse  # import here to avoid circular issues
-        self.send_pulse = send_pulse
-        self.esp_addr = None  # will be set from main
-        self.pulse_timer = QtCore.QTimer()
-        self.pulse_timer.setInterval(1000)  # 1 second
-        self.pulse_timer.timeout.connect(self.send_keepalive)
-        self.pulse_timer.start()
-
     # ----------------- GUI methods -----------------
     def toggle_pause(self, checked):
         self.paused = checked
@@ -301,9 +293,9 @@ class TelemetryGUI(QtWidgets.QWidget):
             self.reset_buffer()
 
     def send_pid_values(self):
-        self.toggle_stop(checked=True)
-        self.stop_btn.setText("Start")
-        stop_telemetry()
+        # self.toggle_stop(checked=True)
+        # self.stop_btn.setText("Start")
+        # stop_telemetry()
         
         pid_dict = {}
         for key, line_edit in self.pid_inputs.items():
@@ -386,19 +378,14 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         if now is not None:
             self.plot_widget.setXRange(now - self.time_window_ms, now)
-    
-    def send_keepalive(self):
-        if self.esp_addr:
-            try:
-                self.send_pulse(self.esp_addr)
-            except Exception as e:
-                print(f"Failed to send pulse: {e}")
-        else:
-            self.send_pulse()
+
+    def closeEvent(self, event: QtWidgets.QCloseEvent):
+        end_telemetry()
+
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial()
+    setup_serial("COM7")
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
     print("PID GAINS: ", pid_gain_vals)

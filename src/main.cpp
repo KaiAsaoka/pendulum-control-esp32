@@ -53,7 +53,7 @@ Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
 pidParams setAngleXParams = {0, 0, 0, 0, 0};
 // {45, 50, !!0.16!!, 0, 125000000}
-pidParams setAngleYParams = {0, 0, 0, 0, 0};
+pidParams setAngleYParams = {0, 0, 5, 0, 0};
 // {15, 150, 0.5, 0, 55555555}
 pidParams setPWMXParams = {0, 0, 0, 0, 0};
 // {0, 0, 0, 750, 1000}
@@ -64,6 +64,7 @@ PID setPWMPIDX(setPWMXParams);
 PID setPWMPIDY(setPWMXParams);
 PID setAnglePIDX(setAngleXParams);
 PID setAnglePIDY(setAngleYParams);
+std::array<pidParams, 4> paramSet;
 
 pidOutputs setAngleXOutputs;
 pidOutputs setAngleYOutputs;
@@ -176,14 +177,17 @@ Driver DVR2(PWM2, DIR2);
 Move move(DVR1, DVR2, ENC1, ENC2);
 
 void updateTelemetry() {
-  telemVals[0] = stateVariables.posX;
-  telemVals[1] = stateVariables.posY;
-  telemVals[2] = stateVariables.angleX;
-  telemVals[3] = stateVariables.angleY;
-  telemVals[4] = stateErrors.positionErrorX;
-  telemVals[5] = stateErrors.positionErrorY;
-  telemVals[6] = stateErrors.angleErrorX;
-  telemVals[7] = stateErrors.angleErrorY;
+  // telemVals[0] = stateVariables.posX;
+  // telemVals[1] = stateVariables.posY;
+  // telemVals[2] = stateVariables.angleX;
+  // telemVals[3] = stateVariables.angleY;
+  // telemVals[4] = stateErrors.positionErrorX;
+  // telemVals[5] = stateErrors.positionErrorY;
+  // telemVals[6] = stateErrors.angleErrorX;
+  // telemVals[7] = stateErrors.angleErrorY;
+  for (int i = 0; i < 8; i++) {
+    telemVals[i] = i + 10;
+  }
 }
 
 void telemLoop(void *pvParameters){
@@ -219,38 +223,38 @@ void setup() {
   errorValsMutex = xSemaphoreCreateMutex(); // Create mutex for variable sharing
   Serial.println("Gantry ESP32 Starting...");
 
-  pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
+  // pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
     
-  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
-  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  // // Attach interrupt (FALLING for normally-open button with pull-up resistor)
+  // attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
   
-  Serial.println("Button interrupt initialized");
+  // Serial.println("Button interrupt initialized");
 
-  ENC1.begin();
-  Serial.println("Encoder 1 initialized (Gantry)");
+  // ENC1.begin();
+  // Serial.println("Encoder 1 initialized (Gantry)");
 
-  ENC2.begin();
-  Serial.println("Encoder 2 initialized (Gantry)");
+  // ENC2.begin();
+  // Serial.println("Encoder 2 initialized (Gantry)");
 
-  // Initialize drivers
-  DVR1.begin();
-  delay(1000);
-  Serial.println("Driver 1 initialized");
-  Serial.flush();
+  // // Initialize drivers
+  // DVR1.begin();
+  // delay(1000);
+  // Serial.println("Driver 1 initialized");
+  // Serial.flush();
 
-  DVR2.begin();
-  delay(1000);
-  Serial.println("Driver 2 initialized");
-  Serial.flush();
+  // DVR2.begin();
+  // delay(1000);
+  // Serial.println("Driver 2 initialized");
+  // Serial.flush();
 
-  // Initialize ESPNow communication
-  receiverESP.setUp();
-  esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
-    receiverESP.onDataRecv(mac, data, len);
-  });
+  // // Initialize ESPNow communication
+  // receiverESP.setUp();
+  // esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
+  //   receiverESP.onDataRecv(mac, data, len);
+  // });
 
-  Serial.println("Gantry setup complete!");
-  Serial.flush();
+  // Serial.println("Gantry setup complete!");
+  // Serial.flush();
 
   // ESP32 Should make loop on core 1 anyways, but just to be sure
   xTaskCreatePinnedToCore(
@@ -291,6 +295,10 @@ void runControl(float dt) {
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
 }
 
+void updatePIDParams(PID pidObject, pidParams newParams) {
+  pidObject.readNewGains(newParams);
+}
+
 // Gantry-specific loop
 void loop() {
 
@@ -299,37 +307,37 @@ void loop() {
   uint32_t start_us = micros();
   loopTime = start_us;
 
-  readState();
+  // readState();
 
-  if (xSemaphoreTake(errorValsMutex, portMAX_DELAY) == pdPASS) {
-    runControl(dt);
-    xSemaphoreGive(errorValsMutex);
-  }
-    // Deadzones
-    if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
-    else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
+  // if (xSemaphoreTake(errorValsMutex, portMAX_DELAY) == pdPASS) {
+  //   runControl(dt);
+  //   xSemaphoreGive(errorValsMutex);
+  // }
+  //   // Deadzones
+  //   if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
+  //   else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
 
-    if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
-    else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
+  //   if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
+  //   else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
 
-    PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, 0, 255);
-    PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, 0, 255);
+  //   PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, 0, 255);
+  //   PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, 0, 255);
 
-    // Safety window + command
-    if (abs(stateVariables.posX) < 275 && abs(stateVariables.posY) < 400 && 
-        abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
-      //move.moveXY(0, xDir, 0, yDir);
-      move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
-    } else {
-      move.moveXY(0, 0);
-      // Serial.print("Out of bounds!");
-    }
+  //   // Safety window + command
+  //   if (abs(stateVariables.posX) < 275 && abs(stateVariables.posY) < 400 && 
+  //       abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
+  //     //move.moveXY(0, xDir, 0, yDir);
+  //     move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
+  //   } else {
+  //     move.moveXY(0, 0);
+  //     // Serial.print("Out of bounds!");
+  //   }
 
-  // Button handling block stays as-is
-  if (buttonPressed) {
-    handleButtonPress();
-    buttonPressed = false;
-  }
+  // // Button handling block stays as-is
+  // if (buttonPressed) {
+  //   handleButtonPress();
+  //   buttonPressed = false;
+  // }
 
   // New timing epilogue
   uint32_t elapsed = (uint32_t)(micros() - start_us);
@@ -341,7 +349,13 @@ void loop() {
   } else {
     loopWaitTime = LOOP_US - elapsed;
     while ((uint32_t)(micros() - start_us) < LOOP_US) {
-      // Busy wait
+      if (telemetry.updateGainVals()) {
+        Serial.println(telemetry.setAngleXParams.p);
+        updatePIDParams(setAnglePIDX, telemetry.setAngleXParams);
+        updatePIDParams(setAnglePIDY, telemetry.setAngleYParams);
+        updatePIDParams(setPWMPIDX, telemetry.setPWMXParams);
+        updatePIDParams(setPWMPIDY, telemetry.setPWMYParams);
+      }
     }
   }
 }
