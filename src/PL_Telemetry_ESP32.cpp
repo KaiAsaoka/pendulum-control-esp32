@@ -77,6 +77,8 @@
 
         size_t offset = 0;
 
+        Serial.println("Read PID thingies");
+
         for (pidParams* paramSet : _pidParams) {
             memcpy(&paramSet->p, buf+offset, sizeof(int));
             offset += sizeof(int);
@@ -89,6 +91,10 @@
             memcpy(&paramSet->iCutoff, buf+offset, sizeof(int));
             offset += sizeof(int);
         }
+
+        Serial.println("Changed PID vals");
+        Serial.println(_pidParams[0]->p);
+        _pidReceive.store(true, std::memory_order_release);
     }
 
     void PL_Telemetry_ESP32::checkCommands() {
@@ -125,7 +131,6 @@
             sendPID();
         }
         else if (strcmp(buf,"PIDRECV") == 0) {
-            _pidReceive = true;
             Serial.println("PID received!");
             vTaskDelay(pdMS_TO_TICKS(10));
             readGainVals();
@@ -229,9 +234,5 @@
     }
 
     bool PL_Telemetry_ESP32::updateGainVals() {
-        if (_pidReceive) {
-            _pidReceive = false;
-            return true; 
-        }
-        else return false;
+        return _pidReceive.exchange(false, std::memory_order_acq_rel);
     }

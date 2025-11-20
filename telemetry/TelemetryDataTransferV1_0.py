@@ -105,6 +105,7 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
         while(sending_pid):
             sleep(0.05)
 
+        
         new_data = ser.readline()
         # print(new_data)
         if not new_data:
@@ -156,7 +157,11 @@ def send_pid(pid_vals):
 
     while True:
         resp = ser.readline()
-        print("ESP32 Response:", resp)
+        if (len(resp) < 3):
+            sleep(0.05)
+            continue
+
+        # print("ESP32 Response:", resp)
 
         if b"PID received!" not in resp:
             print("Unexpected response:", resp)
@@ -164,7 +169,7 @@ def send_pid(pid_vals):
         
         payload = struct.pack("<20i", *ordered_vals)
         ser.write(payload)
-        print(payload)
+        # print(payload)
         print("PID values sent!")
 
         sending_pid = False

@@ -3,12 +3,11 @@
 #include <tuple>
 
 PID::PID(pidParams pidParams)
-: kp(static_cast<float>(pidParams.p/1000)), 
-  ki(static_cast<float>(pidParams.i/1000)), 
-  kd(static_cast<float>(pidParams.d)/1000),
-  previous_error(0.0f), integral(0.0f), d_term(0.0f),
-  lpf_gain(static_cast<float>(pidParams.lpf/1000)), 
-  int_cutoff(static_cast<float>(pidParams.iCutoff/1000)) {}
+: kp(pidParams.p / 1000.0f),
+  ki(pidParams.i / 1000.0f),
+  kd(pidParams.d / 1000.0f),
+  lpf_gain(pidParams.lpf / 1000.0f),
+  int_cutoff(pidParams.iCutoff / 1000.0f){}
 
 // Time-aware PID: dt in seconds
 pidOutputs PID::calculate(float error, float dt) {
@@ -51,9 +50,20 @@ void PID::reset() {
 }
 
 void PID::readNewGains(pidParams newParams) {
-    kp = static_cast<float>(newParams.p/1000);
-    ki = static_cast<float>(newParams.i/1000);
-    kd = static_cast<float>(newParams.d/1000);
-    lpf_gain = static_cast<float>(newParams.lpf/1000);
-    int_cutoff = static_cast<float>(newParams.iCutoff/1000);
+    kp = newParams.p / 1000.0f;
+    ki = newParams.i / 1000.0f;
+    kd = newParams.d / 1000.0f;
+    lpf_gain = newParams.lpf / 1000.0f;
+    int_cutoff = newParams.iCutoff / 1000.0f;
+}
+
+pidParams PID::currentGains() {
+    pidParams currentGains = {
+        (int)(kp*1000),
+        (int)(ki*1000),
+        (int)(kd*1000),
+        (int)(lpf_gain*1000),
+        (int)(int_cutoff*1000),
+    };
+    return currentGains;
 }

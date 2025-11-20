@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <PID.h>
+#include <atomic>
 
 class PL_Telemetry_ESP32 {
 public:
@@ -32,6 +33,7 @@ public:
 
     void begin();
     void sendSnapshot(const float* values, uint64_t timestamp);
+    
     bool updateGainVals();
     bool pauseTesting();
 
@@ -58,7 +60,7 @@ private:
     bool _telemetryStarted = false;
     bool _metadataRequested = false;
     bool _pidSent = false;
-    bool _pidReceive = false;
+    std::atomic<bool> _pidReceive{false};
     unsigned long _lastPulseTime = 0;
     uint16_t _packetSeq = 0;
 

@@ -128,6 +128,7 @@ class TelemetryGUI(QtWidgets.QWidget):
                 label = QtWidgets.QLabel(param)
                 line_edit = QtWidgets.QLineEdit("0.0")
                 line_edit.setFixedWidth(50)
+                line_edit.textEdited.connect(self.new_pid_val)
                 self.pid_inputs[f"{axis}_{param}"] = line_edit
 
                 row = 0 if i < 3 else 1
@@ -142,6 +143,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.send_pid_btn = QtWidgets.QPushButton("Send PID")
         self.send_pid_btn.clicked.connect(self.send_pid_values)
         self.pid_layout.addWidget(self.send_pid_btn)
+        self.send_pid_btn.setEnabled(False)
 
         # Controls below the plot
         controls = QtWidgets.QHBoxLayout()
@@ -224,8 +226,14 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.stop_btn.setText("Start" if checked else "Stop")
         if(checked):
             stop_telemetry()
+            self.send_pid_btn.setEnabled(True)
         else:
             simple_start()
+            self.send_pid_btn.setEnabled(False)
+
+    def new_pid_val(self):
+        line_edit = self.sender()
+        line_edit.setStyleSheet("background-color: red;")
 
     def save(self, checked):
         if not checked:
@@ -293,10 +301,6 @@ class TelemetryGUI(QtWidgets.QWidget):
             self.reset_buffer()
 
     def send_pid_values(self):
-        # self.toggle_stop(checked=True)
-        # self.stop_btn.setText("Start")
-        # stop_telemetry()
-        
         pid_dict = {}
         for key, line_edit in self.pid_inputs.items():
             try:
@@ -304,6 +308,9 @@ class TelemetryGUI(QtWidgets.QWidget):
             except ValueError:
                 pid_dict[key] = self.pid_initial[key]
 
+        for line_edit in self.pid_inputs.values():
+            line_edit.setStyleSheet("")
+            
         send_pid(pid_dict)
 
     def change_timebase(self, val):
@@ -385,7 +392,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial("COM7")
+    setup_serial()
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
     print("PID GAINS: ", pid_gain_vals)

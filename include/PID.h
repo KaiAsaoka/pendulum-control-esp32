@@ -28,13 +28,14 @@ public:
 
     void reset();
     void readNewGains(pidParams newParams);
+    pidParams currentGains();
     
 private:
-    int kp;
-    int ki;
-    int kd;
-    int lpf_gain;
-    int int_cutoff;
+    float kp;
+    float ki;
+    float kd;
+    float lpf_gain;
+    float int_cutoff;
     float previous_error;
     float integral;
     float d_term;
