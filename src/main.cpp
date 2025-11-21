@@ -186,6 +186,19 @@ void telemLoop(void *pvParameters){
   for(;;){
     uint32_t start_us = micros();
 
+    if(telemetry.pauseTesting()) {
+      if (telemetry.updateGainVals()) {
+        if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
+          setAnglePIDX.readNewGains(telemetry.setAngleXParams);
+          setAnglePIDY.readNewGains(telemetry.setAngleYParams);
+          setPWMPIDX.readNewGains(telemetry.setPWMXParams);
+          setPWMPIDY.readNewGains(telemetry.setPWMYParams);
+          xSemaphoreGive(pidValsMutex);
+        }
+      }
+      continue;
+    }
+
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
       updateTelemetry();
       telemetry.sendSnapshot(telemVals, start_us);
@@ -200,19 +213,7 @@ void telemLoop(void *pvParameters){
     } else {
       // Busy --> wait until full 10 ms period has elapsed
       while ((uint32_t)(micros() - start_us) < LOOP_US) {
-        if (telemetry.updateGainVals()) {
-          if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
-            // Serial.print("Updating telem here in main");
-            // Serial.println(telemetry.setAngleXParams.p);
-            setAnglePIDX.readNewGains(telemetry.setAngleXParams);
-            setAnglePIDY.readNewGains(telemetry.setAngleYParams);
-            setPWMPIDX.readNewGains(telemetry.setPWMXParams);
-            setPWMPIDY.readNewGains(telemetry.setPWMYParams);
-            // Serial.println(telemetry.setAngleXParams.p);
-            // Serial.println(setAnglePIDX.currentGains().p);
-            xSemaphoreGive(pidValsMutex);
-          }
-        }
+        // Spin
       }
     }
   }
@@ -304,13 +305,17 @@ void loop() {
   uint32_t start_us = micros();
   loopTime = start_us;
 
-  readState();
-
-  if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
-    runControl(dt);
-    xSemaphoreGive(pidValsMutex);
+  if(telemetry.pauseTesting()) {
+    move.moveXY(0, 0);
   }
-    // Deadzones
+  else {
+    readState();
+
+    if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
+      runControl(dt);
+      xSemaphoreGive(pidValsMutex);
+    }
+      // Deadzones
     if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
     else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
 
@@ -321,7 +326,7 @@ void loop() {
     PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, 0, 255);
 
     // Safety window + command
-    if (abs(stateVariables.posX) < 275 && abs(stateVariables.posY) < 400 && 
+    if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 && 
         abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
       //move.moveXY(0, xDir, 0, yDir);
       move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
@@ -329,6 +334,7 @@ void loop() {
       move.moveXY(0, 0);
       // Serial.print("Out of bounds!");
     }
+  }
 
   // Button handling block stays as-is
   if (buttonPressed) {

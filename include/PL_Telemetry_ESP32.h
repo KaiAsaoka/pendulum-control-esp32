@@ -61,7 +61,8 @@ private:
     bool _metadataRequested = false;
     bool _pidSent = false;
     std::atomic<bool> _pidReceive{false};
-    unsigned long _lastPulseTime = 0;
+    std::atomic<bool> _testingPaused{false};
+
     uint16_t _packetSeq = 0;
 
     static const uint8_t _BATCH_SIZE = 1;

@@ -18,6 +18,7 @@ COLOR_OPTIONS = {
     "Cyan": (0, 255, 255),
     "White": (255, 255, 255),
     "Orange": (255, 165, 0),
+    "Teal": (0, 128, 128)
 }
 
 ## GPT rounding thing - get rid of it if it doensn't work well 
@@ -92,6 +93,7 @@ class TelemetryGUI(QtWidgets.QWidget):
             for color_name in COLOR_OPTIONS.keys():
                 color_box.addItem(color_name)
             color_box.setCurrentText("White")
+            color_box.setFixedWidth(75)
             color_box.currentTextChanged.connect(lambda val, n=name: self.update_channel_color(n, val))
             row.addWidget(color_box)
             self.channel_color_boxes[name] = color_box
@@ -112,7 +114,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         # PID Sending
         self.pid_group = QtWidgets.QGroupBox("PID Controls")
         self.pid_layout = QtWidgets.QVBoxLayout()
-        self.pid_group.setFixedWidth(300)
+        self.pid_group.setFixedWidth(275)
         self.pid_group.setLayout(self.pid_layout)
         main_split.addWidget(self.pid_group)
 
@@ -224,6 +226,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
     def toggle_stop(self, checked):
         self.stop_btn.setText("Start" if checked else "Stop")
+        self.paused = checked
         if(checked):
             stop_telemetry()
             self.send_pid_btn.setEnabled(True)
@@ -404,6 +407,7 @@ if __name__ == "__main__":
 
     nice_vals = [nice_round(v) for v in pid_gain_vals]
 
+    ## This part probably don't need but I can't test right now 
     pid_dict_init = {}
     for i, axis in enumerate(axes):
         for j, param in enumerate(params):

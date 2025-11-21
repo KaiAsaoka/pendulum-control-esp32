@@ -119,10 +119,11 @@
         }
         else if(strcmp(buf,"START") == 0) {
             _telemetryStarted = true;
+            _testingPaused.store(false, std::memory_order_release);
             Serial.println("START received!");
         }
         else if(strcmp(buf,"STOP") == 0) {
-            _telemetryStarted = false;
+            _testingPaused.store(true, std::memory_order_release);
             Serial.println("STOP recieved!");
         }
         else if (strcmp(buf,"SENDPID") == 0) {
@@ -150,7 +151,7 @@
         for (;;) {
             checkCommands();
 
-            if (!_telemetryStarted) {
+            if (!_telemetryStarted || _testingPaused) {
                 xQueueReset(_snapshotQueue);
                 vTaskDelay(pdMS_TO_TICKS(10));
             }
@@ -235,4 +236,8 @@
 
     bool PL_Telemetry_ESP32::updateGainVals() {
         return _pidReceive.exchange(false, std::memory_order_acq_rel);
+    }
+
+    bool PL_Telemetry_ESP32::pauseTesting() {
+        return _testingPaused;
     }
