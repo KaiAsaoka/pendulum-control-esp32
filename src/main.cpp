@@ -181,23 +181,9 @@ void updateTelemetry() {
 }
 
 void telemLoop(void *pvParameters){
-  telemetry.begin();
   // Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
   for(;;){
     uint32_t start_us = micros();
-
-    if(telemetry.pauseTesting()) {
-      if (telemetry.updateGainVals()) {
-        if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
-          setAnglePIDX.readNewGains(telemetry.setAngleXParams);
-          setAnglePIDY.readNewGains(telemetry.setAngleYParams);
-          setPWMPIDX.readNewGains(telemetry.setPWMXParams);
-          setPWMPIDY.readNewGains(telemetry.setPWMYParams);
-          xSemaphoreGive(pidValsMutex);
-        }
-      }
-      continue;
-    }
 
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
       updateTelemetry();
@@ -213,7 +199,17 @@ void telemLoop(void *pvParameters){
     } else {
       // Busy --> wait until full 10 ms period has elapsed
       while ((uint32_t)(micros() - start_us) < LOOP_US) {
-        // Spin
+        if(telemetry.pauseTesting()) {
+          if (telemetry.updateGainVals()) {
+            if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
+              setAnglePIDX.readNewGains(telemetry.setAngleXParams);
+              setAnglePIDY.readNewGains(telemetry.setAngleYParams);
+              setPWMPIDX.readNewGains(telemetry.setPWMXParams);
+              setPWMPIDY.readNewGains(telemetry.setPWMYParams);
+              xSemaphoreGive(pidValsMutex);
+            }
+          }
+        }
       }
     }
   }
@@ -222,6 +218,7 @@ void telemLoop(void *pvParameters){
 
 void setup() {
   Serial.begin(115200);
+  telemetry.begin();
   pidValsMutex = xSemaphoreCreateMutex(); // Create mutex for errors
   Serial.println("Gantry ESP32 Starting...");
 

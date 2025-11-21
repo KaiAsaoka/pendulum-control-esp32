@@ -8,10 +8,6 @@
         Serial.println("Serial Telemetry Initialized");
     }
 
-    bool PL_Telemetry_ESP32::pauseTesting() {
-        return(!_telemetryStarted);
-    }
-
     void PL_Telemetry_ESP32::sendPacket(uint8_t* buffer, size_t size) {
         Serial.write(buffer, size);
     }
@@ -77,8 +73,6 @@
 
         size_t offset = 0;
 
-        Serial.println("Read PID thingies");
-
         for (pidParams* paramSet : _pidParams) {
             memcpy(&paramSet->p, buf+offset, sizeof(int));
             offset += sizeof(int);
@@ -92,8 +86,6 @@
             offset += sizeof(int);
         }
 
-        Serial.println("Changed PID vals");
-        Serial.println(_pidParams[0]->p);
         _pidReceive.store(true, std::memory_order_release);
     }
 
@@ -154,6 +146,7 @@
             if (!_telemetryStarted || _testingPaused) {
                 xQueueReset(_snapshotQueue);
                 vTaskDelay(pdMS_TO_TICKS(10));
+                continue;
             }
             if (_telemetryStarted && _metadataRequested && _pidSent) {
                 Serial.println(uxQueueSpacesAvailable(_snapshotQueue));

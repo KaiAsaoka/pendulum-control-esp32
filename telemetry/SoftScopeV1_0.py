@@ -77,6 +77,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         for name in self.variable_names:
             row = QtWidgets.QHBoxLayout()
             cb = QtWidgets.QCheckBox(name)
+            cb.setFixedWidth(125)
             cb.stateChanged.connect(self.update_selected)
             row.addWidget(cb)
             self.checkboxes[name] = cb
