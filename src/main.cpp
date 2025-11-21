@@ -37,6 +37,11 @@ static volatile uint32_t overrun_count = 0;
 #define ENC_CS2  33    // Chip Select (active LOW)
 #define ENC_MOSI 9    // MOSI pin for encoder communication
 
+#define ZERO_BTN 37
+#define AUX_BTN 38 // Currently unused (future-proofing)
+#define BLUE_LED 10
+#define RED_LED 5
+
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
@@ -111,7 +116,7 @@ volatile bool auxButtonPressed = false;
 
 // Time tracking for debouncing
 volatile unsigned long lastDebounceTime = 0;
-const unsigned long debounceDelay = 50;  // milliseconds
+const unsigned long debounceDelay = 150;  // milliseconds
 
 // Interrupt Service Routine (ISR)
 void IRAM_ATTR zeroButtonISR() {
@@ -132,20 +137,21 @@ void IRAM_ATTR auxButtonISR() {
 
 // The function to run when zero button is pressed
 void handleZeroButtonPress() {
-  Serial.println("Zero Button was pressed!");
+  Serial.print("Zero Button was pressed! State: ");
+  Serial.println(!zeroButtonState);
   pendPIDx.reset_I();
   pendPIDy.reset_I();
   ganPIDx.reset_I();
   ganPIDy.reset_I();
   ENC1.zero();
   ENC2.zero();
-  digitalWrite(BLUE_LED, !digitalRead(BLUE_LED)) // Toggle BLUE STATUS LED
-  zeroButtonState = !zeroButtonState // Toggle State
-
+  zeroButtonState = !zeroButtonState; // Toggle State
+  digitalWrite(BLUE_LED, zeroButtonState); // Toggle BLUE STATUS LED
 }
 
 void handleAuxButtonPress() {
   Serial.println("Aux Button was pressed!");
+  // digitalWrite(RED_LED, !digitalRead(RED_LED));
 }
 
 // Telemetry Globals
@@ -207,10 +213,6 @@ TaskHandle_t telemTask;
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
 
-#define ZERO_BTN 37
-#define AUX_BTN 38 // Currently unused (future-proofing)
-#define BLUE_LED 35
-#define RED_LED 34
 #define PWM2 19
 #define DIR2 22
 #define PWM1 21
@@ -302,7 +304,7 @@ void setup() {
   pinMode(RED_LED, OUTPUT);
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
-  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), startButtonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ZERO_BTN), zeroButtonISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(AUX_BTN), auxButtonISR, FALLING);
   
   Serial.println("Button interrupt initialized");
@@ -348,7 +350,7 @@ void setup() {
 // Gantry-specific loop
 void loop() {
   // Check if button was pressed
-  if (zeroPressed) {
+  if (zeroButtonPressed) {
     handleZeroButtonPress();
     zeroButtonPressed = false;  // Reset the flag
   }
@@ -357,8 +359,10 @@ void loop() {
     auxButtonPressed = false;  // Reset the flag
   }
   // Stall until start button is pressed (Blue LED is ON)
-  if !(zeroButtonState) {
-    return
+  if (!zeroButtonState) {
+    move.moveXY(0, 0, 0, 0);
+    Serial.print(zeroButtonState);
+    return;
   }
 
   // ---- 1 kHz fixed-timestep cadence (wrap-safe, catch-up) ----
@@ -381,6 +385,7 @@ void loop() {
                             // up "overrun_count" by necessity? We should never enter
                             // this loop during proper operation
     ++missed;
+    Serial.print(missed);
   }
   overrun_count += missed;
 
@@ -396,7 +401,8 @@ void loop() {
   const float dt = 0.01f;
 
   // Acquire the mutex after the loop wait time
-  if (!pauseTesting && (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE)) {
+  if (true) { //RC: Bypassing for testing
+  // if (!pauseTesting && (xSemaphoreTake(xMyMutex, portMAX_DELAY) == pdTRUE)) {
     // Snapshot inputs (avoid torn reads)
     angleX = -receiverESP.data.int_message_1;
     angleY =  receiverESP.data.int_message_2;
@@ -444,12 +450,13 @@ void loop() {
 
     // Safety window + command
     if (abs(posX) < 275 && abs(posY) < 400 && abs(angleX) < 1400 && abs(angleY) < 1500) {
-      digitalWrite(RED_LED, LOW) // Turn out-of-bounds LED back off
+      digitalWrite(RED_LED, LOW); // Turn out-of-bounds LED back off
       move.moveXY(xSpeed, xDir, ySpeed, yDir);
+      Serial.print(xSpeed);
     } else {
       move.moveXY(0, xDir, 0, yDir);
-      digitalWrite(RED_LED, HIGH) // Turn out-of-bounds LED on
-      // Serial.print("Out of bounds!");
+      digitalWrite(RED_LED, HIGH); // Turn out-of-bounds LED on
+      Serial.print("Out of bounds!");
     }
     // Give the mutex back after calculations - all telemetry should be able to run during this time
     xSemaphoreGive(xMyMutex);
