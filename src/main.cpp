@@ -114,13 +114,13 @@ void handleButtonPress() {
 SemaphoreHandle_t pidValsMutex;
 bool pauseTesting = false;
 
-//8 Telemetry variables
+//Telemetry variable names
 const char* telemVars[] = {
-  "carriageXPosition", "carriageYPostion",
-  "pendulumXAngle", "pendulumYAngle",
-  "xPositionError","yPositionError",
-  "xAngleError", "yAngleError"
+  "carriageXPosition", "pendulumXAngle",
+  "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM"
 };
+
+float telemVals[8];
 
 struct stateVars {
   int posX;
@@ -142,8 +142,6 @@ motorPWMs PWMOutputs;
 
 volatile uint32_t loopTime;
 volatile uint32_t loopWaitTime;
-
-float telemVals[8];
 
 PL_Telemetry_ESP32 telemetry(
   telemVars,
@@ -171,13 +169,13 @@ Move move(DVR1, DVR2, ENC1, ENC2);
 
 void updateTelemetry() {
   telemVals[0] = stateVariables.posX;
-  telemVals[1] = stateVariables.posY;
-  telemVals[2] = stateVariables.angleX;
-  telemVals[3] = stateVariables.angleY;
-  telemVals[4] = stateErrors.positionErrorX;
-  telemVals[5] = stateErrors.positionErrorY;
-  telemVals[6] = stateErrors.angleErrorX;
-  telemVals[7] = stateErrors.angleErrorY;
+  telemVals[1] = stateVariables.angleX;
+  telemVals[2] = stateErrors.angleErrorX;
+  telemVals[3] = setPWMXOutputs.pOut;
+  telemVals[4] = setPWMXOutputs.iOut;
+  telemVals[5] = setPWMXOutputs.dOut;
+  telemVals[6] = setPWMXOutputs.output;
+  telemVals[7] = PWMOutputs.xPWM;
 }
 
 void telemLoop(void *pvParameters){
@@ -278,13 +276,16 @@ void runControl(float dt) {
   // Calculate positional error 
   stateErrors.positionErrorX = (TARGET_POSX - stateVariables.posX);
   stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
+  // stateErrors.positionErrorX = 0;
+  // stateErrors.positionErrorY = 0;
 
   // Calculate desired angle
   setAngleXOutputs = setAnglePIDX.calculate(stateErrors.positionErrorX, dt);
   setAngleYOutputs = setAnglePIDY.calculate(stateErrors.positionErrorY, dt);
 
   // Calculate angular error
-  stateErrors.angleErrorX = -(setAngleXOutputs.output - stateVariables.angleX);
+  // Edited the angleErrorX to make the pwm go the right way
+  stateErrors.angleErrorX = (setAngleXOutputs.output - stateVariables.angleX);
   stateErrors.angleErrorY = -(setAngleYOutputs.output - stateVariables.angleY);
 
   // Calculate desired PWMs
@@ -310,26 +311,28 @@ void loop() {
 
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
       runControl(dt);
+        // Deadzones
+      if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
+      else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
+
+      if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
+      else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
+
+      PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
+      PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
+
+      // Safety window + command
+      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 && 
+          abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
+        //move.moveXY(0, xDir, 0, yDir);
+        move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
+      } else {
+        PWMOutputs.xPWM = 0;
+        PWMOutputs.yPWM = 0;
+        move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
+        // Serial.print("Out of bounds!");
+      }
       xSemaphoreGive(pidValsMutex);
-    }
-      // Deadzones
-    if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
-    else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
-
-    if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
-    else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
-
-    PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, 0, 255);
-    PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, 0, 255);
-
-    // Safety window + command
-    if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 && 
-        abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
-      //move.moveXY(0, xDir, 0, yDir);
-      move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
-    } else {
-      move.moveXY(0, 0);
-      // Serial.print("Out of bounds!");
     }
   }
 
