@@ -390,8 +390,8 @@ class TelemetryGUI(QtWidgets.QWidget):
         if now is not None:
             self.plot_widget.setXRange(now - self.time_window_ms, now)
 
-    def closeEvent(self, event: QtWidgets.QCloseEvent):
-        end_telemetry()
+    # def closeEvent(self, event: QtWidgets.QCloseEvent):
+    #     end_telemetry()
 
 
 # ----------------- MAIN -----------------
