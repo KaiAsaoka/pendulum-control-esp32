@@ -22,7 +22,6 @@ static volatile uint32_t overrun_count = 0;
 
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
-// Most recent commit
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
