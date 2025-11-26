@@ -95,19 +95,23 @@ volatile bool buttonPressed = false;
 
 // Time tracking for debouncing
 volatile unsigned long lastDebounceTime = 0;
-const unsigned long debounceDelay = 50;  // milliseconds
+const unsigned long debounceDelay = 300;  // milliseconds
 
 #if CURRENT_ESP == ESP_GANTRY
 volatile bool auxButtonPressed = false;
 volatile bool zeroButtonState = false;   // false = not armed, true = armed
 #endif
 
+int buttonHysterisisTestVar1 = 0; // To test button hysterisis (remove when done)
+int buttonHysterisisTestVar2 = 0; // To test button hysterisis (remove when done)
 // Interrupt Service Routine (ISR)
 void IRAM_ATTR buttonISR() {
   unsigned long currentTime = millis();
+  buttonHysterisisTestVar1++; // Counts # of times entered ISR function
   if (currentTime - lastDebounceTime > debounceDelay) {
     buttonPressed = true;
     lastDebounceTime = currentTime;
+    buttonHysterisisTestVar2++; // Counts # of times button press registered
   }
 }
 
@@ -132,6 +136,8 @@ void handleButtonPress() {
   setAnglePIDY.reset();
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
+  Serial.println("ISR Loops: " + String(buttonHysterisisTestVar1));
+  Serial.println("Registered Presses: " + String(buttonHysterisisTestVar2));
 
 #if CURRENT_ESP == ESP_GANTRY
   // Toggle armed state and update BLUE status LED
@@ -343,6 +349,12 @@ void loop() {
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
+    if(!zeroButtonState) {
+      setPWMPIDX.reset();
+      setPWMPIDY.reset();
+      setAnglePIDX.reset();
+      setAnglePIDY.reset();
+    }
   }
   else {
     readState();
@@ -362,12 +374,14 @@ void loop() {
       // Safety window + command
       if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 && 
           abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
-        //move.moveXY(0, xDir, 0, yDir);
+        //move.moveXY(10, 0);
         move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
+        digitalWrite(RED_LED, LOW); // Turn out-of-bounds LED off
       } else {
         PWMOutputs.xPWM = 0;
         PWMOutputs.yPWM = 0;
-        move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
+        move.moveXY(0, 0);
+        digitalWrite(RED_LED, HIGH); // Turn out-of-bounds LED on
         // Serial.print("Out of bounds!");
       }
       xSemaphoreGive(pidValsMutex);
