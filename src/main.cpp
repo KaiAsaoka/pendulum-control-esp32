@@ -18,6 +18,7 @@
 
 // Define 10 ms loop timing
 constexpr uint32_t LOOP_US = 10000;     // 10 ms
+constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 
 // Choose which ESP to compile for
@@ -342,18 +343,24 @@ void loop() {
     buttonPressed = false;
   }
 
-  // New timing epilogue
-  uint32_t elapsed = (uint32_t)(micros() - start_us);
+  // Measure elapsed time and wait if needed
+  uint32_t current_time_us = micros();
+  uint32_t elapsed_time_us = current_time_us - start_us;
 
-  if (elapsed >= LOOP_US) {
+  if (elapsed_time_us >= MAX_GANTRY_LOOP_US) {
     overrun_count++;
     loopWaitTime = 0;
-    Serial.println("Overtime!");
+    Serial.printf("Overtime (Gantry): %d us\n", elapsed_time_us);
   } else {
-    loopWaitTime = LOOP_US - elapsed;
-    while ((uint32_t)(micros() - start_us) < LOOP_US) {
+    loopWaitTime = MAX_GANTRY_LOOP_US - elapsed_time_us;
+    while (elapsed_time_us < MAX_GANTRY_LOOP_US) {
+      // Busy wait
+      current_time_us = micros();
+      elapsed_time_us = current_time_us - start_us;
     }
   }
+}
+
 }
 
 #elif CURRENT_ESP == ESP_PENDULUM
