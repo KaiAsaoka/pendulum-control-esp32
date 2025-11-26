@@ -38,6 +38,14 @@ static volatile uint32_t overrun_count = 0;
 #define ENC_CS2  33    // Chip Select (active LOW)
 #define ENC_MOSI 9    // MOSI pin for encoder communication
 
+#if CURRENT_ESP == ESP_GANTRY
+#define ZERO_BTN 37
+#define AUX_BTN 38        // Extra safety / aux button
+#define BLUE_LED 10       // "Armed" status LED
+#define RED_LED 5         // Out-of-bounds LED
+#endif
+
+
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
@@ -89,6 +97,11 @@ volatile bool buttonPressed = false;
 volatile unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50;  // milliseconds
 
+#if CURRENT_ESP == ESP_GANTRY
+volatile bool auxButtonPressed = false;
+volatile bool zeroButtonState = false;   // false = not armed, true = armed
+#endif
+
 // Interrupt Service Routine (ISR)
 void IRAM_ATTR buttonISR() {
   unsigned long currentTime = millis();
@@ -98,9 +111,20 @@ void IRAM_ATTR buttonISR() {
   }
 }
 
+#if CURRENT_ESP == ESP_GANTRY
+void IRAM_ATTR auxButtonISR() {
+  unsigned long currentTime = millis();
+  if (currentTime - lastDebounceTime > debounceDelay) {
+    auxButtonPressed = true;
+    lastDebounceTime = currentTime;
+  }
+}
+#endif
+
+
+// The function to run when button is pressed
 // The function to run when button is pressed
 void handleButtonPress() {
-  // Your button handling code here
   Serial.println("Button was pressed!");
   setPWMPIDX.reset();
   setPWMPIDY.reset();
@@ -108,7 +132,14 @@ void handleButtonPress() {
   setAnglePIDY.reset();
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
+
+#if CURRENT_ESP == ESP_GANTRY
+  // Toggle armed state and update BLUE status LED
+  zeroButtonState = !zeroButtonState;
+  digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
+#endif
 }
+
 
 // Telemetry Globals
 
@@ -157,7 +188,6 @@ TaskHandle_t telemTask;
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
 
-#define ZERO_BTN 37
 #define PWM2 19
 #define DIR2 22
 #define PWM1 21
@@ -222,9 +252,16 @@ void setup() {
   Serial.println("Gantry ESP32 Starting...");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
+  pinMode(AUX_BTN, INPUT_PULLUP);
+  pinMode(BLUE_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+
+  digitalWrite(BLUE_LED, LOW);  // Start unarmed
+  digitalWrite(RED_LED, LOW);   // No fault initially
     
-  // Attach interrupt (FALLING for normally-open button with pull-up resistor)
+  // Attach interrupts (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(AUX_BTN), auxButtonISR, FALLING);
   
   Serial.println("Button interrupt initialized");
 
@@ -304,7 +341,7 @@ void loop() {
   uint32_t start_us = micros();
   loopTime = start_us;
 
-  if(telemetry.pauseTesting()) {
+  if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
   }
   else {
