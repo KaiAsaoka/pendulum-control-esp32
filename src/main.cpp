@@ -408,6 +408,8 @@ void loop() {
       // Busy wait
       current_time_us = micros();
       elapsed_time_us = current_time_us - start_us;
+      ENC1.getTotalAngle();
+      ENC2.getTotalAngle();
     }
   }
 }
@@ -416,6 +418,11 @@ void loop() {
 
 // Pendulum-specific setup
 #define ZERO_BTN 37
+
+int ema_angle1;
+int ema_angle2;
+float ema_weight1 = 0.5f;
+float ema_weight2 = 0.5f;
 
 void setup() {
   Serial.begin(115200);
@@ -438,6 +445,9 @@ void setup() {
 
   Serial.println("Pendulum setup complete!");
   Serial.flush();
+
+  ema_angle1 = ENC1.getTotalAngle();
+  ema_angle2 = ENC2.getTotalAngle();
 }
 
 // Pendulum-specific loop
@@ -446,16 +456,18 @@ void loop() {
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.getTotalAngle();
-  delay(1);
-  Serial.print("E1: ");
-  Serial.print(angle1);
+  ema_angle1 = ema_weight1 * angle1 + (1 - ema_weight1) * ema_angle1;
+  // delay(1);
+  // Serial.print("E1: ");
+  // Serial.print(angle1);
 
   int angle2 = ENC2.getTotalAngle();
-  delay(1);
-  Serial.print(", E2: ");
-  Serial.print(angle2);
+  ema_angle2 = ema_weight2 * angle2 + (1 - ema_weight2) * ema_angle2;
+  // delay(1);
+  // Serial.print(", E2: ");
+  // Serial.print(angle2);
 
-  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
+  senderESP.sendMessage(String("E1: " + String(ema_angle1) + "\n" + "E2: " + String(ema_angle2)).c_str(), ema_angl1, ema_angle2);
 
   // Check if button was pressed
   if (buttonPressed) {

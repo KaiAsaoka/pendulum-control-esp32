@@ -7,7 +7,7 @@ PID::PID(pidParams pidParams)
   ki(pidParams.i / 1000.0f),
   kd(pidParams.d / 1000.0f),
   lpf_gain(pidParams.lpf / 1000.0f),
-  int_cutoff(pidParams.iCutoff / 1000.0f){}
+  int_cutoff(pidParams.iCutoff / 100.0f){}
 
 // Time-aware PID: dt in seconds
 pidOutputs PID::calculate(float error, float dt) {
@@ -54,7 +54,7 @@ void PID::readNewGains(pidParams newParams) {
     ki = newParams.i / 1000.0f;
     kd = newParams.d / 1000.0f;
     lpf_gain = newParams.lpf / 1000.0f;
-    int_cutoff = newParams.iCutoff / 1000.0f;
+    int_cutoff = newParams.iCutoff / 100.0f;
 }
 
 pidParams PID::currentGains() {
@@ -63,7 +63,7 @@ pidParams PID::currentGains() {
         (int)(ki*1000),
         (int)(kd*1000),
         (int)(lpf_gain*1000),
-        (int)(int_cutoff*1000),
+        (int)(int_cutoff*100),
     };
     return currentGains;
 }
