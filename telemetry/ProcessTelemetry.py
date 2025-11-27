@@ -1,85 +1,71 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-from tkinter import Tk, filedialog
+import plotly.express as px
+import tkinter as tk
+from tkinter import filedialog
 
-# -----------------------------
-# File selection dialog
-# -----------------------------
-root = Tk()
-root.withdraw()  # Hide the main tkinter window
-file_path = filedialog.askopenfilename(
-    title="Select Telemetry CSV File",
-    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+def is_numeric_row(row):
+    """Return True if all values in the row are numeric."""
+    for val in row:
+        try:
+            float(val)
+        except:
+            return False
+    return True
+
+
+# === Prompt user for CSV ===
+root = tk.Tk()
+root.withdraw()
+filename = filedialog.askopenfilename(
+    title="Select CSV file",
+    filetypes=[("CSV Files", "*.csv")]
 )
 
-if not file_path:
-    print("❌ No file selected. Exiting.")
+if not filename:
+    print("No file selected. Exiting.")
     exit()
 
-print(f"📂 Selected file: {file_path}")
+# === Load CSV into strings first ===
+df_raw = pd.read_csv(filename, dtype=str)
 
-# -----------------------------
-# Load the data
-# -----------------------------
-df = pd.read_csv(file_path)
+# === Detect bottom PID block ===
+mask_numeric = df_raw.apply(is_numeric_row, axis=1)
+cut_index = mask_numeric[mask_numeric == False].index.min()
 
-# Try to detect the time column automatically
-time_col = next((c for c in df.columns if "time" in c.lower()), None)
-if time_col is None:
-    raise ValueError("No time column found — please ensure one column contains 'Time'.")
+if pd.isna(cut_index):
+    df_clean = df_raw.copy()
+else:
+    df_clean = df_raw.iloc[:cut_index]
 
-# -----------------------------
-# Define variable groups
-# -----------------------------
-groups = {
-    "X Position": [
-        "carriageXPosition"
-    ],
-    "Y Position": [
-        "carriageYPosition"
-    ],
-    "X Angle": [
-        "pendulumXAngle"
-    ],
-    "Y Angle": [
-        "pendulumYAngle"
-    ],
-    "X Set Angle Control": [
-        "xPositionError", "xSetsAngleP", "xSetsAngleI", "xSetsAngleD", "xSetPointAngle"
-    ],
-    "Y Set Angle Control": [
-        "yPositionError", "ySetsAngleP", "ySetsAngleI", "ySetsAngleD", "ySetPointAngle"
-    ],
-    "X Set PWM Control": [
-        "xAngleError", "xSetPWMP", "xSetPWMI", "xSetPWMD", "xPWM"
-    ],
-    "Y Set PWM Control": [
-        "yAngleError", "ySetPWMP", "ySetPWMI", "ySetPWMD", "yPWM"
-    ],
-}
+# === Convert all numeric columns ===
+df = df_clean.apply(pd.to_numeric, errors='coerce')
 
-# -----------------------------
-# Plot each group
-# -----------------------------
-for title, vars_to_plot in groups.items():
-    plt.figure(figsize=(10, 6))
-    found_any = False
+# === Get column names ===
+cols = df.columns.tolist()
 
-    for var in vars_to_plot:
-        if var in df.columns:
-            plt.plot(df[time_col], df[var], label=var)
-            found_any = True
-        else:
-            print(f"⚠️ Warning: {var} not found in CSV columns")
+if len(cols) < 2:
+    raise ValueError("CSV must contain at least 2 numeric columns.")
 
-    if found_any:
-        plt.title(title)
-        plt.xlabel(time_col)
-        plt.ylabel("Value")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-    else:
-        plt.close()  # No valid variables, close empty plot
+# Use first column as X, plot all others as Y
+x_col = cols[0]
+y_cols = cols[1:]
 
-plt.show()
+# Melt dataframe for multi-line plotting
+df_melted = df.melt(id_vars=x_col, value_vars=y_cols,
+                    var_name="Variable", value_name="Value")
+
+# === Create plot with all columns ===
+fig = px.line(
+    df_melted,
+    x=x_col,
+    y="Value",
+    color="Variable",
+    title=filename[:-4]
+)
+
+fig.update_layout(
+    hovermode="x unified",
+    template="plotly_dark"
+)
+
+fig.show()

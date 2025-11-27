@@ -49,8 +49,8 @@ static volatile uint32_t overrun_count = 0;
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 4
-#define Y_DEADZONE 2
+#define X_DEADZONE 0
+#define Y_DEADZONE 0
 
 #define STACK_SIZE 10000
 #define TASK_PRIORITY 0
