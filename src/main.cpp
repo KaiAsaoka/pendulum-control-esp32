@@ -22,7 +22,7 @@ constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -467,7 +467,7 @@ void loop() {
   // Serial.print(", E2: ");
   // Serial.print(angle2);
 
-  senderESP.sendMessage(String("E1: " + String(ema_angle1) + "\n" + "E2: " + String(ema_angle2)).c_str(), ema_angl1, ema_angle2);
+  senderESP.sendMessage(String("E1: " + String(ema_angle1) + "\n" + "E2: " + String(ema_angle2)).c_str(), ema_angle1, ema_angle2);
 
   // Check if button was pressed
   if (buttonPressed) {

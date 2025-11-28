@@ -21,6 +21,18 @@ COLOR_OPTIONS = {
     "Teal": (0, 128, 128)
 }
 
+VAR_COLORS = {
+    "carriageXPosition": "White",
+    "pendulumXAngle": "Red",
+    "xAngleError": "Blue",
+    "xPWMp" : "Green",
+    "xPWMi" : "Cyan",
+    "xPWMd" : "Magenta",
+    "xPWMout": "Orange",
+    "xPWM": "Yellow",
+}
+
+
 ## GPT rounding thing - get rid of it if it doensn't work well 
 
 def nice_round(val):
@@ -93,12 +105,12 @@ class TelemetryGUI(QtWidgets.QWidget):
             color_box = QtWidgets.QComboBox()
             for color_name in COLOR_OPTIONS.keys():
                 color_box.addItem(color_name)
-            color_box.setCurrentText("White")
+            color_box.setCurrentText(VAR_COLORS.get(name, "White"))
             color_box.setFixedWidth(75)
             color_box.currentTextChanged.connect(lambda val, n=name: self.update_channel_color(n, val))
             row.addWidget(color_box)
             self.channel_color_boxes[name] = color_box
-            self.var_colors[name] = COLOR_OPTIONS["White"]
+            self.var_colors[name] = COLOR_OPTIONS[VAR_COLORS.get(name, "White")]
 
             self.checkbox_layout.addLayout(row)
 
