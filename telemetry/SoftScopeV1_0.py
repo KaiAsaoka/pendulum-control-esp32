@@ -198,12 +198,12 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         # Y-axis range inputs
         controls.addWidget(QtWidgets.QLabel("Y min:"))
-        self.ymin_input = QtWidgets.QLineEdit("-1.0")
+        self.ymin_input = QtWidgets.QLineEdit("-2000.0")
         self.ymin_input.setFixedWidth(60)
         controls.addWidget(self.ymin_input)
 
         controls.addWidget(QtWidgets.QLabel("Y max:"))
-        self.ymax_input = QtWidgets.QLineEdit("1.0")
+        self.ymax_input = QtWidgets.QLineEdit("2000.0")
         self.ymax_input.setFixedWidth(60)
         controls.addWidget(self.ymax_input)
 
