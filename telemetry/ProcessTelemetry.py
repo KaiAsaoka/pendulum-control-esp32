@@ -12,60 +12,60 @@ def is_numeric_row(row):
             return False
     return True
 
+def process():
+    # === Prompt user for CSV ===
+    root = tk.Tk()
+    root.withdraw()
+    filename = filedialog.askopenfilename(
+        title="Select CSV file",
+        filetypes=[("CSV Files", "*.csv")]
+    )
 
-# === Prompt user for CSV ===
-root = tk.Tk()
-root.withdraw()
-filename = filedialog.askopenfilename(
-    title="Select CSV file",
-    filetypes=[("CSV Files", "*.csv")]
-)
+    if not filename:
+        print("No file selected. Exiting.")
+        exit()
 
-if not filename:
-    print("No file selected. Exiting.")
-    exit()
+    # === Load CSV into strings first ===
+    df_raw = pd.read_csv(filename, dtype=str)
 
-# === Load CSV into strings first ===
-df_raw = pd.read_csv(filename, dtype=str)
+    # === Detect bottom PID block ===
+    mask_numeric = df_raw.apply(is_numeric_row, axis=1)
+    cut_index = mask_numeric[mask_numeric == False].index.min()
 
-# === Detect bottom PID block ===
-mask_numeric = df_raw.apply(is_numeric_row, axis=1)
-cut_index = mask_numeric[mask_numeric == False].index.min()
+    if pd.isna(cut_index):
+        df_clean = df_raw.copy()
+    else:
+        df_clean = df_raw.iloc[:cut_index]
 
-if pd.isna(cut_index):
-    df_clean = df_raw.copy()
-else:
-    df_clean = df_raw.iloc[:cut_index]
+    # === Convert all numeric columns ===
+    df = df_clean.apply(pd.to_numeric, errors='coerce')
 
-# === Convert all numeric columns ===
-df = df_clean.apply(pd.to_numeric, errors='coerce')
+    # === Get column names ===
+    cols = df.columns.tolist()
 
-# === Get column names ===
-cols = df.columns.tolist()
+    if len(cols) < 2:
+        raise ValueError("CSV must contain at least 2 numeric columns.")
 
-if len(cols) < 2:
-    raise ValueError("CSV must contain at least 2 numeric columns.")
+    # Use first column as X, plot all others as Y
+    x_col = cols[0]
+    y_cols = cols[1:]
 
-# Use first column as X, plot all others as Y
-x_col = cols[0]
-y_cols = cols[1:]
+    # Melt dataframe for multi-line plotting
+    df_melted = df.melt(id_vars=x_col, value_vars=y_cols,
+                        var_name="Variable", value_name="Value")
 
-# Melt dataframe for multi-line plotting
-df_melted = df.melt(id_vars=x_col, value_vars=y_cols,
-                    var_name="Variable", value_name="Value")
+    # === Create plot with all columns ===
+    fig = px.line(
+        df_melted,
+        x=x_col,
+        y="Value",
+        color="Variable",
+        title=filename[:-4]
+    )
 
-# === Create plot with all columns ===
-fig = px.line(
-    df_melted,
-    x=x_col,
-    y="Value",
-    color="Variable",
-    title=filename[:-4]
-)
+    fig.update_layout(
+        hovermode="x unified",
+        template="plotly_dark"
+    )
 
-fig.update_layout(
-    hovermode="x unified",
-    template="plotly_dark"
-)
-
-fig.show()
+    fig.show()

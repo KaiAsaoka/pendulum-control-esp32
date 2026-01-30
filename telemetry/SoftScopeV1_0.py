@@ -8,6 +8,8 @@ import time
 from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, simple_start, send_pid, stop_telemetry, start_telemetry, data_buffers, variable_names, end_telemetry
 from TelemetryConfigV1_0 import TIME_PER_DIV_DEFAULT, NUM_DIVS_DEFAULT
 
+from ProcessTelemetry import process
+
 # Predefined color options
 COLOR_OPTIONS = {
     "Red": (255, 0, 0),
@@ -20,33 +22,6 @@ COLOR_OPTIONS = {
     "Orange": (255, 165, 0),
     "Teal": (0, 128, 128)
 }
-
-## GPT rounding thing - get rid of it if it doensn't work well 
-
-def nice_round(val):
-    """
-    Rounds a float to a "nice" human-readable format.
-    - Small numbers: keep up to 3-5 significant digits
-    - Large numbers: no decimal if integer
-    """
-    if val == 0:
-        return "0"
-    abs_val = abs(val)
-    
-    # Determine number of digits to keep based on magnitude
-    if abs_val >= 1:
-        # Round to 4 significant digits for medium/large numbers
-        return str(round(val, 4 - int(len(str(int(abs_val))))))
-    elif abs_val < 1:
-        # For small numbers, keep 3 significant digits
-        # Example: 0.000159999995 -> 0.00016
-        from math import log10, floor
-        digits = 3
-        exponent = floor(log10(abs_val))
-        rounded = round(val, -exponent + (digits - 1))
-        return str(rounded)
-    else:
-        return str(val)
 
 class TelemetryGUI(QtWidgets.QWidget):
     def __init__(self, variable_names, data_buffers):
@@ -62,6 +37,8 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.pid_initial = {}
         self.pid_inputs = {}
 
+        self.just_resumed = False
+
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
 
@@ -74,7 +51,9 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.checkboxes = {}
         self.selected_vars = []
 
-        for name in self.variable_names:
+        color_items = list(COLOR_OPTIONS.items())
+
+        for i, name in enumerate(self.variable_names):
             row = QtWidgets.QHBoxLayout()
             cb = QtWidgets.QCheckBox(name)
             cb.setFixedWidth(125)
@@ -93,12 +72,13 @@ class TelemetryGUI(QtWidgets.QWidget):
             color_box = QtWidgets.QComboBox()
             for color_name in COLOR_OPTIONS.keys():
                 color_box.addItem(color_name)
-            color_box.setCurrentText("White")
+            color_name, rgb = color_items[i % len(color_items)]
+            color_box.setCurrentText(color_name)
             color_box.setFixedWidth(75)
             color_box.currentTextChanged.connect(lambda val, n=name: self.update_channel_color(n, val))
             row.addWidget(color_box)
             self.channel_color_boxes[name] = color_box
-            self.var_colors[name] = COLOR_OPTIONS["White"]
+            self.var_colors[name] = rgb
 
             self.checkbox_layout.addLayout(row)
 
@@ -167,6 +147,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.save_btn = QtWidgets.QPushButton("Save")
         self.save_btn.setCheckable(True)
         self.save_btn.toggled.connect(self.save)
+        self.save_btn.setEnabled(False)
         controls.addWidget(self.save_btn)
 
         # Timebase selector
@@ -198,6 +179,12 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.set_y_range_btn = QtWidgets.QPushButton("Set Y-axis")
         self.set_y_range_btn.clicked.connect(self.set_y_axis)
         controls.addWidget(self.set_y_range_btn)
+
+        self.view_saved_telem_btn = QtWidgets.QPushButton("View Telemetry")
+        self.view_saved_telem_btn.clicked.connect(self.view_telem)
+        self.view_saved_telem_btn.setEnabled(False)
+        controls.addWidget(self.view_saved_telem_btn)
+
 
         controls.addStretch(1)
 
@@ -231,13 +218,21 @@ class TelemetryGUI(QtWidgets.QWidget):
         if(checked):
             stop_telemetry()
             self.send_pid_btn.setEnabled(True)
+            self.save_btn.setEnabled(True)
+            self.view_saved_telem_btn.setEnabled(True)
         else:
+            self.just_resumed = True
             simple_start()
             self.send_pid_btn.setEnabled(False)
+            self.save_btn.setEnabled(False)
+            self.view_saved_telem_btn.setEnabled(False)
 
     def new_pid_val(self):
         line_edit = self.sender()
         line_edit.setStyleSheet("background-color: red;")
+
+    def view_telem(self):
+        process()
 
     def save(self, checked):
         if not checked:
@@ -245,6 +240,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         all_timestamps = sorted(set(t for buf in self.data_buffers.values() for t, _ in buf))
         data_dict = {name: {t: v for t, v in buf} for name, buf in self.data_buffers.items()}
+
         self.paused = checked
         self.pause_btn.setText("Resume" if checked else "Pause")
 
@@ -389,6 +385,11 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         if now is not None:
             self.plot_widget.setXRange(now - self.time_window_ms, now)
+            if self.just_resumed:
+                self.plot_widget.setXRange(now - self.time_window_ms, now)
+                self.just_resumed = False # Reset the flag
+            else:
+                self.plot_widget.setXRange(now - self.time_window_ms, now)
 
     # def closeEvent(self, event: QtWidgets.QCloseEvent):
     #     end_telemetry()
@@ -406,13 +407,11 @@ if __name__ == "__main__":
     axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
     params = ["P", "I", "D", "LPF", "Windup"]
 
-    nice_vals = [nice_round(v) for v in pid_gain_vals]
-
     ## This part probably don't need but I can't test right now 
     pid_dict_init = {}
     for i, axis in enumerate(axes):
         for j, param in enumerate(params):
-            pid_dict_init[f"{axis}_{param}"] = nice_vals[i*5 + j]
+            pid_dict_init[f"{axis}_{param}"] = pid_gain_vals[i*5 + j]
     
     app = QtWidgets.QApplication([])
     gui = TelemetryGUI(variable_names, data_buffers)

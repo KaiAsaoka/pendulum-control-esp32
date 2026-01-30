@@ -22,7 +22,7 @@ constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -155,10 +155,12 @@ bool pauseTesting = false;
 //Telemetry variable names
 const char* telemVars[] = {
   "carriageXPosition", "pendulumXAngle",
-  "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM"
+  "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM",
+  "pendulumYAngle",
+  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut"
 };
 
-float telemVals[8];
+float telemVals[14];
 
 struct stateVars {
   int posX;
@@ -213,6 +215,12 @@ void updateTelemetry() {
   telemVals[5] = setPWMXOutputs.dOut;
   telemVals[6] = setPWMXOutputs.output;
   telemVals[7] = PWMOutputs.xPWM;
+  telemVals[8] = stateVariables.angleY;
+  telemVals[9] = stateErrors.positionErrorX;
+  telemVals[10] = setAngleXOutputs.pOut;
+  telemVals[11] = setAngleXOutputs.iOut;
+  telemVals[12] = setAngleXOutputs.dOut;
+  telemVals[13] = setAngleXOutputs.output;
 }
 
 void telemLoop(void *pvParameters){
@@ -316,10 +324,14 @@ void readState() {
   stateVariables.posY = move.returnPosY();
 }
 
-void runControl(float dt) {
+void runControl(float dt, int cycle) {
   // Calculate positional error 
-  stateErrors.positionErrorX = (TARGET_POSX - stateVariables.posX);
-  stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
+  // position PID should only occur every 100ms
+  if (cycle == 10) {
+    stateErrors.positionErrorX = (TARGET_POSX - stateVariables.posX);
+    stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
+    cycle = 0;
+  }
   // stateErrors.positionErrorX = 0;
   // stateErrors.positionErrorY = 0;
 
@@ -337,6 +349,7 @@ void runControl(float dt) {
   setPWMYOutputs = setPWMPIDY.calculate(stateErrors.angleErrorY, dt);
 
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
+  cycle++;
 }
 
 // Gantry-specific loop
@@ -419,11 +432,6 @@ void loop() {
 // Pendulum-specific setup
 #define ZERO_BTN 37
 
-int ema_angle1;
-int ema_angle2;
-float ema_weight1 = 0.5f;
-float ema_weight2 = 0.5f;
-
 void setup() {
   Serial.begin(115200);
   Serial.println("Pendulum ESP32 Starting...");
@@ -445,9 +453,6 @@ void setup() {
 
   Serial.println("Pendulum setup complete!");
   Serial.flush();
-
-  ema_angle1 = ENC1.getTotalAngle();
-  ema_angle2 = ENC2.getTotalAngle();
 }
 
 // Pendulum-specific loop
@@ -456,18 +461,16 @@ void loop() {
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.getTotalAngle();
-  ema_angle1 = ema_weight1 * angle1 + (1 - ema_weight1) * ema_angle1;
-  // delay(1);
-  // Serial.print("E1: ");
-  // Serial.print(angle1);
+  delay(1);
+  Serial.print("E1: ");
+  Serial.print(angle1);
 
   int angle2 = ENC2.getTotalAngle();
-  ema_angle2 = ema_weight2 * angle2 + (1 - ema_weight2) * ema_angle2;
-  // delay(1);
-  // Serial.print(", E2: ");
-  // Serial.print(angle2);
+  delay(1);
+  Serial.print(", E2: ");
+  Serial.print(angle2);
 
-  senderESP.sendMessage(String("E1: " + String(ema_angle1) + "\n" + "E2: " + String(ema_angle2)).c_str(), ema_angl1, ema_angle2);
+  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
 
   // Check if button was pressed
   if (buttonPressed) {
@@ -475,7 +478,6 @@ void loop() {
     buttonPressed = false;  // Reset the flag
   }
 }
-
 #else
 #error "Please select either ESP_GANTRY or ESP_PENDULUM for CURRENT_ESP"
 #endif
