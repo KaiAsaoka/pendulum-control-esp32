@@ -126,6 +126,15 @@ void IRAM_ATTR auxButtonISR() {
 }
 #endif
 
+struct stateErrs {
+  int positionErrorX;
+  int positionErrorY;
+  int angleErrorX;
+  int angleErrorY;
+};
+
+stateErrs stateErrors;
+
 // The function to run when button is pressed
 // The function to run when button is pressed
 void handleButtonPress() {
@@ -171,15 +180,8 @@ struct stateVars {
   int angleY;
 };
 
-struct stateErrs {
-  int positionErrorX;
-  int positionErrorY;
-  int angleErrorX;
-  int angleErrorY;
-};
 
 stateVars stateVariables;
-stateErrs stateErrors;
 motorPWMs PWMOutputs;
 
 volatile uint32_t loopTime;
@@ -211,7 +213,7 @@ Move move(DVR1, DVR2, ENC1, ENC2);
 void updateTelemetry() {
   telemVals[0] = stateVariables.posX;
   telemVals[1] = stateVariables.angleX;
-  telemVals[2] = stateErrors.angleErrorX;
+  telemVals[2] = -stateErrors.angleErrorX;
   telemVals[3] = setPWMXOutputs.pOut;
   telemVals[4] = setPWMXOutputs.iOut;
   telemVals[5] = setPWMXOutputs.dOut;
