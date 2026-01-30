@@ -3,6 +3,8 @@ from PyQt6 import QtWidgets, QtCore
 import pyqtgraph as pg
 import csv
 import time
+import plotly.express as px
+
 #from time import perf_counter
 
 from TelemetryDataTransferV1_0 import setup_serial, receive_metadata, receive_pid, simple_start, send_pid, stop_telemetry, start_telemetry, data_buffers, variable_names, end_telemetry
@@ -23,8 +25,6 @@ COLOR_OPTIONS = {
     "Teal": (0, 128, 128)
 }
 
-<<<<<<< HEAD
-=======
 VAR_COLORS = {
     "carriageXPosition": "White",
     "pendulumXAngle": "Red",
@@ -64,7 +64,6 @@ def nice_round(val):
     else:
         return str(val)
 
->>>>>>> 54efb525bbd7dcc6737893a97220327fd4a22e6c
 class TelemetryGUI(QtWidgets.QWidget):
     def __init__(self, variable_names, data_buffers):
         super().__init__()
@@ -114,21 +113,12 @@ class TelemetryGUI(QtWidgets.QWidget):
             color_box = QtWidgets.QComboBox()
             for color_name in COLOR_OPTIONS.keys():
                 color_box.addItem(color_name)
-<<<<<<< HEAD
-            color_name, rgb = color_items[i % len(color_items)]
-            color_box.setCurrentText(color_name)
-=======
             color_box.setCurrentText(VAR_COLORS.get(name, "White"))
->>>>>>> 54efb525bbd7dcc6737893a97220327fd4a22e6c
             color_box.setFixedWidth(75)
             color_box.currentTextChanged.connect(lambda val, n=name: self.update_channel_color(n, val))
             row.addWidget(color_box)
             self.channel_color_boxes[name] = color_box
-<<<<<<< HEAD
-            self.var_colors[name] = rgb
-=======
             self.var_colors[name] = COLOR_OPTIONS[VAR_COLORS.get(name, "White")]
->>>>>>> 54efb525bbd7dcc6737893a97220327fd4a22e6c
 
             self.checkbox_layout.addLayout(row)
 

@@ -20,6 +20,7 @@
 constexpr uint32_t LOOP_US = 10000;     // 10 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
+int controlCycle = 0;
 
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
@@ -125,7 +126,6 @@ void IRAM_ATTR auxButtonISR() {
 }
 #endif
 
-
 // The function to run when button is pressed
 // The function to run when button is pressed
 void handleButtonPress() {
@@ -134,6 +134,8 @@ void handleButtonPress() {
   setPWMPIDY.reset();
   setAnglePIDX.reset();
   setAnglePIDY.reset();
+  stateErrors.positionErrorX = 0;
+  stateErrors.positionErrorY = 0;
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
   Serial.println("ISR Loops: " + String(buttonHysterisisTestVar1));
@@ -324,10 +326,10 @@ void readState() {
   stateVariables.posY = move.returnPosY();
 }
 
-void runControl(float dt, int cycle) {
+void runControl(float dt, int controlCycle) {
   // Calculate positional error 
   // position PID should only occur every 100ms
-  if (cycle == 10) {
+  if (controlCycle == 10) {
     stateErrors.positionErrorX = (TARGET_POSX - stateVariables.posX);
     stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
   }
@@ -355,7 +357,6 @@ void runControl(float dt, int cycle) {
 void loop() {
 
   const float dt = 0.01f;
-  int cycle = 1;
 
   uint32_t start_us = micros();
   loopTime = start_us;
@@ -374,9 +375,9 @@ void loop() {
 
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
       
-      runControl(dt, cycle);
-      cycle++;
-      if(cycle > 10) cycle = 1;
+      runControl(dt, controlCycle);
+      controlCycle++;
+      if(controlCycle > 10) controlCycle = 1;
         // Deadzones
       if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
       else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
