@@ -23,6 +23,48 @@ COLOR_OPTIONS = {
     "Teal": (0, 128, 128)
 }
 
+<<<<<<< HEAD
+=======
+VAR_COLORS = {
+    "carriageXPosition": "White",
+    "pendulumXAngle": "Red",
+    "xAngleError": "Blue",
+    "xPWMp" : "Green",
+    "xPWMi" : "Cyan",
+    "xPWMd" : "Magenta",
+    "xPWMout": "Orange",
+    "xPWM": "Yellow",
+}
+
+
+## GPT rounding thing - get rid of it if it doensn't work well 
+
+def nice_round(val):
+    """
+    Rounds a float to a "nice" human-readable format.
+    - Small numbers: keep up to 3-5 significant digits
+    - Large numbers: no decimal if integer
+    """
+    if val == 0:
+        return "0"
+    abs_val = abs(val)
+    
+    # Determine number of digits to keep based on magnitude
+    if abs_val >= 1:
+        # Round to 4 significant digits for medium/large numbers
+        return str(round(val, 4 - int(len(str(int(abs_val))))))
+    elif abs_val < 1:
+        # For small numbers, keep 3 significant digits
+        # Example: 0.000159999995 -> 0.00016
+        from math import log10, floor
+        digits = 3
+        exponent = floor(log10(abs_val))
+        rounded = round(val, -exponent + (digits - 1))
+        return str(rounded)
+    else:
+        return str(val)
+
+>>>>>>> 54efb525bbd7dcc6737893a97220327fd4a22e6c
 class TelemetryGUI(QtWidgets.QWidget):
     def __init__(self, variable_names, data_buffers):
         super().__init__()
@@ -72,13 +114,21 @@ class TelemetryGUI(QtWidgets.QWidget):
             color_box = QtWidgets.QComboBox()
             for color_name in COLOR_OPTIONS.keys():
                 color_box.addItem(color_name)
+<<<<<<< HEAD
             color_name, rgb = color_items[i % len(color_items)]
             color_box.setCurrentText(color_name)
+=======
+            color_box.setCurrentText(VAR_COLORS.get(name, "White"))
+>>>>>>> 54efb525bbd7dcc6737893a97220327fd4a22e6c
             color_box.setFixedWidth(75)
             color_box.currentTextChanged.connect(lambda val, n=name: self.update_channel_color(n, val))
             row.addWidget(color_box)
             self.channel_color_boxes[name] = color_box
+<<<<<<< HEAD
             self.var_colors[name] = rgb
+=======
+            self.var_colors[name] = COLOR_OPTIONS[VAR_COLORS.get(name, "White")]
+>>>>>>> 54efb525bbd7dcc6737893a97220327fd4a22e6c
 
             self.checkbox_layout.addLayout(row)
 
@@ -167,12 +217,12 @@ class TelemetryGUI(QtWidgets.QWidget):
 
         # Y-axis range inputs
         controls.addWidget(QtWidgets.QLabel("Y min:"))
-        self.ymin_input = QtWidgets.QLineEdit("-1.0")
+        self.ymin_input = QtWidgets.QLineEdit("-2000.0")
         self.ymin_input.setFixedWidth(60)
         controls.addWidget(self.ymin_input)
 
         controls.addWidget(QtWidgets.QLabel("Y max:"))
-        self.ymax_input = QtWidgets.QLineEdit("1.0")
+        self.ymax_input = QtWidgets.QLineEdit("2000.0")
         self.ymax_input.setFixedWidth(60)
         controls.addWidget(self.ymax_input)
 
