@@ -330,7 +330,6 @@ void runControl(float dt, int cycle) {
   if (cycle == 10) {
     stateErrors.positionErrorX = (TARGET_POSX - stateVariables.posX);
     stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
-    cycle = 0;
   }
   // stateErrors.positionErrorX = 0;
   // stateErrors.positionErrorY = 0;
@@ -349,13 +348,14 @@ void runControl(float dt, int cycle) {
   setPWMYOutputs = setPWMPIDY.calculate(stateErrors.angleErrorY, dt);
 
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
-  cycle++;
 }
+
 
 // Gantry-specific loop
 void loop() {
 
   const float dt = 0.01f;
+  int cycle = 1;
 
   uint32_t start_us = micros();
   loopTime = start_us;
@@ -373,7 +373,10 @@ void loop() {
     readState();
 
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
-      runControl(dt);
+      
+      runControl(dt, cycle);
+      cycle++;
+      if(cycle > 10) cycle = 1;
         // Deadzones
       if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
       else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
