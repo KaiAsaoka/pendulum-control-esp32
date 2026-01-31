@@ -332,7 +332,7 @@ void runControl(float dt, int controlCycle) {
   // Calculate positional error 
   // position PID should only occur every 100ms
   if (controlCycle == 10) {
-    stateErrors.positionErrorX = (TARGET_POSX - stateVariables.posX);
+    stateErrors.positionErrorX = (stateVariables.posX-TARGET_POSX);
     stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
   }
   // stateErrors.positionErrorX = 0;
