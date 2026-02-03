@@ -172,6 +172,28 @@ void setup() {
 
 // Gantry-specific loop
 void loop() {
+  static int startupLoops = 0;
+
+  // First two iterations: force PWM=10 to the right on X, Y=0
+  if (startupLoops < 2) {
+    bool xDir = true;   // rightwards
+    bool yDir = true;   // arbitrary, ySpeed=0 so doesn't matter
+    int xSpeed = 10;
+    int ySpeed = 0;
+
+    move.moveXY(xSpeed, xDir, ySpeed, yDir);
+
+    startupLoops++;
+
+    if (buttonPressed) {
+      handleButtonPress();
+      buttonPressed = false;
+    }
+
+    Serial.flush();
+    return;
+  }
+
   // Gantry-specific control code
   // This will handle motor control and position management
   
@@ -208,7 +230,7 @@ void loop() {
     xVel -= X_DEADZONE;
   } else if (error1 > 0) {
     xVel += X_DEADZONE ;
-  }else{
+  } else {
     xVel += 0;
   }
 
@@ -216,7 +238,7 @@ void loop() {
     yVel -= Y_DEADZONE;
   } else if (error2 > 0) {
     yVel += Y_DEADZONE ;
-  }else{
+  } else {
     yVel += 0;
   }
 
