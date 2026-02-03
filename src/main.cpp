@@ -16,8 +16,8 @@
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-// Define 10 ms loop timing
-constexpr uint32_t LOOP_US = 10000;     // 10 ms
+// Define 5 ms loop timing
+constexpr uint32_t LOOP_US = 2000;     // 2 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
