@@ -13,7 +13,7 @@
 #define ESP_PENDULUM 2
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -109,7 +109,7 @@ void IRAM_ATTR buttonISR() {
 // The function to run when button is pressed
 void handleButtonPress() {
   // Your button handling code here
-  Serial.println("Button was pressed!");
+  //Serial.println("Button was pressed!");
   pendPIDx.reset_I();
   pendPIDy.reset_I();
   ganPIDx.reset_I();
@@ -134,30 +134,29 @@ Move move(DVR1, DVR2, ENC1, ENC2);
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Gantry ESP32 Starting...");
+  //Serial.println("Gantry ESP32 Starting...");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
   
-  Serial.println("Button interrupt initialized");
+  //Serial.println("Button interrupt initialized");
 
   ENC1.begin();
-  Serial.println("Encoder 1 initialized (Gantry)");
+  //Serial.println("Encoder 1 initialized (Gantry)");
 
   ENC2.begin();
-  Serial.println("Encoder 2 initialized (Gantry)");
-
+  //Serial.println("Encoder 2 initialized (Gantry)");
   // Initialize drivers
   DVR1.begin();
   delay(1000);
-  Serial.println("Driver 1 initialized");
+  //Serial.println("Driver 1 initialized");
   Serial.flush();
 
   DVR2.begin();
   delay(1000);
-  Serial.println("Driver 2 initialized");
+  //Serial.println("Driver 2 initialized");
   Serial.flush();
 
   // Initialize ESPNow communication
@@ -166,7 +165,7 @@ void setup() {
     receiverESP.onDataRecv(mac, data, len);
   });
 
-  Serial.println("Gantry setup complete!");
+  //Serial.println("Gantry setup complete!");
   Serial.flush();
 }
 
@@ -175,7 +174,7 @@ void loop() {
   static int startupLoops = 0;
 
   // First two iterations: force PWM=10 to the right on X, Y=0
-  if (startupLoops < 2) {
+  if (startupLoops < 0) {
     bool xDir = true;   // rightwards
     bool yDir = true;   // arbitrary, ySpeed=0 so doesn't matter
     int xSpeed = 10;
@@ -263,54 +262,54 @@ void loop() {
   } else {
     move.moveXY(0, xDir, 0, yDir);
   }
-  Serial.print("E1: ");
-  Serial.print(e1);
-  Serial.print(", E2: ");
-  Serial.print(e2);
-  Serial.print(", G1: ");
-  Serial.print(posX);
-  Serial.print(", G2: ");
-  Serial.print(posY);
-  Serial.print(", xV: ");
-  Serial.print(xVel);
-  Serial.print(", yV: ");
-  Serial.print(yVel);
-  Serial.print(", px: ");
-  Serial.print(error1);
-  Serial.print(", py: ");
-  Serial.print(error2);
-  Serial.print(", gx: ");
-  Serial.print(posError1);
-  Serial.print(", gy: ");
-  Serial.print(posError2);
-  Serial.print(", xVelp: ");
-  Serial.print(xVelp);
-  Serial.print(", xVeli: ");
-  Serial.print(xVeli);
-  Serial.print(", xVeld: ");
-  Serial.print(xVeld);
-  Serial.print(", yVelp: ");
-  Serial.print(yVelp);
-  Serial.print(", yVeli: ");
-  Serial.print(yVeli);
-  Serial.print(", yVeld: ");
-  Serial.print(yVeld);
-  Serial.print(", setPointAngle1: ");
-  Serial.print(setPointAngle1);
-  Serial.print(", angle1p: ");
-  Serial.print(angle1p);
-  Serial.print(", angle1i: ");
-  Serial.print(angle1i);
-  Serial.print(", angle1d: ");
-  Serial.print(angle1d);
-  Serial.print(", setPointAngle2: ");
-  Serial.print(setPointAngle2);
-  Serial.print(", angle2p: ");
-  Serial.print(angle2p);
-  Serial.print(", angle2i: ");
-  Serial.print(angle2i);
-  Serial.print(", angle2d: ");
-  Serial.println(angle2d);
+  //Serial.print("E1: ");
+  //Serial.print(e1);
+  //Serial.print(", E2: ");
+  //Serial.print(e2);
+  //Serial.print(", G1: ");
+  //Serial.print(posX);
+  //Serial.print(", G2: ");
+  //Serial.print(posY);
+  //Serial.print(", xV: ");
+  //Serial.print(xVel);
+  //Serial.print(", yV: ");
+  //Serial.print(yVel);
+  //Serial.print(", px: ");
+  //Serial.print(error1);
+  //Serial.print(", py: ");
+  //Serial.print(error2);
+  //Serial.print(", gx: ");
+  //Serial.print(posError1);
+  //Serial.print(", gy: ");
+  //Serial.print(posError2);
+  //Serial.print(", xVelp: ");
+  //Serial.print(xVelp);
+  //Serial.print(", xVeli: ");
+  //Serial.print(xVeli);
+  //Serial.print(", xVeld: ");
+  //Serial.print(xVeld);
+  //Serial.print(", yVelp: ");
+  //Serial.print(yVelp);
+  //Serial.print(", yVeli: ");
+  //Serial.print(yVeli);
+  //Serial.print(", yVeld: ");
+  //Serial.print(yVeld);
+  //Serial.print(", setPointAngle1: ");
+  //Serial.print(setPointAngle1);
+  //Serial.print(", angle1p: ");
+  //Serial.print(angle1p);
+  //Serial.print(", angle1i: ");
+  //Serial.print(angle1i);
+  //Serial.print(", angle1d: ");
+  //Serial.print(angle1d);
+  //Serial.print(", setPointAngle2: ");
+  //Serial.print(setPointAngle2);
+  //Serial.print(", angle2p: ");
+  //Serial.print(angle2p);
+  //Serial.print(", angle2i: ");
+  //Serial.print(angle2i);
+  //Serial.print(", angle2d: ");
+  //Serial.println(angle2d);
 
 
   Serial.flush();
@@ -333,24 +332,24 @@ void loop() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Pendulum ESP32 Starting...");
+  //Serial.println("Pendulum ESP32 Starting...");
   
   senderESP.setUp();
   
   ENC1.begin();
-  Serial.println("Encoder 1 initialized (Pendulum)");
+  //Serial.println("Encoder 1 initialized (Pendulum)");
   
   ENC2.begin();
-  Serial.println("Encoder 2 initialized (Pendulum)");
+  //Serial.println("Encoder 2 initialized (Pendulum)");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
   
-  Serial.println("Button interrupt initialized");
+  //Serial.println("Button interrupt initialized");
 
-  Serial.println("Pendulum setup complete!");
+  //Serial.println("Pendulum setup complete!");
   Serial.flush();
 }
 
@@ -360,14 +359,14 @@ void loop() {
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.getTotalAngle();
-  delay(1);
-  Serial.print("E1: ");
-  Serial.print(angle1);
+  //delay(1);
+  //Serial.print("E1: ");
+  //Serial.print(angle1);
 
   int angle2 = ENC2.getTotalAngle();
-  delay(1);
-  Serial.print(", E2: ");
-  Serial.print(angle2);
+  //delay(1);
+  //Serial.print(", E2: ");
+  //Serial.print(angle2);
 
   senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
 
@@ -384,9 +383,9 @@ void loop() {
 
 void printBinary16(uint16_t n) {
   for (int i = 15; i >= 0; i--) {
-    Serial.print((n >> i) & 1);
+    //Serial.print((n >> i) & 1);
   }
-  Serial.println();
+  //Serial.println();
 }
 
 unsigned long getTime(unsigned long startTime) {
