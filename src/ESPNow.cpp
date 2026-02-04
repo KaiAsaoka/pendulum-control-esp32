@@ -1,7 +1,18 @@
 #include <Arduino.h>
-#include <WiFi.h>
-#include <esp_now.h>
+#include <SPI.h>
+#include "Encoder.h" // Remove <> to avoid accidental using Arduino version
+#include <chrono>
+#include <Driver.h>
+#include <Move.h>
+#include <getMACAddress.h>
+#include <PL_Telemetry_ESP32.h>
 #include <ESPNow.h>
+#include <PID.h>
+#include <math.h>   
+#include <freertos/semphr.h>
+
+#define SENDER_PIN 14
+#define RECEIVER_PIN 7
 
 ESPNowSender::ESPNowSender(uint8_t broadcastAddress[]){
     memcpy(this->broadcastAddress, broadcastAddress, 6);
@@ -13,6 +24,8 @@ void ESPNowSender::onDataSent(const uint8_t *mac_addr, esp_now_send_status_t sta
 };
 
 void ESPNowSender::setUp(){
+    pinMode(SENDER_PIN, OUTPUT);
+    digitalWrite(SENDER_PIN, LOW);
     WiFi.mode(WIFI_STA);
 
     if (esp_now_init() != ESP_OK) {
@@ -39,13 +52,14 @@ void ESPNowSender::sendMessage(const char* message, int int_message_1, int int_m
     
     //Send message!
     esp_err_t result = esp_now_send(this->broadcastAddress, (uint8_t *) &this->data, sizeof(this->data));
+    digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
     
-    if (result == ESP_OK) {
-        Serial.println("Sent with success.");
-    }
-    else {
-        Serial.println("Error sending the data.");
-    }
+    // if (result == ESP_OK) {
+    //     Serial.println("Sent with success.");
+    // }
+    // else {
+    //     Serial.println("Error sending the data.");
+    // }
 };
 
 ESPNowReceiver::ESPNowReceiver(){
@@ -53,6 +67,8 @@ ESPNowReceiver::ESPNowReceiver(){
 };
 
 void ESPNowReceiver::setUp(){
+    pinMode(RECEIVER_PIN, OUTPUT);
+    digitalWrite(RECEIVER_PIN, LOW);
     WiFi.mode(WIFI_STA);
 
     //Initialize ESP-NOW.
@@ -64,6 +80,9 @@ void ESPNowReceiver::setUp(){
 
 void ESPNowReceiver::onDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len){
     memcpy(&this->data, incomingData, sizeof(this->data));
+    digitalWrite(RECEIVER_PIN, !digitalRead(RECEIVER_PIN));
+    
+
     // Serial.print("Bytes received: ");
     // Serial.println(len);
 
