@@ -32,6 +32,8 @@ void setup() {
   receiverESP.setUp();
   esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len) {
     receiverESP.onDataRecv(mac, data, len);
+    digitalWrite(RECIEVER_PIN, !digitalRead(RECIEVER_PIN));
+    Serial.println(receiverESP.data.int_message_3);
   });
 
   Serial.flush();
@@ -39,14 +41,26 @@ void setup() {
 
 // Gantry-specific loop
 void loop() {
-  Serial.println(receiverESP.data.int_message_3);
 }
 
 #elif CURRENT_ESP == ESP_PENDULUM
 
 // Pendulum-specific setup
 #define SENDER_PIN 14
-ESPNowSender senderESP;
+
+uint8_t broadcastAddress[] = {0x64, 0xb7, 0x08, 0x9c, 0x5b, 0xb0};
+ESPNowSender senderESP(broadcastAddress);
+
+#define ENC_MISO 26    // Encoder data output (MISO)
+#define ENC_CLK  25    // SPI clock (SCK)
+#define ENC_CS1  32    // Chip Select (active LOW)
+#define ENC_CS2  33    // Chip Select (active LOW)
+#define ENC_MOSI 9    // MOSI pin for encoder communication
+
+Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
+Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
+
+int count = 0;
 
 void setup() {
   senderESP.setUp();
@@ -55,7 +69,7 @@ void setup() {
   ENC2.begin();
 
   pinMode(SENDER_PIN, OUTPUT);
-  digitalWrite(SENDER_PIN, LOW)
+  digitalWrite(SENDER_PIN, LOW);
 }
 
 // Pendulum-specific loop
@@ -65,14 +79,21 @@ void loop() {
   digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
 
   int angle1 = ENC1.getTotalAngle();
-  //delay(1);
+  // delay(1);
 
   int angle2 = ENC2.getTotalAngle();
   //delay(1);
 
   digitalWrite(SENDER_PIN, HIGH);
-  senderESP.sendMessage(, angle1, angle2);
+  senderESP.sendMessage(angle1, angle2, count);
   digitalWrite(SENDER_PIN, LOW);
+
+  count++;
+  if (count > 100) {
+    count = 0;
+  }
+
+  delay(1);
 }
 #else
 #error "Please select either ESP_GANTRY or ESP_PENDULUM for CURRENT_ESP"
