@@ -23,7 +23,7 @@ static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_PENDULUM // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -228,38 +228,38 @@ void updateTelemetry() {
 }
 
 void telemLoop(void *pvParameters){
-  // //Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
-  for(;;){
-    uint32_t start_us = micros();
+//   // //Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
+//   for(;;){
+//     uint32_t start_us = micros();
 
-    // if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
-    //   updateTelemetry();
-    //   telemetry.sendSnapshot(telemVals, start_us);
-    //   xSemaphoreGive(pidValsMutex);
-    // }
+//     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
+//       updateTelemetry();
+//       telemetry.sendSnapshot(telemVals, start_us);
+//       xSemaphoreGive(pidValsMutex);
+//     }
 
-    uint32_t elapsed = (uint32_t)(micros() - start_us);
+//     uint32_t elapsed = (uint32_t)(micros() - start_us);
 
-    if (elapsed >= LOOP_US) {
-      overrun_count++;
-      //Serial.println("Telemetry Overtime!");
-    } else {
-      // Busy --> wait until full 10 ms period has elapsed
-      while ((uint32_t)(micros() - start_us) < LOOP_US) {
-        if(telemetry.pauseTesting()) {
-          if (telemetry.updateGainVals()) {
-            if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
-              setAnglePIDX.readNewGains(telemetry.setAngleXParams);
-              setAnglePIDY.readNewGains(telemetry.setAngleYParams);
-              setPWMPIDX.readNewGains(telemetry.setPWMXParams);
-              setPWMPIDY.readNewGains(telemetry.setPWMYParams);
-              xSemaphoreGive(pidValsMutex);
-            }
-          }
-        }
-      }
-    }
-  }
+//     if (elapsed >= LOOP_US) {
+//       overrun_count++;
+//       //Serial.println("Telemetry Overtime!");
+//     } else {
+//       // Busy --> wait until full 10 ms period has elapsed
+//       while ((uint32_t)(micros() - start_us) < LOOP_US) {
+//         if(telemetry.pauseTesting()) {
+//           if (telemetry.updateGainVals()) {
+//             if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
+//               setAnglePIDX.readNewGains(telemetry.setAngleXParams);
+//               setAnglePIDY.readNewGains(telemetry.setAngleYParams);
+//               setPWMPIDX.readNewGains(telemetry.setPWMXParams);
+//               setPWMPIDY.readNewGains(telemetry.setPWMYParams);
+//               xSemaphoreGive(pidValsMutex);
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
 }
 
 
@@ -375,7 +375,8 @@ void loop() {
   else {
     readState();
 
-    if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
+    //xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS
+    if (true) {
       
       runControl(dt, controlCycle);
       controlCycle++;
@@ -467,14 +468,14 @@ void loop() {
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.getTotalAngle();
-  delay(1);
-  //Serial.print("E1: ");
-  //Serial.print(angle1);
+  //delay(1);
+  // Serial.print("E1: ");
+  // Serial.print(angle1);
 
   int angle2 = ENC2.getTotalAngle();
-  delay(1);
-  //Serial.print(", E2: ");
-  //Serial.print(angle2);
+  //delay(1);
+  // Serial.print(", E2: ");
+  // Serial.print(angle2);
 
   senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
 
