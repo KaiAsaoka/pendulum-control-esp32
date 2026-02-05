@@ -5,9 +5,9 @@
 #include <WiFi.h>
 
 typedef struct struct_message{
-    char message[32];
     int int_message_1;
     int int_message_2;
+    int int_message_3;
 } struct_message;
 
 class ESPNowSender{
@@ -19,7 +19,7 @@ class ESPNowSender{
     
         static void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status);
         void setUp();
-        void sendMessage(const char* message, int int_message_1, int int_message_2);
+        void sendMessage(int int_message_1, int int_message_2, int int_message_3);
 };
 
 class ESPNowReceiver{
