@@ -11,6 +11,7 @@
 #include <math.h>   
 #include <freertos/semphr.h>
 
+#define SENDER_PIN 14
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
@@ -23,7 +24,7 @@ static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_PENDULUM // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -459,13 +460,16 @@ void setup() {
 
   //serial.println("Pendulum setup complete!");
   Serial.flush();
+  pinMode(SENDER_PIN, OUTPUT);
+  digitalWrite(SENDER_PIN, LOW);
 }
 
 // Pendulum-specific loop
 void loop() {
   // Pendulum-specific control code
   // This will handle sensor readings and send data to gantry
-  
+  digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
+
   int angle1 = ENC1.getTotalAngle();
   //delay(1);
   //serial.print("E1: ");
@@ -476,13 +480,15 @@ void loop() {
   //serial.print(", E2: ");
   //serial.print(angle2);
 
+  //digitalWrite(SENDER_PIN, HIGH);
   senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
+  //digitalWrite(SENDER_PIN, LOW);
 
   // Check if button was pressed
-  if (buttonPressed) {
-    handleButtonPress();
-    buttonPressed = false;  // Reset the flag
-  }
+  // if (buttonPressed) {
+  //   handleButtonPress();
+  //   buttonPressed = false;  // Reset the flag
+  // }
 }
 #else
 #error "Please select either ESP_GANTRY or ESP_PENDULUM for CURRENT_ESP"
