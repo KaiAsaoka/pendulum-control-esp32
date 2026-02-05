@@ -468,7 +468,7 @@ void loop() {
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.getTotalAngle();
-  //delay(1);
+  //delay(1000);
   // Serial.print("E1: ");
   // Serial.print(angle1);
 
