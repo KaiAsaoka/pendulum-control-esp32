@@ -24,7 +24,7 @@ static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_PENDULUM // Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -51,7 +51,7 @@ int controlCycle = 0;
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 0
+#define X_DEADZONE 12
 #define Y_DEADZONE 0
 
 #define STACK_SIZE 10000
@@ -382,8 +382,10 @@ void loop() {
       controlCycle++;
       if(controlCycle > 10) controlCycle = 1;
         // Deadzones
-      if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
-      else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
+      if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
+        // Why 1/5?
+        PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM));
+      }
 
       if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
       else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
@@ -468,7 +470,8 @@ void setup() {
 void loop() {
   // Pendulum-specific control code
   // This will handle sensor readings and send data to gantry
-  digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
+  // digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
+  delay(1);
 
   int angle1 = ENC1.getTotalAngle();
   //delay(1);
@@ -481,7 +484,7 @@ void loop() {
   //serial.print(angle2);
 
   //digitalWrite(SENDER_PIN, HIGH);
-  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
+  senderESP.sendMessage(angle1, angle2);
   //digitalWrite(SENDER_PIN, LOW);
 
   // Check if button was pressed

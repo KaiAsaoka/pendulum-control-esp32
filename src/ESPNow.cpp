@@ -37,9 +37,8 @@ void ESPNowSender::setUp(){
     Serial.println("Added peer successfully!");
 };
 
-void ESPNowSender::sendMessage(const char* message, int int_message_1, int int_message_2){
+void ESPNowSender::sendMessage(int int_message_1, int int_message_2){
 
-    strcpy(this->data.message, message);
     this->data.int_message_1 = int_message_1;
     this->data.int_message_2 = int_message_2;
     
