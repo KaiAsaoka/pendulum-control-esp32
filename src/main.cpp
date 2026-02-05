@@ -485,10 +485,10 @@ void loop() {
   //digitalWrite(SENDER_PIN, LOW);
 
   // Check if button was pressed
-  // if (buttonPressed) {
-  //   handleButtonPress();
-  //   buttonPressed = false;  // Reset the flag
-  // }
+  if (buttonPressed) {
+     handleButtonPress();
+     buttonPressed = false;  // Reset the flag
+  }
 }
 #else
 #error "Please select either ESP_GANTRY or ESP_PENDULUM for CURRENT_ESP"
