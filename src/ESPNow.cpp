@@ -3,6 +3,9 @@
 #include <esp_now.h>
 #include <ESPNow.h>
 
+#define SENDER_PIN 14
+#define RECIEVER_PIN 7
+
 ESPNowSender::ESPNowSender(uint8_t broadcastAddress[]){
     memcpy(this->broadcastAddress, broadcastAddress, 6);
 }
@@ -13,6 +16,8 @@ void ESPNowSender::onDataSent(const uint8_t *mac_addr, esp_now_send_status_t sta
 };
 
 void ESPNowSender::setUp(){
+    pinMode(SENDER_PIN, OUTPUT);
+    digitalWrite(SENDER_PIN, LOW);
     WiFi.mode(WIFI_STA);
 
     if (esp_now_init() != ESP_OK) {
@@ -33,19 +38,20 @@ void ESPNowSender::setUp(){
 };
 
 void ESPNowSender::sendMessage(const char* message, int int_message_1, int int_message_2){
+
     strcpy(this->data.message, message);
     this->data.int_message_1 = int_message_1;
     this->data.int_message_2 = int_message_2;
     
     //Send message!
     esp_err_t result = esp_now_send(this->broadcastAddress, (uint8_t *) &this->data, sizeof(this->data));
-    
-    if (result == ESP_OK) {
-        Serial.println("Sent with success.");
-    }
-    else {
-        Serial.println("Error sending the data.");
-    }
+    digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
+    // if (result == ESP_OK) {
+    //     Serial.println("Sent with success.");
+    // }
+    // else {
+    //     Serial.println("Error sending the data.");
+    // }
 };
 
 ESPNowReceiver::ESPNowReceiver(){
@@ -53,6 +59,8 @@ ESPNowReceiver::ESPNowReceiver(){
 };
 
 void ESPNowReceiver::setUp(){
+    pinMode(RECIEVER_PIN, OUTPUT);
+    digitalWrite(RECIEVER_PIN, LOW);
     WiFi.mode(WIFI_STA);
 
     //Initialize ESP-NOW.
@@ -64,6 +72,7 @@ void ESPNowReceiver::setUp(){
 
 void ESPNowReceiver::onDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len){
     memcpy(&this->data, incomingData, sizeof(this->data));
+    digitalWrite(RECIEVER_PIN, !digitalRead(RECIEVER_PIN));
     // Serial.print("Bytes received: ");
     // Serial.println(len);
 
