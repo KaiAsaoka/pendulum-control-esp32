@@ -467,14 +467,14 @@ void loop() {
   // This will handle sensor readings and send data to gantry
   
   int angle1 = ENC1.getTotalAngle();
-  delay(1);
-  Serial.print("E1: ");
-  Serial.print(angle1);
+  // delay(1);
+  // Serial.print("E1: ");
+  // Serial.print(angle1);
 
   int angle2 = ENC2.getTotalAngle();
-  delay(1);
-  Serial.print(", E2: ");
-  Serial.print(angle2);
+  // delay(1);
+  // Serial.print(", E2: ");
+  // Serial.print(angle2);
 
   senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
 
