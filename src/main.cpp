@@ -275,6 +275,7 @@ void setup() {
   pinMode(AUX_BTN, INPUT_PULLUP);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
+  pinMode(CONTROL_LOOP_PIN, OUTPUT);
 
   digitalWrite(BLUE_LED, LOW);  // Start unarmed
   digitalWrite(RED_LED, LOW);   // No fault initially
