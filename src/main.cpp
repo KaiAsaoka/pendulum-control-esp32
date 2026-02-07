@@ -12,15 +12,14 @@
 #include <freertos/semphr.h>
 
 #define SENDER_PIN 14
-#define NUDGE_PIN 8
-#define P_GAIN_PIN 7
+#define CONTROL_LOOP_PIN 14
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
 // Define 5 ms loop timing
-constexpr uint32_t LOOP_US = 1000;     // 1 ms
+constexpr uint32_t LOOP_US = 2000;     // 2 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
@@ -53,7 +52,7 @@ int controlCycle = 0;
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 0 //12
+#define X_DEADZONE 12
 #define Y_DEADZONE 0
 
 #define STACK_SIZE 10000
@@ -96,8 +95,6 @@ unsigned long getTime(unsigned long startTime);
 
 // Flag to indicate button was pressed (must be volatile)
 volatile bool buttonPressed = false;
-volatile int nudge_offset = 0;
-volatile int nudge_timer = 0;
 
 // Time tracking for debouncing
 volatile unsigned long lastDebounceTime = 0;
@@ -160,13 +157,6 @@ void handleButtonPress() {
   zeroButtonState = !zeroButtonState;
   digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
 #endif
-}
-
-// Auxilliary button handling function
-// Current function: Deliver "nudge" to pendulum
-void handleAuxButtonPress() {
-  nudge_offset = 50; // Added to move.moveXY speed
-  nudge_timer = 20; // # loop cycles to nudge for
 }
 
 
@@ -285,12 +275,10 @@ void setup() {
   pinMode(AUX_BTN, INPUT_PULLUP);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
-  pinMode(NUDGE_PIN, OUTPUT);
-  pinMode(P_GAIN_PIN, OUTPUT);
 
   digitalWrite(BLUE_LED, LOW);  // Start unarmed
   digitalWrite(RED_LED, LOW);   // No fault initially
-  digitalWrite(NUDGE_PIN, LOW); // For measuring control loop timing
+  digitalWrite(CONTROL_LOOP_PIN, LOW); // For measuring control loop timing
     
   // Attach interrupts (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
@@ -378,6 +366,8 @@ void loop() {
   uint32_t start_us = micros();
   loopTime = start_us;
 
+  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure control loop timing
+
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
     if(!zeroButtonState) {
@@ -411,18 +401,6 @@ void loop() {
       if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 && 
           abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
         //move.moveXY(10, 0);
-        //-----
-        if (nudge_timer > 0) {
-          PWMOutputs.xPWM += nudge_offset;
-          nudge_timer--;
-          digitalWrite(NUDGE_PIN, HIGH); // For measuring nudge duration
-        }
-        else {
-          nudge_offset = 0;
-          digitalWrite(NUDGE_PIN, LOW);
-        }
-        //-----
-        analogWrite(P_GAIN_PIN, setAngleXParams.p / 10); // For measuring gain changes
         move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
         digitalWrite(RED_LED, LOW); // Turn out-of-bounds LED off
       } else {
@@ -440,11 +418,6 @@ void loop() {
   if (buttonPressed) {
     handleButtonPress();
     buttonPressed = false;
-  }
-
-  if (auxButtonPressed) {
-    handleAuxButtonPress();
-    auxButtonPressed = false;
   }
 
   // Measure elapsed time and wait if needed
