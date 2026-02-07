@@ -388,7 +388,7 @@ void loop() {
         // Deadzones
       if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
         // Why 1/5?
-        PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM));
+        PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM/(float)(3)));
       }
 
       if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
