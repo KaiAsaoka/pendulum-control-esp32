@@ -13,6 +13,7 @@
 #include "freertos/portmacro.h"   // <-- added (for portMUX_TYPE / critical sections)
 
 #define SENDER_PIN 14
+#define CONTROL_LOOP_PIN 14
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
@@ -332,9 +333,11 @@ void setup() {
   pinMode(AUX_BTN, INPUT_PULLUP);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
+  pinMode(CONTROL_LOOP_PIN, OUTPUT);
 
   digitalWrite(BLUE_LED, LOW);  // Start unarmed
   digitalWrite(RED_LED, LOW);   // No fault initially
+  digitalWrite(CONTROL_LOOP_PIN, LOW);
 
   // Attach interrupts (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
@@ -420,6 +423,8 @@ void loop() {
 
   uint32_t start_us = micros();
   loopTime = start_us;
+
+  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle control loop pin for oscilloscope timing
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
