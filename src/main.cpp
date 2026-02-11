@@ -8,18 +8,18 @@
 #include <PL_Telemetry_ESP32.h>
 #include <ESPNow.h>
 #include <PID.h>
-#include <math.h>   
+#include <math.h>
 #include <freertos/semphr.h>
+#include "freertos/portmacro.h"   // <-- added (for portMUX_TYPE / critical sections)
 
 #define SENDER_PIN 14
-#define CONTROL_LOOP_PIN 14
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-// Define 5 ms loop timing
-constexpr uint32_t LOOP_US = 2000;     // 2 ms
+// Define 10 ms loop timing
+constexpr uint32_t LOOP_US = 10000;     // 10 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
@@ -138,7 +138,6 @@ struct stateErrs {
 stateErrs stateErrors;
 
 // The function to run when button is pressed
-// The function to run when button is pressed
 void handleButtonPress() {
   //serial.println("Button was pressed!");
   setPWMPIDX.reset();
@@ -162,7 +161,6 @@ void handleButtonPress() {
 
 // Telemetry Globals
 
-SemaphoreHandle_t pidValsMutex;
 bool pauseTesting = false;
 
 //Telemetry variable names
@@ -182,7 +180,6 @@ struct stateVars {
   int angleY;
 };
 
-
 stateVars stateVariables;
 motorPWMs PWMOutputs;
 
@@ -199,6 +196,76 @@ PL_Telemetry_ESP32 telemetry(
 
 TaskHandle_t telemTask;
 
+// ---- Non-blocking telemetry snapshot + pending gains (replaces mutex) ----
+static portMUX_TYPE g_telemMux = portMUX_INITIALIZER_UNLOCKED;
+
+struct TelemetrySnapshot {
+  stateVars sv;
+  stateErrs se;
+  pidOutputs angleX;
+  pidOutputs angleY;
+  pidOutputs pwmX;
+  pidOutputs pwmY;
+  motorPWMs  pwmCmd;
+  uint32_t   t_us;
+  uint32_t   seq;
+};
+
+static TelemetrySnapshot g_snap;
+static uint32_t g_snapSeq = 0;
+
+// pending gains written by telemetry task, applied by control loop
+static bool g_gainsPending = false;
+static pidParams g_pendingSetAngleXParams;
+static pidParams g_pendingSetAngleYParams;
+static pidParams g_pendingSetPWMXParams;
+static pidParams g_pendingSetPWMYParams;
+
+static inline void publishSnapshot(uint32_t t_us) {
+  portENTER_CRITICAL(&g_telemMux);
+  g_snap.sv     = stateVariables;
+  g_snap.se     = stateErrors;
+  g_snap.angleX = setAngleXOutputs;
+  g_snap.angleY = setAngleYOutputs;
+  g_snap.pwmX   = setPWMXOutputs;
+  g_snap.pwmY   = setPWMYOutputs;
+  g_snap.pwmCmd = PWMOutputs;
+  g_snap.t_us   = t_us;
+  g_snap.seq    = ++g_snapSeq;
+  portEXIT_CRITICAL(&g_telemMux);
+}
+
+static inline void readSnapshot(TelemetrySnapshot &out) {
+  portENTER_CRITICAL(&g_telemMux);
+  out = g_snap;
+  portEXIT_CRITICAL(&g_telemMux);
+}
+
+static inline void stagePendingGains() {
+  portENTER_CRITICAL(&g_telemMux);
+  g_pendingSetAngleXParams = telemetry.setAngleXParams;
+  g_pendingSetAngleYParams = telemetry.setAngleYParams;
+  g_pendingSetPWMXParams   = telemetry.setPWMXParams;
+  g_pendingSetPWMYParams   = telemetry.setPWMYParams;
+  g_gainsPending           = true;
+  portEXIT_CRITICAL(&g_telemMux);
+}
+
+static inline bool fetchPendingGains(pidParams &ax, pidParams &ay, pidParams &px, pidParams &py) {
+  bool have = false;
+  portENTER_CRITICAL(&g_telemMux);
+  if (g_gainsPending) {
+    ax = g_pendingSetAngleXParams;
+    ay = g_pendingSetAngleYParams;
+    px = g_pendingSetPWMXParams;
+    py = g_pendingSetPWMYParams;
+    g_gainsPending = false;
+    have = true;
+  }
+  portEXIT_CRITICAL(&g_telemMux);
+  return have;
+}
+
 // Gantry-specific setup
 #if CURRENT_ESP == ESP_GANTRY
 
@@ -212,21 +279,21 @@ Driver DVR2(PWM2, DIR2);
 
 Move move(DVR1, DVR2, ENC1, ENC2);
 
-void updateTelemetry() {
-  telemVals[0] = stateVariables.posX;
-  telemVals[1] = stateVariables.angleX;
-  telemVals[2] = -stateErrors.angleErrorX;
-  telemVals[3] = setPWMXOutputs.pOut;
-  telemVals[4] = setPWMXOutputs.iOut;
-  telemVals[5] = setPWMXOutputs.dOut;
-  telemVals[6] = setPWMXOutputs.output;
-  telemVals[7] = PWMOutputs.xPWM;
-  telemVals[8] = stateVariables.angleY;
-  telemVals[9] = stateErrors.positionErrorX;
-  telemVals[10] = setAngleXOutputs.pOut;
-  telemVals[11] = setAngleXOutputs.iOut;
-  telemVals[12] = setAngleXOutputs.dOut;
-  telemVals[13] = setAngleXOutputs.output;
+void updateTelemetryFromSnapshot(const TelemetrySnapshot &s) {
+  telemVals[0]  = s.sv.posX;
+  telemVals[1]  = s.sv.angleX;
+  telemVals[2]  = -s.se.angleErrorX;
+  telemVals[3]  = s.pwmX.pOut;
+  telemVals[4]  = s.pwmX.iOut;
+  telemVals[5]  = s.pwmX.dOut;
+  telemVals[6]  = s.pwmX.output;
+  telemVals[7]  = s.pwmCmd.xPWM;
+  telemVals[8]  = s.sv.angleY;
+  telemVals[9]  = s.se.positionErrorX;
+  telemVals[10] = s.angleX.pOut;
+  telemVals[11] = s.angleX.iOut;
+  telemVals[12] = s.angleX.dOut;
+  telemVals[13] = s.angleX.output;
 }
 
 void telemLoop(void *pvParameters){
@@ -234,11 +301,10 @@ void telemLoop(void *pvParameters){
   for(;;){
     uint32_t start_us = micros();
 
-    if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
-      updateTelemetry();
-      telemetry.sendSnapshot(telemVals, start_us);
-      xSemaphoreGive(pidValsMutex);
-    }
+    TelemetrySnapshot s;
+    readSnapshot(s);
+    updateTelemetryFromSnapshot(s);
+    telemetry.sendSnapshot(telemVals, s.t_us ? s.t_us : start_us);
 
     uint32_t elapsed = (uint32_t)(micros() - start_us);
 
@@ -246,17 +312,10 @@ void telemLoop(void *pvParameters){
       overrun_count++;
       //serial.println("Telemetry Overtime!");
     } else {
-      // Busy --> wait until full 10 ms period has elapsed
       while ((uint32_t)(micros() - start_us) < LOOP_US) {
         if(telemetry.pauseTesting()) {
           if (telemetry.updateGainVals()) {
-            if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
-              setAnglePIDX.readNewGains(telemetry.setAngleXParams);
-              setAnglePIDY.readNewGains(telemetry.setAngleYParams);
-              setPWMPIDX.readNewGains(telemetry.setPWMXParams);
-              setPWMPIDY.readNewGains(telemetry.setPWMYParams);
-              xSemaphoreGive(pidValsMutex);
-            }
+            stagePendingGains();
           }
         }
       }
@@ -264,27 +323,23 @@ void telemLoop(void *pvParameters){
   }
 }
 
-
 void setup() {
   Serial.begin(115200);
   telemetry.begin();
-  pidValsMutex = xSemaphoreCreateMutex(); // Create mutex for errors
   //serial.println("Gantry ESP32 Starting...");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
   pinMode(AUX_BTN, INPUT_PULLUP);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
-  pinMode(CONTROL_LOOP_PIN, OUTPUT);
 
   digitalWrite(BLUE_LED, LOW);  // Start unarmed
   digitalWrite(RED_LED, LOW);   // No fault initially
-  digitalWrite(CONTROL_LOOP_PIN, LOW); // For measuring control loop timing
-    
+
   // Attach interrupts (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(AUX_BTN), auxButtonISR, FALLING);
-  
+
   //serial.println("Button interrupt initialized");
 
   ENC1.begin();
@@ -333,7 +388,7 @@ void readState() {
 }
 
 void runControl(float dt, int controlCycle) {
-  // Calculate positional error 
+  // Calculate positional error
   // position PID should only occur every 100ms
   if (controlCycle == 10) {
     stateErrors.positionErrorX = (stateVariables.posX-TARGET_POSX);
@@ -358,7 +413,6 @@ void runControl(float dt, int controlCycle) {
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
 }
 
-
 // Gantry-specific loop
 void loop() {
 
@@ -366,8 +420,6 @@ void loop() {
 
   uint32_t start_us = micros();
   loopTime = start_us;
-
-  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure control loop timing
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
@@ -377,41 +429,62 @@ void loop() {
       setAnglePIDX.reset();
       setAnglePIDY.reset();
     }
+
+    // Apply any gain updates staged by telemetry task (non-blocking)
+    pidParams ax, ay, px, py;
+    if (fetchPendingGains(ax, ay, px, py)) {
+      setAnglePIDX.readNewGains(ax);
+      setAnglePIDY.readNewGains(ay);
+      setPWMPIDX.readNewGains(px);
+      setPWMPIDY.readNewGains(py);
+    }
+
+    // (optional) keep telemetry alive with last-known snapshot timing
+    publishSnapshot(start_us);
   }
   else {
     readState();
 
-    if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
-      
-      runControl(dt, controlCycle);
-      controlCycle++;
-      if(controlCycle > 10) controlCycle = 1;
-        // Deadzones
-      if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
-        // Why 1/5?
-        PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM/(float)(3)));
-      }
+    runControl(dt, controlCycle);
+    controlCycle++;
+    if(controlCycle > 10) controlCycle = 1;
 
-      if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
-      else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
+    // Deadzones
+    if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
+      // Why 1/5?
+      PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM/(float)(3)));
+    }
 
-      PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
-      PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
+    if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
+    else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
 
-      // Safety window + command
-      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 && 
-          abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
-        //move.moveXY(10, 0);
-        move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
-        digitalWrite(RED_LED, LOW); // Turn out-of-bounds LED off
-      } else {
-        PWMOutputs.xPWM = 0;
-        PWMOutputs.yPWM = 0;
-        move.moveXY(0, 0);
-        digitalWrite(RED_LED, HIGH); // Turn out-of-bounds LED on
-        // //serial.print("Out of bounds!");
-      }
-      xSemaphoreGive(pidValsMutex);
+    PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
+    PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
+
+    // Safety window + command
+    if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 &&
+        abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
+      //move.moveXY(10, 0);
+      move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
+      digitalWrite(RED_LED, LOW); // Turn out-of-bounds LED off
+    } else {
+      PWMOutputs.xPWM = 0;
+      PWMOutputs.yPWM = 0;
+      move.moveXY(0, 0);
+      digitalWrite(RED_LED, HIGH); // Turn out-of-bounds LED on
+      // //serial.print("Out of bounds!");
+    }
+
+    // Publish snapshot for telemetry (non-blocking)
+    publishSnapshot(start_us);
+
+    // Apply any gain updates staged by telemetry task (non-blocking)
+    pidParams ax, ay, px, py;
+    if (fetchPendingGains(ax, ay, px, py)) {
+      setAnglePIDX.readNewGains(ax);
+      setAnglePIDY.readNewGains(ay);
+      setPWMPIDX.readNewGains(px);
+      setPWMPIDY.readNewGains(py);
     }
   }
 
@@ -449,20 +522,20 @@ void loop() {
 void setup() {
   Serial.begin(115200);
   //serial.println("Pendulum ESP32 Starting...");
-  
+
   senderESP.setUp();
-  
+
   ENC1.begin();
   //serial.println("Encoder 1 initialized (Pendulum)");
-  
+
   ENC2.begin();
   //serial.println("Encoder 2 initialized (Pendulum)");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);
-    
+
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
-  
+
   //serial.println("Button interrupt initialized");
 
   //serial.println("Pendulum setup complete!");
@@ -476,7 +549,7 @@ void loop() {
   // Pendulum-specific control code
   // This will handle sensor readings and send data to gantry
   // digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
-  // delay(1);
+  delay(1);
 
   int angle1 = ENC1.getTotalAngle();
   //delay(1);
