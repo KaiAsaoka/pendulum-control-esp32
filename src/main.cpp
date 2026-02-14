@@ -29,17 +29,17 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // SPI bus pins (shared)
-#define ENC_MISO 12
+#define ENC_MISO 27
 #define ENC_MOSI 13
 #define ENC_CLK  14
 
 // Gantry motor encoder chip-selects (keep existing ones if they work)
-#define ENC_CS1  32
-#define ENC_CS2  33
+#define ENC_CS1  33
+#define ENC_CS2  32
 
 // Pendulum encoder chip-selects
-#define PEND_CS1 15
-#define PEND_CS2 16   // pick any free GPIO if you don't want 16
+#define PEND_CS1 26
+#define PEND_CS2 25   // pick any free GPIO if you don't want 16
 
 #if CURRENT_ESP == ESP_GANTRY
 #define ZERO_BTN 37
@@ -155,6 +155,19 @@ void handleButtonPress() {
   digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
 #endif
 }
+
+#if CURRENT_ESP == ESP_GANTRY
+void handleAuxButtonPress() {
+  //setPWMPIDX.reset();
+  //setPWMPIDY.reset();
+  setAnglePIDX.reset();
+  setAnglePIDY.reset();
+  stateErrors.angleErrorX = 0;
+  stateErrors.angleErrorY = 0;
+  PEND1.zero();
+  PEND2.zero();
+}
+#endif
 
 // Telemetry Globals
 SemaphoreHandle_t pidValsMutex;
@@ -382,6 +395,13 @@ void loop() {
     handleButtonPress();
     buttonPressed = false;
   }
+
+#if CURRENT_ESP == ESP_GANTRY
+  if (auxButtonPressed) {
+    handleAuxButtonPress();
+    auxButtonPressed = false;
+  }
+#endif
 
   uint32_t current_time_us = micros();
   uint32_t elapsed_time_us = current_time_us - start_us;
