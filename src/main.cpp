@@ -10,7 +10,7 @@
 #include <freertos/semphr.h>
 #include <array>
 
-#define CONTROL_LOOP_PIN 27
+#define CONTROL_LOOP_PIN 15
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
@@ -348,6 +348,8 @@ void loop() {
 
   digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN));
 
+  readState();
+
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
     if(!zeroButtonState) {
@@ -358,8 +360,6 @@ void loop() {
     }
   }
   else {
-    readState();
-
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
 
       runControl(dt, controlCycle);
@@ -392,16 +392,22 @@ void loop() {
   }
 
   if (buttonPressed) {
-    handleButtonPress();
     buttonPressed = false;
+    if (digitalRead(ZERO_BTN) == LOW) {
+      handleButtonPress();
+    }
   }
 
 #if CURRENT_ESP == ESP_GANTRY
   if (auxButtonPressed) {
-    handleAuxButtonPress();
     auxButtonPressed = false;
+    if (digitalRead(AUX_BTN) == LOW) {
+      handleAuxButtonPress();
+    }
   }
 #endif
+
+  Serial.println("x position: " + String(stateVariables.posX) + " y position: " + String(stateVariables.posY));
 
   uint32_t current_time_us = micros();
   uint32_t elapsed_time_us = current_time_us - start_us;
