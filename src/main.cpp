@@ -16,13 +16,13 @@
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-// Define 5 ms loop timing
+// Define 2 ms loop timing
 constexpr uint32_t LOOP_US = 2000;     // 2 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 
-constexpr uint32_t POS_UPDATE_US = 100000;               // 100 ms
+constexpr uint32_t POS_UPDATE_US = 20000;               // 20 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
 // Choose which ESP to compile for
@@ -33,7 +33,7 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define ENC_MOSI 13
 #define ENC_CLK  14
 
-// Gantry motor encoder chip-selects (keep your existing ones if they work)
+// Gantry motor encoder chip-selects (keep existing ones if they work)
 #define ENC_CS1  32
 #define ENC_CS2  33
 
@@ -66,7 +66,7 @@ Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI);
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI);
 
 pidParams setAngleXParams = {0, 0, 0, 0, 0};
-// {45, 50, !!0.16!!, 0, 125000000}
+// {45, 50, 0.16, 0, 125000000}
 pidParams setAngleYParams = {0, 0, 0, 0, 0};
 // {15, 150, 0.5, 0, 55555555}
 pidParams setPWMXParams = {0, 0, 0, 0, 0};
