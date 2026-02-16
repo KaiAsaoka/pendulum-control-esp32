@@ -100,6 +100,7 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
     buffer = b""
     while True:
         if pause_receive.is_set():
+            sleep(0.1)
             continue
         
         while(sending_pid):
@@ -203,6 +204,7 @@ def stop_telemetry():
     sleep(0.05)
 
 def simple_start():
+    ser.reset_input_buffer()
     ser.write(b"START")
     pause_receive.clear()
     sleep(0.05)

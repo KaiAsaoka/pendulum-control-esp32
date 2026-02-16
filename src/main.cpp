@@ -11,18 +11,21 @@
 #include <math.h>   
 #include <freertos/semphr.h>
 
+#define SENDER_PIN 14
+#define CONTROL_LOOP_PIN 14
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-// Define 10 ms loop timing
-constexpr uint32_t LOOP_US = 10000;     // 10 ms
+// Define 5 ms loop timing
+constexpr uint32_t LOOP_US = 2000;     // 2 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
+int controlCycle = 0;
 
 // Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY// Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
 // // Define encoder SPI pins
 // #define ENC_MISO 12    // Encoder data output (MISO)
@@ -49,8 +52,8 @@ static volatile uint32_t overrun_count = 0;
 #define TARGET_POSX 0
 #define TARGET_POSY 0
 
-#define X_DEADZONE 4
-#define Y_DEADZONE 2
+#define X_DEADZONE 12
+#define Y_DEADZONE 0
 
 #define STACK_SIZE 10000
 #define TASK_PRIORITY 0
@@ -95,19 +98,23 @@ volatile bool buttonPressed = false;
 
 // Time tracking for debouncing
 volatile unsigned long lastDebounceTime = 0;
-const unsigned long debounceDelay = 50;  // milliseconds
+const unsigned long debounceDelay = 300;  // milliseconds
 
 #if CURRENT_ESP == ESP_GANTRY
 volatile bool auxButtonPressed = false;
 volatile bool zeroButtonState = false;   // false = not armed, true = armed
 #endif
 
+int buttonHysterisisTestVar1 = 0; // To test button hysterisis (remove when done)
+int buttonHysterisisTestVar2 = 0; // To test button hysterisis (remove when done)
 // Interrupt Service Routine (ISR)
 void IRAM_ATTR buttonISR() {
   unsigned long currentTime = millis();
+  buttonHysterisisTestVar1++; // Counts # of times entered ISR function
   if (currentTime - lastDebounceTime > debounceDelay) {
     buttonPressed = true;
     lastDebounceTime = currentTime;
+    buttonHysterisisTestVar2++; // Counts # of times button press registered
   }
 }
 
@@ -121,17 +128,29 @@ void IRAM_ATTR auxButtonISR() {
 }
 #endif
 
+struct stateErrs {
+  int positionErrorX;
+  int positionErrorY;
+  int angleErrorX;
+  int angleErrorY;
+};
+
+stateErrs stateErrors;
 
 // The function to run when button is pressed
 // The function to run when button is pressed
 void handleButtonPress() {
-  Serial.println("Button was pressed!");
+  //serial.println("Button was pressed!");
   setPWMPIDX.reset();
   setPWMPIDY.reset();
   setAnglePIDX.reset();
   setAnglePIDY.reset();
+  stateErrors.positionErrorX = 0;
+  stateErrors.positionErrorY = 0;
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
+  //serial.println("ISR Loops: " + String(buttonHysterisisTestVar1));
+  //serial.println("Registered Presses: " + String(buttonHysterisisTestVar2));
 
 #if CURRENT_ESP == ESP_GANTRY
   // Toggle armed state and update BLUE status LED
@@ -149,10 +168,12 @@ bool pauseTesting = false;
 //Telemetry variable names
 const char* telemVars[] = {
   "carriageXPosition", "pendulumXAngle",
-  "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM"
+  "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM",
+  "pendulumYAngle",
+  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut"
 };
 
-float telemVals[8];
+float telemVals[14];
 
 struct stateVars {
   int posX;
@@ -161,15 +182,8 @@ struct stateVars {
   int angleY;
 };
 
-struct stateErrs {
-  int positionErrorX;
-  int positionErrorY;
-  int angleErrorX;
-  int angleErrorY;
-};
 
 stateVars stateVariables;
-stateErrs stateErrors;
 motorPWMs PWMOutputs;
 
 volatile uint32_t loopTime;
@@ -201,16 +215,22 @@ Move move(DVR1, DVR2, ENC1, ENC2);
 void updateTelemetry() {
   telemVals[0] = stateVariables.posX;
   telemVals[1] = stateVariables.angleX;
-  telemVals[2] = stateErrors.angleErrorX;
+  telemVals[2] = -stateErrors.angleErrorX;
   telemVals[3] = setPWMXOutputs.pOut;
   telemVals[4] = setPWMXOutputs.iOut;
   telemVals[5] = setPWMXOutputs.dOut;
   telemVals[6] = setPWMXOutputs.output;
   telemVals[7] = PWMOutputs.xPWM;
+  telemVals[8] = stateVariables.angleY;
+  telemVals[9] = stateErrors.positionErrorX;
+  telemVals[10] = setAngleXOutputs.pOut;
+  telemVals[11] = setAngleXOutputs.iOut;
+  telemVals[12] = setAngleXOutputs.dOut;
+  telemVals[13] = setAngleXOutputs.output;
 }
 
 void telemLoop(void *pvParameters){
-  // Serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
+  // //serial.printf("Telemetry loop running on core: %d\n", xPortGetCoreID());
   for(;;){
     uint32_t start_us = micros();
 
@@ -224,7 +244,7 @@ void telemLoop(void *pvParameters){
 
     if (elapsed >= LOOP_US) {
       overrun_count++;
-      Serial.println("Telemetry Overtime!");
+      //serial.println("Telemetry Overtime!");
     } else {
       // Busy --> wait until full 10 ms period has elapsed
       while ((uint32_t)(micros() - start_us) < LOOP_US) {
@@ -249,37 +269,39 @@ void setup() {
   Serial.begin(115200);
   telemetry.begin();
   pidValsMutex = xSemaphoreCreateMutex(); // Create mutex for errors
-  Serial.println("Gantry ESP32 Starting...");
+  //serial.println("Gantry ESP32 Starting...");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);          // or INPUT if using GPIO37 with external pull-up
   pinMode(AUX_BTN, INPUT_PULLUP);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
+  pinMode(CONTROL_LOOP_PIN, OUTPUT);
 
   digitalWrite(BLUE_LED, LOW);  // Start unarmed
   digitalWrite(RED_LED, LOW);   // No fault initially
+  digitalWrite(CONTROL_LOOP_PIN, LOW); // For measuring control loop timing
     
   // Attach interrupts (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(AUX_BTN), auxButtonISR, FALLING);
   
-  Serial.println("Button interrupt initialized");
+  //serial.println("Button interrupt initialized");
 
   ENC1.begin();
-  Serial.println("Encoder 1 initialized (Gantry)");
+  //serial.println("Encoder 1 initialized (Gantry)");
 
   ENC2.begin();
-  Serial.println("Encoder 2 initialized (Gantry)");
+  //serial.println("Encoder 2 initialized (Gantry)");
 
   // Initialize drivers
   DVR1.begin();
   delay(1000);
-  Serial.println("Driver 1 initialized");
+  //serial.println("Driver 1 initialized");
   Serial.flush();
 
   DVR2.begin();
   delay(1000);
-  Serial.println("Driver 2 initialized");
+  //serial.println("Driver 2 initialized");
   Serial.flush();
 
   // Initialize ESPNow communication
@@ -288,7 +310,7 @@ void setup() {
     receiverESP.onDataRecv(mac, data, len);
   });
 
-  Serial.println("Gantry setup complete!");
+  //serial.println("Gantry setup complete!");
   Serial.flush();
 
   // ESP32 Should make loop on core 1 anyways, but just to be sure
@@ -310,10 +332,13 @@ void readState() {
   stateVariables.posY = move.returnPosY();
 }
 
-void runControl(float dt) {
+void runControl(float dt, int controlCycle) {
   // Calculate positional error 
-  stateErrors.positionErrorX = (TARGET_POSX - stateVariables.posX);
-  stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
+  // position PID should only occur every 100ms
+  if (controlCycle == 10) {
+    stateErrors.positionErrorX = (stateVariables.posX-TARGET_POSX);
+    stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
+  }
   // stateErrors.positionErrorX = 0;
   // stateErrors.positionErrorY = 0;
 
@@ -333,6 +358,7 @@ void runControl(float dt) {
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
 }
 
+
 // Gantry-specific loop
 void loop() {
 
@@ -341,17 +367,30 @@ void loop() {
   uint32_t start_us = micros();
   loopTime = start_us;
 
+  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure control loop timing
+
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
+    if(!zeroButtonState) {
+      setPWMPIDX.reset();
+      setPWMPIDY.reset();
+      setAnglePIDX.reset();
+      setAnglePIDY.reset();
+    }
   }
   else {
     readState();
 
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdPASS) {
-      runControl(dt);
+      
+      runControl(dt, controlCycle);
+      controlCycle++;
+      if(controlCycle > 10) controlCycle = 1;
         // Deadzones
-      if (stateErrors.angleErrorX < 0) PWMOutputs.xPWM -= X_DEADZONE;
-      else if (stateErrors.angleErrorX > 0) PWMOutputs.xPWM += X_DEADZONE;
+      if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
+        // Why 1/5?
+        PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM/(float)(3)));
+      }
 
       if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
       else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
@@ -362,13 +401,15 @@ void loop() {
       // Safety window + command
       if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 && 
           abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
-        //move.moveXY(0, xDir, 0, yDir);
+        //move.moveXY(10, 0);
         move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
+        digitalWrite(RED_LED, LOW); // Turn out-of-bounds LED off
       } else {
         PWMOutputs.xPWM = 0;
         PWMOutputs.yPWM = 0;
-        move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
-        // Serial.print("Out of bounds!");
+        move.moveXY(0, 0);
+        digitalWrite(RED_LED, HIGH); // Turn out-of-bounds LED on
+        // //serial.print("Out of bounds!");
       }
       xSemaphoreGive(pidValsMutex);
     }
@@ -387,13 +428,15 @@ void loop() {
   if (elapsed_time_us >= MAX_GANTRY_LOOP_US) {
     overrun_count++;
     loopWaitTime = 0;
-    Serial.printf("Overtime (Gantry): %d us\n", elapsed_time_us);
+    //serial.printf("Overtime (Gantry): %d us\n", elapsed_time_us);
   } else {
     loopWaitTime = MAX_GANTRY_LOOP_US - elapsed_time_us;
     while (elapsed_time_us < MAX_GANTRY_LOOP_US) {
       // Busy wait
       current_time_us = micros();
       elapsed_time_us = current_time_us - start_us;
+      ENC1.getTotalAngle();
+      ENC2.getTotalAngle();
     }
   }
 }
@@ -405,51 +448,56 @@ void loop() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Pendulum ESP32 Starting...");
+  //serial.println("Pendulum ESP32 Starting...");
   
   senderESP.setUp();
   
   ENC1.begin();
-  Serial.println("Encoder 1 initialized (Pendulum)");
+  //serial.println("Encoder 1 initialized (Pendulum)");
   
   ENC2.begin();
-  Serial.println("Encoder 2 initialized (Pendulum)");
+  //serial.println("Encoder 2 initialized (Pendulum)");
 
   pinMode(ZERO_BTN, INPUT_PULLUP);
     
   // Attach interrupt (FALLING for normally-open button with pull-up resistor)
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
   
-  Serial.println("Button interrupt initialized");
+  //serial.println("Button interrupt initialized");
 
-  Serial.println("Pendulum setup complete!");
+  //serial.println("Pendulum setup complete!");
   Serial.flush();
+  pinMode(SENDER_PIN, OUTPUT);
+  digitalWrite(SENDER_PIN, LOW);
 }
 
 // Pendulum-specific loop
 void loop() {
   // Pendulum-specific control code
   // This will handle sensor readings and send data to gantry
-  
+  // digitalWrite(SENDER_PIN, !digitalRead(SENDER_PIN));
+  // delay(1);
+
   int angle1 = ENC1.getTotalAngle();
-  delay(1);
-  Serial.print("E1: ");
-  Serial.print(angle1);
+  //delay(1);
+  //serial.print("E1: ");
+  //serial.print(angle1);
 
   int angle2 = ENC2.getTotalAngle();
-  delay(1);
-  Serial.print(", E2: ");
-  Serial.print(angle2);
+  //delay(1);
+  //serial.print(", E2: ");
+  //serial.print(angle2);
 
-  senderESP.sendMessage(String("E1: " + String(angle1) + "\n" + "E2: " + String(angle2)).c_str(), angle1, angle2);
+  //digitalWrite(SENDER_PIN, HIGH);
+  senderESP.sendMessage(angle1, angle2);
+  //digitalWrite(SENDER_PIN, LOW);
 
   // Check if button was pressed
   if (buttonPressed) {
-    handleButtonPress();
-    buttonPressed = false;  // Reset the flag
+     handleButtonPress();
+     buttonPressed = false;  // Reset the flag
   }
 }
-
 #else
 #error "Please select either ESP_GANTRY or ESP_PENDULUM for CURRENT_ESP"
 #endif
