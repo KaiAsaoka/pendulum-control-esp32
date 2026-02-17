@@ -21,6 +21,7 @@ constexpr uint32_t LOOP_US = 2000;     // 2 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
+const float dt = LOOP_US * 1e-6f; // Convert microseconds to seconds for PID calculations
 
 constexpr uint32_t POS_UPDATE_US = 20000;               // 20 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
@@ -340,15 +341,19 @@ void runControl(float dt, int controlCycle) {
 
 // Gantry-specific loop
 void loop() {
+  static uint32_t start_us = micros(); //RC: Initialize start time ONCE only
+  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
 
-  const float dt = LOOP_US * 1e-6f;
+  if (micros() - start_us >= LOOP_US) {
+    overrun_count++;
+    Serial.println("Loop overrun! Total overruns: " + String(overrun_count));
+  }
+  while(micros() - start_us < LOOP_US) {
+    readState();
+  }
+  start_us += LOOP_US;
+  //Serial.println("x position: " + String(stateVariables.posX) + " y position: " + String(stateVariables.posY));
 
-  uint32_t start_us = micros();
-  loopTime = start_us;
-
-  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN));
-
-  readState();
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
@@ -406,22 +411,4 @@ void loop() {
     }
   }
 #endif
-
-  Serial.println("x position: " + String(stateVariables.posX) + " y position: " + String(stateVariables.posY));
-
-  uint32_t current_time_us = micros();
-  uint32_t elapsed_time_us = current_time_us - start_us;
-
-  if (elapsed_time_us >= MAX_GANTRY_LOOP_US) {
-    overrun_count++;
-    loopWaitTime = 0;
-  } else {
-    loopWaitTime = MAX_GANTRY_LOOP_US - elapsed_time_us;
-    while (elapsed_time_us < MAX_GANTRY_LOOP_US) {
-      current_time_us = micros();
-      elapsed_time_us = current_time_us - start_us;
-      ENC1.getTotalAngle();
-      ENC2.getTotalAngle();
-    }
-  }
 }
