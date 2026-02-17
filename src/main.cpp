@@ -342,7 +342,6 @@ void runControl(float dt, int controlCycle) {
 // Gantry-specific loop
 void loop() {
   static uint32_t start_us = micros(); //RC: Initialize start time ONCE only
-  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
 
   if (micros() - start_us >= LOOP_US) {
     overrun_count++;
@@ -351,6 +350,7 @@ void loop() {
   while(micros() - start_us < LOOP_US) {
     readState();
   }
+  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
   start_us += LOOP_US;
   //Serial.println("x position: " + String(stateVariables.posX) + " y position: " + String(stateVariables.posY));
 
