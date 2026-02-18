@@ -16,7 +16,7 @@
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-// Define 2 ms loop timing
+// Define 10 ms loop timing
 constexpr uint32_t LOOP_US = 2000;     // 2 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
@@ -313,7 +313,7 @@ void setup() {
   );
 }
 
-void readState() {
+void readState() { //~40us empirically with scope
   stateVariables.angleX = -PEND1.getTotalAngle();
   stateVariables.angleY =  PEND2.getTotalAngle();
   stateVariables.posX = move.returnPosX();
@@ -350,8 +350,8 @@ void loop() {
   while(micros() - start_us < LOOP_US) {
     readState();
   }
-  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
   start_us += LOOP_US;
+  digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
   //Serial.println("x position: " + String(stateVariables.posX) + " y position: " + String(stateVariables.posY));
 
 
@@ -410,5 +410,6 @@ void loop() {
       handleAuxButtonPress();
     }
   }
-#endif
+#endif 
+digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
 }
