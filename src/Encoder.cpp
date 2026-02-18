@@ -6,7 +6,7 @@
 int Encoder::firstReading = true;  // Initialize to 0
 
 
-int CLOCK_SPEED = 10000000; // 10 MHz
+int CLOCK_SPEED = 1000000; // 1 MHz; Maximum per AS5147 datasheet is 10 MHz (100ns) but this was not shown to work
 
 
 Encoder::Encoder(int miso, int clk, int cs, int mosi)
