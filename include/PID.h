@@ -8,6 +8,7 @@ struct pidParams {
   int d;
   int lpf;
   int iCutoff;
+  int zeroOffset;
 };
 
 // should these be ints?

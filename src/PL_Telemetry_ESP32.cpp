@@ -53,6 +53,8 @@
             offset += sizeof(int);
             memcpy(buffer + offset, &paramSet->iCutoff, sizeof(int));
             offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet->zeroOffset, sizeof(int));
+            offset += sizeof(int);
         }
 
         // Serial.write(buffer, offset)

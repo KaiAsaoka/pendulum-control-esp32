@@ -315,7 +315,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
                 # --- Write PID values (if available) ---
                 axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-                params = ["P", "I", "D", "LPF", "Windup"]
+                params = ["P", "I", "D", "LPF", "Windup", "Offset"]
 
                 writer.writerow(["PID Parameters"])
                 writer.writerow(["Axis"] + params)
@@ -345,12 +345,12 @@ class TelemetryGUI(QtWidgets.QWidget):
         for key, line_edit in self.pid_inputs.items():
             try:
                 pid_dict[key] = float(line_edit.text())
+                if key == "Offset":
+                    line_edit.clear()
+                line_edit.setStyleSheet("")
             except ValueError:
                 pid_dict[key] = self.pid_initial[key]
-
-        for line_edit in self.pid_inputs.values():
-            line_edit.setStyleSheet("")
-            
+             
         send_pid(pid_dict)
 
     def change_timebase(self, val):

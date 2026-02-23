@@ -150,7 +150,7 @@ def send_pid(pid_vals):
     sending_pid = True
 
     axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-    params = ["P", "I", "D", "LPF", "Windup"]
+    params = ["P", "I", "D", "LPF", "Windup", "Offset"]
     ordered_vals = [int(pid_vals[f"{axis}_{param}"]) for axis in axes for param in params]
 
     ser.write(b"PIDRECV")

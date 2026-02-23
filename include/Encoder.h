@@ -10,7 +10,7 @@ public:
     float getTotalAngleFloat();   // Returns total angle as (rotationCount * 360 + current angle)
     void zero();
 
-    
+    int zeroAngle;      // Zero angle
     // Static member variable shared across all instances
     static int firstReading;  // Declaration of static member
 
@@ -22,7 +22,6 @@ private:
     
     float prevAngle;    // Previous instantaneous angle
     int rotationCount;  // Count of full rotations (+/-)
-    int zeroAngle;      // Zero angle
 };
 
 #endif // Encoder_H
