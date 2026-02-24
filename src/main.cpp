@@ -256,7 +256,9 @@ void telemLoop(void *pvParameters){
               setAnglePIDX.readNewGains(telemetry.setAngleXParams);
               setAnglePIDY.readNewGains(telemetry.setAngleYParams);
               setPWMPIDX.readNewGains(telemetry.setPWMXParams);
+              PEND1.zeroAngle -= telemetry.setPWMXParams.zeroOffset;
               setPWMPIDY.readNewGains(telemetry.setPWMYParams);
+              PEND2.zeroAngle += telemetry.setPWMYParams.zeroOffset;
               xSemaphoreGive(pidValsMutex);
             }
           }
