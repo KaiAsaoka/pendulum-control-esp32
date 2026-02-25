@@ -10,8 +10,6 @@
 #include <freertos/semphr.h>
 #include <array>
 
-#define CONTROL_LOOP_PIN 15
-
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
@@ -26,29 +24,35 @@ const float dt = LOOP_US * 1e-6f; // Convert microseconds to seconds for PID cal
 constexpr uint32_t POS_UPDATE_US = 1000;               // 1 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
-// Choose which ESP to compile for
-#define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
+#define CONTROL_LOOP_PIN 15
 
 // SPI bus pins (shared)
 #define ENC_MISO 27
 #define ENC_MOSI 13
 #define ENC_CLK  14
 
-// Gantry motor encoder chip-selects (keep existing ones if they work)
+// Gantry motor encoder chip-selects
 #define ENC_CS1  33
 #define ENC_CS2  32
-
 // Pendulum encoder chip-selects
 #define PEND_CS1 26
-#define PEND_CS2 25   // pick any free GPIO if you don't want 16
+#define PEND_CS2 25
 
 #define ZERO_BTN 37
 #define AUX_BTN 38        // Extra safety / aux button
 #define BLUE_LED 10       // "Armed" status LED
 #define RED_LED 5         // Out-of-bounds LED
 
-#define TARGET_POSX 0
-#define TARGET_POSY 0
+// Analog potentiometer tuning pins
+#define ANGLE_X_OFFSET_PIN 0 // To fine-tune pendulum angle to zero (X)
+#define ANGLE_Y_OFFSET_PIN 4 // To fine-tune pendulum angle to zero (Y)
+#define MOVE_TARGET_POSX_PIN 2 // Move target position with joystick (X)
+#define MOVE_TARGET_POSY_PIN 15 // Move target position with joystick (Y)
+#define ANGLE_X_OFFSET_SCALE_FACTOR 1 // Tune sensitivity of balance point biasers (X)
+#define ANGLE_Y_OFFSET_SCALE_FACTOR 1 // Tune sensitivity of balance point biasers (Y)
+#define MOVE_TARGET_POSX_SCALE_FACTOR 0.001 // Tune sensitivity of joystick for target position (X)
+#define MOVE_TARGET_POSY_SCALE_FACTOR 0.001 // Tune sensitivity of joystick for target position (Y)
+#define JOYSTICK_DEAD_ZONE 50 // To prevent drift when joystick is near neutral
 
 #define X_DEADZONE 12
 #define Y_DEADZONE 0
@@ -174,6 +178,8 @@ struct stateVars {
   int posY;
   int angleX;
   int angleY;
+  double targetPosX; //RC: doubles since we need the resolution to be fine for the
+  double targetPosY; //RC: joystick adjustment. Casted to int for PID calculations
 };
 
 stateVars stateVariables;
@@ -272,6 +278,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ZERO_BTN), buttonISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(AUX_BTN), auxButtonISR, FALLING);
 
+  stateVariables.targetPosX = 0;
+  stateVariables.targetPosY = 0;
+
   ENC1.begin();
   ENC2.begin();
   PEND1.begin();
@@ -305,11 +314,22 @@ void readState() { //140us empirically with scope at 1MHz clock speed
   stateVariables.posY = move.returnPosY();
 }
 
+void updateTargetPos() {
+  int joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 512;
+  int joystick_reading_y = analogRead(MOVE_TARGET_POSY_PIN) - 512;
+  if (abs(joystick_reading_x) > JOYSTICK_DEAD_ZONE) { //RC: Experiment with dead-zone value
+    stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*joystick_reading_x; //RC: TODO: Find good scale factor (movement speed)
+  }
+  if (abs(joystick_reading_y) > JOYSTICK_DEAD_ZONE) {
+    stateVariables.targetPosY += MOVE_TARGET_POSY_SCALE_FACTOR*joystick_reading_y; //RC: ""
+  }
+}
+
 void runControl(float dt, int controlCycle) {
   // position PID may run on slower loop time
   if (controlCycle == POS_UPDATE_CYCLES) {
-    stateErrors.positionErrorX = (stateVariables.posX - TARGET_POSX);
-    stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
+    stateErrors.positionErrorX = (stateVariables.posX - (int)stateVariables.targetPosX);
+    stateErrors.positionErrorY = ((int)stateVariables.targetPosY - stateVariables.posY);
   }
 
   setAngleXOutputs = setAnglePIDX.calculate(stateErrors.positionErrorX, dt);
@@ -340,8 +360,10 @@ void loop() {
     readState();
   }
   start_us += LOOP_US;
-  //Serial.println("x position: " + String(stateVariables.posX) + " y position: " + String(stateVariables.posY));
 
+  stateVariables.angleX += ANGLE_X_OFFSET_SCALE_FACTOR*(analogRead(ANGLE_X_OFFSET_PIN) - 512); // RC: TODO: find proper scale factor
+  stateVariables.angleY += ANGLE_Y_OFFSET_SCALE_FACTOR*(analogRead(ANGLE_Y_OFFSET_PIN) - 512); // RC: ""
+  updateTargetPos();
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
