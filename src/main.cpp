@@ -17,13 +17,13 @@
 #define ESP_PENDULUM 2
 
 // Define 10 ms loop timing
-constexpr uint32_t LOOP_US = 20000;     // 20 ms
+constexpr uint32_t LOOP_US = 1000;     // 1 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 const float dt = LOOP_US * 1e-6f; // Convert microseconds to seconds for PID calculations
 
-constexpr uint32_t POS_UPDATE_US = 20000;               // 20 ms
+constexpr uint32_t POS_UPDATE_US = 1000;               // 1 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
 // Choose which ESP to compile for
@@ -103,17 +103,12 @@ volatile bool auxButtonPressed = false;
 volatile bool zeroButtonState = false;   // false = not armed, true = armed
 #endif
 
-int buttonHysterisisTestVar1 = 0; // To test button hysterisis (remove when done)
-int buttonHysterisisTestVar2 = 0; // To test button hysterisis (remove when done)
-
 // Interrupt Service Routine (ISR)
 void IRAM_ATTR buttonISR() {
   unsigned long currentTime = millis();
-  buttonHysterisisTestVar1++; // Counts # of times entered ISR function
   if (currentTime - lastDebounceTime > debounceDelay) {
     buttonPressed = true;
     lastDebounceTime = currentTime;
-    buttonHysterisisTestVar2++; // Counts # of times button press registered
   }
 }
 
@@ -321,7 +316,7 @@ void readState() { //140us empirically with scope at 1MHz clock speed
 }
 
 void runControl(float dt, int controlCycle) {
-  // position PID should only occur every 100ms
+  // position PID may run on slower loop time
   if (controlCycle == POS_UPDATE_CYCLES) {
     stateErrors.positionErrorX = (stateVariables.posX - TARGET_POSX);
     stateErrors.positionErrorY = (TARGET_POSY - stateVariables.posY);
@@ -345,7 +340,7 @@ void loop() {
 
   if (micros() - start_us >= LOOP_US) {
     overrun_count++;
-    Serial.println("Loop overrun! Total overruns: " + String(overrun_count));
+    // Serial.println("Loop overrun! Total overruns: " + String(overrun_count));
     digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
     while(micros() - start_us > LOOP_US) {
       start_us += LOOP_US;
@@ -374,12 +369,12 @@ void loop() {
       controlCycle++;
       if(controlCycle > POS_UPDATE_CYCLES) controlCycle = 1;
 
-      if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
-        PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM/(float)(3)));
-      }
+      // if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
+      //   PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM/(float)(3)));
+      // }
 
-      if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
-      else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
+      // if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
+      // else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
 
       PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
       PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
