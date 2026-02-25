@@ -106,9 +106,10 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
         while(sending_pid):
             sleep(0.05)
 
+        # THE FIX: Read available bytes directly instead of looking for newlines
+        bytes_to_read = ser.in_waiting or 1
+        new_data = ser.read(bytes_to_read)
         
-        new_data = ser.readline()
-        # print(new_data)
         if not new_data:
             continue
         buffer += new_data
@@ -116,6 +117,7 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
         while len(buffer) >= 6:
             sync = struct.unpack_from("<H", buffer, 0)[0]
             if sync != 0xAA55:
+                # If sync fails, shift by 1 byte to realign
                 buffer = buffer[1:]
                 continue
 

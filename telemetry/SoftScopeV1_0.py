@@ -390,7 +390,6 @@ class TelemetryGUI(QtWidgets.QWidget):
         
 
     def update_plot(self):
-
         if self.paused or not self.selected_vars:
             return
 
@@ -399,32 +398,35 @@ class TelemetryGUI(QtWidgets.QWidget):
             buf = self.data_buffers[name]
            
             if buf:
-                k = max(-1000,-len(buf))
-                buf = list(buf)[k:]  # last 10k points max
-                times, values = zip(*buf)
-                # print("\nNext values\n")
-                # print(perf_counter())
-                # print("\n")
-                # print(times, values)
+                # Convert the deque directly to a numpy array and slice the last 1000 points
+                # This is significantly faster than list comprehensions and zipping
+                data = np.array(buf)[-1000:]
                 
-                # Apply per-channel scale
+                if len(data) == 0:
+                    continue
+                
+                # Slice columns into separate arrays
+                times = data[:, 0]
+                values = data[:, 1]
+
+                # Apply per-channel scale using fast numpy vectorization
                 try:
                     scale = float(self.channel_scales[name].text())
                 except ValueError:
                     scale = 1.0
-                scaled_values = [v * scale for v in values]
+                    
+                # This multiplies the entire array in C, rather than a Python loop
+                scaled_values = values * scale
 
                 if now is None:
                     now = times[-1]
                     
-                # window_start = now - self.time_window_ms
-                # mask = [t >= window_start for t in times]
-
-                self.curves[name].setData([t for t in times],
-                                          [v for v in values])
+                # Pass the numpy arrays directly to pyqtgraph
+                # We also fixed the bug where scaled_values wasn't being plotted
+                self.curves[name].setData(times, scaled_values)
 
         if now is not None:
-            self.plot_widget.setXRange(now - self.time_window_ms, now)
+            # Set the X-axis range to create the scrolling oscilloscope effect
             if self.just_resumed:
                 self.plot_widget.setXRange(now - self.time_window_ms, now)
                 self.just_resumed = False # Reset the flag
