@@ -42,12 +42,10 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define PEND_CS1 26
 #define PEND_CS2 25   // pick any free GPIO if you don't want 16
 
-#if CURRENT_ESP == ESP_GANTRY
 #define ZERO_BTN 37
 #define AUX_BTN 38        // Extra safety / aux button
 #define BLUE_LED 10       // "Armed" status LED
 #define RED_LED 5         // Out-of-bounds LED
-#endif
 
 #define TARGET_POSX 0
 #define TARGET_POSY 0
@@ -98,10 +96,8 @@ volatile bool buttonPressed = false;
 volatile unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 300;  // milliseconds
 
-#if CURRENT_ESP == ESP_GANTRY
 volatile bool auxButtonPressed = false;
 volatile bool zeroButtonState = false;   // false = not armed, true = armed
-#endif
 
 // Interrupt Service Routine (ISR)
 void IRAM_ATTR buttonISR() {
@@ -112,7 +108,6 @@ void IRAM_ATTR buttonISR() {
   }
 }
 
-#if CURRENT_ESP == ESP_GANTRY
 void IRAM_ATTR auxButtonISR() {
   unsigned long currentTime = millis();
   if (currentTime - lastDebounceTime > debounceDelay) {
@@ -120,7 +115,6 @@ void IRAM_ATTR auxButtonISR() {
     lastDebounceTime = currentTime;
   }
 }
-#endif
 
 struct stateErrs {
   int positionErrorX;
@@ -145,14 +139,11 @@ void handleButtonPress() {
   PEND1.zero();
   PEND2.zero();
 
-#if CURRENT_ESP == ESP_GANTRY
-  // Toggle armed state and update BLUE status LED
-  zeroButtonState = !zeroButtonState;
-  digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
-#endif
+// Toggle armed state and update BLUE status LED
+zeroButtonState = !zeroButtonState;
+digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
 }
 
-#if CURRENT_ESP == ESP_GANTRY
 void handleAuxButtonPress() {
   //setPWMPIDX.reset();
   //setPWMPIDY.reset();
@@ -163,7 +154,6 @@ void handleAuxButtonPress() {
   PEND1.zero();
   PEND2.zero();
 }
-#endif
 
 // Telemetry Globals
 SemaphoreHandle_t pidValsMutex;
@@ -401,12 +391,10 @@ void loop() {
     }
   }
 
-#if CURRENT_ESP == ESP_GANTRY
   if (auxButtonPressed) {
     auxButtonPressed = false;
     if (digitalRead(AUX_BTN) == LOW) {
       handleAuxButtonPress();
     }
   }
-#endif 
 }
