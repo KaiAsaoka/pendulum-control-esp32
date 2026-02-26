@@ -26,6 +26,16 @@ const float dt = LOOP_US * 1e-6f; // Convert microseconds to seconds for PID cal
 constexpr uint32_t POS_UPDATE_US = 1000;               // 1 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
+// LPF Coefficients (untuned as of Feb 26)
+constexpr float ANGLE_CUTOFF_HZ = 100.0f;  // Cut-off frequency for angle measurements 
+constexpr float POS_CUTOFF_HZ = 100.0f;    // Cut-off frequency for position measurements
+
+// Calculate alpha 
+constexpr float ANGLE_FILTER_ALPHA = (2.0f * PI * ANGLE_CUTOFF_HZ * dt) / 
+                                      (2.0f * PI * ANGLE_CUTOFF_HZ * dt + 1.0f);
+constexpr float POS_FILTER_ALPHA = (2.0f * PI * POS_CUTOFF_HZ * dt) / 
+                                    (2.0f * PI * POS_CUTOFF_HZ * dt + 1.0f);
+
 // Choose which ESP to compile for
 #define CURRENT_ESP ESP_GANTRY // Change this to ESP_PENDULUM when uploading to the pendulum ESP
 
@@ -140,6 +150,7 @@ void handleButtonPress() {
   setAnglePIDY.reset();
   stateErrors.positionErrorX = 0;
   stateErrors.positionErrorY = 0;
+  filteredVariables = {0, 0, 0, 0};
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
   PEND1.zero();
@@ -185,6 +196,23 @@ struct stateVars {
   int angleX;
   int angleY;
 };
+
+
+
+struct filteredState {
+  float angleX;
+  float angleY;
+  float posX;
+  float posY;
+};
+
+filteredState filteredVariables = {0, 0, 0, 0};
+
+// Filter coefficients (untuned as of Feb 26
+// alpha = dt / (dt +tau), where tau is the filter time constant. Larger tau means more smoothing but more lag 
+// alpha determines time costant, 
+constexpr float ANGLE_FILTER_ALPHA = 0.3f;  // Angle filter alpha
+constexpr float POS_FILTER_ALPHA = 0.5f;   // Position filter alpha
 
 stateVars stateVariables;
 motorPWMs PWMOutputs;
@@ -295,8 +323,6 @@ void setup() {
   delay(1000);
   Serial.flush();
 
-  Serial.flush();
-
   xTaskCreatePinnedToCore(
     telemLoop,
     "Telemetry Loop",
@@ -308,11 +334,28 @@ void setup() {
   );
 }
 
+inline float lowPassFilter(float raw, float prev, float alpha) {
+  return alpha * raw + (1.0f - alpha) * prev;
+}
+
 void readState() { //140us empirically with scope at 1MHz clock speed
-  stateVariables.angleX = -PEND1.getTotalAngle();
-  stateVariables.angleY =  PEND2.getTotalAngle();
-  stateVariables.posX = move.returnPosX();
-  stateVariables.posY = move.returnPosY();
+  // Read raw values
+  int rawAngleX = -PEND1.getTotalAngle();
+  int rawAngleY = PEND2.getTotalAngle();
+  int rawPosX = move.returnPosX();
+  int rawPosY = move.returnPosY();
+  
+  // Apply low pass filter
+  filteredVariables.angleX = lowPassFilter(rawAngleX, filteredVariables.angleX, ANGLE_FILTER_ALPHA);
+  filteredVariables.angleY = lowPassFilter(rawAngleY, filteredVariables.angleY, ANGLE_FILTER_ALPHA);
+  filteredVariables.posX = lowPassFilter(rawPosX, filteredVariables.posX, POS_FILTER_ALPHA);
+  filteredVariables.posY = lowPassFilter(rawPosY, filteredVariables.posY, POS_FILTER_ALPHA);
+  
+  // Store filtered values in state variables for control loop
+  stateVariables.angleX = (int)filteredVariables.angleX;
+  stateVariables.angleY = (int)filteredVariables.angleY;
+  stateVariables.posX = (int)filteredVariables.posX;
+  stateVariables.posY = (int)filteredVariables.posY;
 }
 
 void runControl(float dt, int controlCycle) {
