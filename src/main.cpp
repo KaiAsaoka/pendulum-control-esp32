@@ -10,7 +10,7 @@
 #include <freertos/semphr.h>
 #include <array>
 
-#define CONTROL_LOOP_PIN 15 //control pin
+#define CONTROL_LOOP_PIN 15 
 
 // Define ESP identifiers
 #define ESP_GANTRY 1
