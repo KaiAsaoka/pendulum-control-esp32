@@ -9,8 +9,8 @@ int Encoder::firstReading = true;  // Initialize to 0
 int CLOCK_SPEED = 1000000; // 1 MHz; Maximum per AS5147 datasheet is 10 MHz (100ns) but this was not shown to work
 
 
-Encoder::Encoder(int miso, int clk, int cs, int mosi)
-    : miso(miso), clk(clk), cs(cs), mosi(mosi), prevAngle(0), rotationCount(0), zeroAngle(-1)
+Encoder::Encoder(int miso, int clk, int cs, int mosi, int numBits=14)
+    : miso(miso), clk(clk), cs(cs), mosi(mosi), mask(pow(2, numBits) - 1), prevAngle(0), rotationCount(0), zeroAngle(-1)
 {}
 
 void Encoder::begin() {  
@@ -43,7 +43,7 @@ int Encoder::readAngle() {
   digitalWrite(cs, HIGH);
   delayMicroseconds(1);  // Small delay between reads
 
-  int currentAngle = int(response & 0x3FFF);
+  int currentAngle = int(response & mask); // E.g., mask = 0011111111111100 -> Floor last 4 bits
   
   // Detect rollover
   if (prevAngle > 0x3FFF * 0.75 && currentAngle < 0x3FFF * 0.25 && zeroAngle != -1) {

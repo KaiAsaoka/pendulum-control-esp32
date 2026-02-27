@@ -61,8 +61,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI);
-Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI);
+Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 12); // Floor last 4 bits due to noise
+Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 12);
 
 // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
 pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
