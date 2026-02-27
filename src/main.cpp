@@ -12,7 +12,7 @@
 
 #define CONTROL_LOOP_PIN 15 
 
-// Define ESP identifiers
+// Define ESP identifiers for conditional compilation
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
