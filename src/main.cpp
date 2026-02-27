@@ -44,12 +44,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define RED_LED 5         // Out-of-bounds LED
 
 // Analog potentiometer tuning pins
-#define ANGLE_X_OFFSET_PIN 0 // To fine-tune pendulum angle to zero (X)
-#define ANGLE_Y_OFFSET_PIN 4 // To fine-tune pendulum angle to zero (Y)
 #define MOVE_TARGET_POSX_PIN 2 // Move target position with joystick (X)
 #define MOVE_TARGET_POSY_PIN 15 // Move target position with joystick (Y)
-#define ANGLE_X_OFFSET_SCALE_FACTOR 1 // Tune sensitivity of balance point biasers (X)
-#define ANGLE_Y_OFFSET_SCALE_FACTOR 1 // Tune sensitivity of balance point biasers (Y)
 #define MOVE_TARGET_POSX_SCALE_FACTOR 0.001 // Tune sensitivity of joystick for target position (X)
 #define MOVE_TARGET_POSY_SCALE_FACTOR 0.001 // Tune sensitivity of joystick for target position (Y)
 #define JOYSTICK_DEAD_ZONE 50 // To prevent drift when joystick is near neutral
@@ -361,8 +357,6 @@ void loop() {
   }
   start_us += LOOP_US;
 
-  stateVariables.angleX += ANGLE_X_OFFSET_SCALE_FACTOR*(analogRead(ANGLE_X_OFFSET_PIN) - 512); // RC: TODO: find proper scale factor
-  stateVariables.angleY += ANGLE_Y_OFFSET_SCALE_FACTOR*(analogRead(ANGLE_Y_OFFSET_PIN) - 512); // RC: ""
   updateTargetPos();
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
