@@ -64,13 +64,14 @@ Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI);
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI);
 
-pidParams setAngleXParams = {0, 0, 0, 0, 0};
+// Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
+pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {45, 50, 0.16, 0, 125000000}
-pidParams setAngleYParams = {0, 0, 0, 0, 0};
+pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {15, 150, 0.5, 0, 55555555}
-pidParams setPWMXParams = {0, 0, 0, 0, 0};
+pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {0, 0, 0, 750, 1000}
-pidParams setPWMYParams = {0, 0, 0, 0, 0};
+pidParams setPWMYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {0, 0, 0, 750, 1000}
 
 PID setPWMPIDX(setPWMXParams);
