@@ -4,6 +4,7 @@ import pyqtgraph as pg
 import csv
 import time
 import plotly.express as px
+import numpy as np
 
 #from time import perf_counter
 
