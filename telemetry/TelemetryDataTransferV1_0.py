@@ -67,29 +67,37 @@ def receive_pid():
     ser.write(b"SENDPID")
     print("Request PID")
 
-    expected_bytes = 3 + 20 * 4  # header + len + 20 ints
+    expected_bytes = 3 + 20 * 4  # 3 bytes header + 80 bytes of ints = 83 bytes
+    buffer = b""
+
     while True:
-        # buffer = b""
-
-        # keep reading until we get the full packet
-        buffer = ser.readline()
-        # while len(buffer) < expected_bytes:
-        #     chunk = ser.read(expected_bytes - len(buffer))
-        #     if chunk:
-        #         buffer += chunk
-        #     else:
-        #         sleep(0.01)
-
-        print(buffer)
-        # validate header
-        if buffer[0] != 0xcd or buffer[1] != 0xac:
-            # print("Invalid header:", buffer[:4])
-            sleep(0.05)
-            continue
+        # Read whatever is available in the serial buffer
+        bytes_to_read = ser.in_waiting or 1
+        chunk = ser.read(bytes_to_read)
+        
+        if chunk:
+            buffer += chunk
         else:
-            offset = 3
-            pid_vals = struct.unpack("<20i", buffer[offset:offset + 80])
-            return list(pid_vals)
+            sleep(0.01)
+
+        # Process the buffer if we have at least enough bytes for a header
+        while len(buffer) >= 2:
+            # Validate header
+            if buffer[0] != 0xcd or buffer[1] != 0xac:
+                # If invalid, shift by 1 byte to realign and search again
+                buffer = buffer[1:]
+                continue
+            
+            # Header is valid! Now check if we have the full 83-byte packet
+            if len(buffer) >= expected_bytes:
+                offset = 3
+                # Unpack exactly 80 bytes (20 integers)
+                pid_vals = struct.unpack("<20i", buffer[offset:offset + 80])
+                return list(pid_vals)
+            else:
+                # We have the header but not enough data yet. 
+                # Break the inner loop to read more chunks from serial.
+                break
 
 # ----------------- RECEIVE TELEMETRY -----------------
 def receive_telemetry(num_vars, variable_names, data_buffers):
@@ -106,9 +114,10 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
         while(sending_pid):
             sleep(0.05)
 
+        # THE FIX: Read available bytes directly instead of looking for newlines
+        bytes_to_read = ser.in_waiting or 1
+        new_data = ser.read(bytes_to_read)
         
-        new_data = ser.readline()
-        # print(new_data)
         if not new_data:
             continue
         buffer += new_data
@@ -116,6 +125,7 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
         while len(buffer) >= 6:
             sync = struct.unpack_from("<H", buffer, 0)[0]
             if sync != 0xAA55:
+                # If sync fails, shift by 1 byte to realign
                 buffer = buffer[1:]
                 continue
 
