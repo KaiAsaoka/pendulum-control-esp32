@@ -67,7 +67,8 @@ def receive_pid():
     ser.write(b"SENDPID")
     print("Request PID")
 
-    expected_bytes = 3 + 20 * 4  # 3 bytes header + 80 bytes of ints = 83 bytes
+    # now expect 8 values per axis (4 axes) == 32 ints
+    expected_bytes = 3 + 32 * 4  # 3 bytes header + 128 bytes of ints = 131 bytes
     buffer = b""
 
     while True:
@@ -91,8 +92,8 @@ def receive_pid():
             # Header is valid! Now check if we have the full 83-byte packet
             if len(buffer) >= expected_bytes:
                 offset = 3
-                # Unpack exactly 80 bytes (20 integers)
-                pid_vals = struct.unpack("<20i", buffer[offset:offset + 80])
+                # Unpack exactly 128 bytes (32 integers)
+                pid_vals = struct.unpack("<32i", buffer[offset:offset + 128])
                 return list(pid_vals)
             else:
                 # We have the header but not enough data yet. 
@@ -160,7 +161,7 @@ def send_pid(pid_vals):
     sending_pid = True
 
     axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-    params = ["P", "I", "D", "LPF", "Windup"]
+    params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
     ordered_vals = [int(pid_vals[f"{axis}_{param}"]) for axis in axes for param in params]
 
     ser.write(b"PIDRECV")
@@ -178,7 +179,7 @@ def send_pid(pid_vals):
             print("Unexpected response:", resp)
             continue
         
-        payload = struct.pack("<20i", *ordered_vals)
+        payload = struct.pack("<32i", *ordered_vals)
         ser.write(payload)
         # print(payload)
         print("PID values sent!")

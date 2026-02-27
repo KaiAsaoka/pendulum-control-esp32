@@ -141,7 +141,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         main_split.addWidget(self.pid_group)
 
         pid_axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-        pid_params = ["P", "I", "D", "LPF", "Windup"]
+        pid_params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
 
         for axis in pid_axes:
             axis_group = QtWidgets.QGroupBox(axis + " PID")
@@ -316,7 +316,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
                 # --- Write PID values (if available) ---
                 axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-                params = ["P", "I", "D", "LPF", "Windup"]
+                params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
 
                 writer.writerow(["PID Parameters"])
                 writer.writerow(["Axis"] + params)
@@ -448,13 +448,13 @@ if __name__ == "__main__":
     print("Started Telemetry!")
 
     axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-    params = ["P", "I", "D", "LPF", "Windup"]
+    params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
 
     ## This part probably don't need but I can't test right now 
     pid_dict_init = {}
     for i, axis in enumerate(axes):
         for j, param in enumerate(params):
-            pid_dict_init[f"{axis}_{param}"] = pid_gain_vals[i*5 + j]
+            pid_dict_init[f"{axis}_{param}"] = pid_gain_vals[i*8 + j]
     
     app = QtWidgets.QApplication([])
     gui = TelemetryGUI(variable_names, data_buffers)

@@ -13,6 +13,10 @@ Encoder::Encoder(int miso, int clk, int cs, int mosi, int numBits)
     : miso(miso), clk(clk), cs(cs), mosi(mosi), mask(pow(2, numBits) - 1), prevAngle(0), rotationCount(0), zeroAngle(-1)
 {}
 
+Encoder::Encoder(int miso, int clk, int cs, int mosi)
+    : Encoder(miso, clk, cs, mosi, 14) // Default to 14 bits for AS5147
+{}
+
 void Encoder::begin() {  
   // Configure encoder
   pinMode(cs, OUTPUT);

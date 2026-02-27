@@ -34,13 +34,13 @@
     }
 
     void PL_Telemetry_ESP32::sendPID() {
-        uint8_t buffer[128 + 1];
+        uint8_t buffer[132];
         size_t offset = 0;
         size_t offsetIncrement = sizeof(int);
 
         buffer[offset++] = 0xCD;
         buffer[offset++] = 0xAC;
-        buffer[offset++] = 3 + 20 * sizeof(int);
+        buffer[offset++] = 3 + 32 * sizeof(int);
 
         for (pidParams* paramSet : _pidParams) {
             memcpy(buffer + offset, &paramSet->p, sizeof(int));
@@ -67,7 +67,7 @@
     }
 
     void PL_Telemetry_ESP32::readGainVals() {
-        size_t expectedBytes = 20 * sizeof(int);
+        size_t expectedBytes = 32 * sizeof(int);
         uint8_t buf[expectedBytes + 1];
         size_t bytesRead = 0;
 
