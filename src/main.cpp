@@ -185,10 +185,11 @@ const char* telemVars[] = {
   "carriageXPosition", "pendulumXAngle",
   "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM",
   "pendulumYAngle",
-  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut"
+  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut",
+  "rawAngleX", "filteredAngleX", "rawAngleY", "filteredAngleY"
 };
 
-float telemVals[14];
+float telemVals[18];
 
 struct stateVars {
   int posX;
@@ -197,22 +198,30 @@ struct stateVars {
   int angleY;
 };
 
-
-
-struct filteredState {
-  float angleX;
-  float angleY;
-  float posX;
-  float posY;
+struct rawState {
+  int posX;
+  int posY;
+  int angleX;
+  int angleY;
 };
 
+struct filteredState {
+  int angleX;
+  int angleY;
+  int posX;
+  int posY;
+};
+
+rawState rawVariables = {0, 0, 0, 0};
 filteredState filteredVariables = {0, 0, 0, 0};
 
-// Filter coefficients (untuned as of Feb 26
-// alpha = dt / (dt +tau), where tau is the filter time constant. Larger tau means more smoothing but more lag 
-// alpha determines time costant, 
-constexpr float ANGLE_FILTER_ALPHA = 0.3f;  // Angle filter alpha
-constexpr float POS_FILTER_ALPHA = 0.5f;   // Position filter alpha
+// Low-pass filter constants using cutoff frequency method
+constexpr float ANGLE_CUTOFF_HZ = 40.0f;    // Hz - adjust based on desired filtering
+constexpr float POS_CUTOFF_HZ = 80.0f;      // Hz - adjust based on desired filtering
+constexpr float ANGLE_FILTER_ALPHA = (2.0f * M_PI * ANGLE_CUTOFF_HZ * dt) / 
+                                      (2.0f * M_PI * ANGLE_CUTOFF_HZ * dt + 1.0f);
+constexpr float POS_FILTER_ALPHA = (2.0f * M_PI * POS_CUTOFF_HZ * dt) / 
+                                    (2.0f * M_PI * POS_CUTOFF_HZ * dt + 1.0f);
 
 stateVars stateVariables;
 motorPWMs PWMOutputs;
@@ -255,6 +264,10 @@ void updateTelemetry() {
   telemVals[11] = setAngleXOutputs.iOut;
   telemVals[12] = setAngleXOutputs.dOut;
   telemVals[13] = setAngleXOutputs.output;
+  telemVals[14] = rawVariables.angleX;
+  telemVals[15] = filteredVariables.angleX;
+  telemVals[16] = rawVariables.angleY;
+  telemVals[17] = filteredVariables.angleY;
 }
 
 void telemLoop(void *pvParameters){
@@ -339,23 +352,23 @@ inline float lowPassFilter(float raw, float prev, float alpha) {
 }
 
 void readState() { //140us empirically with scope at 1MHz clock speed
-  // Read raw values
-  int rawAngleX = -PEND1.getTotalAngle();
-  int rawAngleY = PEND2.getTotalAngle();
-  int rawPosX = move.returnPosX();
-  int rawPosY = move.returnPosY();
+  // Read raw sensor values
+  rawVariables.angleX = -PEND1.getTotalAngle();
+  rawVariables.angleY = PEND2.getTotalAngle();
+  rawVariables.posX = move.returnPosX();
+  rawVariables.posY = move.returnPosY();
   
-  // Apply low pass filter
-  filteredVariables.angleX = lowPassFilter(rawAngleX, filteredVariables.angleX, ANGLE_FILTER_ALPHA);
-  filteredVariables.angleY = lowPassFilter(rawAngleY, filteredVariables.angleY, ANGLE_FILTER_ALPHA);
-  filteredVariables.posX = lowPassFilter(rawPosX, filteredVariables.posX, POS_FILTER_ALPHA);
-  filteredVariables.posY = lowPassFilter(rawPosY, filteredVariables.posY, POS_FILTER_ALPHA);
+  // Apply low-pass filters
+  filteredVariables.angleX = lowPassFilter(rawVariables.angleX, filteredVariables.angleX, ANGLE_FILTER_ALPHA);
+  filteredVariables.angleY = lowPassFilter(rawVariables.angleY, filteredVariables.angleY, ANGLE_FILTER_ALPHA);
+  filteredVariables.posX = lowPassFilter(rawVariables.posX, filteredVariables.posX, POS_FILTER_ALPHA);
+  filteredVariables.posY = lowPassFilter(rawVariables.posY, filteredVariables.posY, POS_FILTER_ALPHA);
   
-  // Store filtered values in state variables for control loop
-  stateVariables.angleX = (int)filteredVariables.angleX;
-  stateVariables.angleY = (int)filteredVariables.angleY;
-  stateVariables.posX = (int)filteredVariables.posX;
-  stateVariables.posY = (int)filteredVariables.posY;
+  // Store filtered values in state for control
+  stateVariables.angleX = filteredVariables.angleX;
+  stateVariables.angleY = filteredVariables.angleY;
+  stateVariables.posX = filteredVariables.posX;
+  stateVariables.posY = filteredVariables.posY;
 }
 
 void runControl(float dt, int controlCycle) {

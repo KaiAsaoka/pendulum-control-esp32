@@ -34,6 +34,14 @@ VAR_COLORS = {
     "xPWMd" : "Magenta",
     "xPWMout": "Orange",
     "xPWM": "Yellow",
+    "rawXAngle": "Teal",
+    "rawXPosition": "White",
+    "rawYAngle": "Red",
+    "rawYPosition": "Blue",
+    "filteredXAngle": "Green",
+    "filteredYAngle": "Cyan",
+    "filteredXPosition": "Magenta",
+    "filteredYPosition": "Orange",
 }
 
 
