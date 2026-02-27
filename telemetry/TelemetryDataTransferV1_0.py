@@ -123,12 +123,20 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
         buffer += new_data
 
         while len(buffer) >= 6:
-            sync = struct.unpack_from("<H", buffer, 0)[0]
-            if sync != 0xAA55:
-                # If sync fails, shift by 1 byte to realign
-                buffer = buffer[1:]
-                continue
+            # FAST SYNC SEARCH: 0xAA55 is little-endian b'\x55\xaa'
+            sync_idx = buffer.find(b'\x55\xaa')
+            
+            if sync_idx == -1:
+                # Sync word not found. Keep the last byte just in case 
+                # it's the first half of the sync word (0x55)
+                buffer = buffer[-1:]
+                break
+            elif sync_idx > 0:
+                # Throw away garbage bytes before the sync word
+                buffer = buffer[sync_idx:]
+                continue # Re-evaluate length
 
+            # At this point, we are guaranteed buffer starts with 0xAA55
             if len(buffer) < 6:
                 break
 

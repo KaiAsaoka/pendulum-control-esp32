@@ -399,9 +399,10 @@ class TelemetryGUI(QtWidgets.QWidget):
             buf = self.data_buffers[name]
            
             if buf:
-                # Convert the deque directly to a numpy array and slice the last 1000 points
-                # This is significantly faster than list comprehensions and zipping
-                data = np.array(buf)[-1000:]
+                # FIX: Slice the buffer as a list FIRST, then convert to NumPy.
+                # This drastically reduces CPU load and frees up the serial thread.
+                recent_data = list(buf)[-1000:]
+                data = np.array(recent_data)
                 
                 if len(data) == 0:
                     continue
@@ -409,7 +410,7 @@ class TelemetryGUI(QtWidgets.QWidget):
                 # Slice columns into separate arrays
                 times = data[:, 0]
                 values = data[:, 1]
-
+                
                 # Apply per-channel scale using fast numpy vectorization
                 try:
                     scale = float(self.channel_scales[name].text())
