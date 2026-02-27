@@ -3,7 +3,7 @@
 
 class Encoder {
 public:
-    Encoder(int miso, int clk, int cs, int mosi, int numBits=14);
+    Encoder(int miso, int clk, int cs, int mosi, int numBits);
     void begin();
     int readAngle();       // Returns current angle (0-360) and updates rotation count
     long getTotalAngle();   // Returns total angle as (rotationCount * 360 + current angle)
