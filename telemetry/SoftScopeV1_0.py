@@ -150,13 +150,20 @@ class TelemetryGUI(QtWidgets.QWidget):
             
             for i, param in enumerate(pid_params):
                 label = QtWidgets.QLabel(param)
+
+                #RC: Shrunk font size/label width to fit all 8 params
+                font = label.font()
+                font.setPointSize(8)
+                label.setFont(font)
+                label.setFixedWidth(15)               
                 line_edit = QtWidgets.QLineEdit("0.0")
-                line_edit.setFixedWidth(50)
+                line_edit.setFixedWidth(40)
+
                 line_edit.textEdited.connect(self.new_pid_val)
                 self.pid_inputs[f"{axis}_{param}"] = line_edit
 
-                row = 0 if i < 3 else 1
-                col = (i % 3) * 2
+                row = i // 4 # integer division (round down)
+                col = (i % 4) * 2  
 
                 axis_layout.addWidget(label, row, col)
                 axis_layout.addWidget(line_edit, row, col + 1)

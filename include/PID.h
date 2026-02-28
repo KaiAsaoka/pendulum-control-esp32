@@ -49,6 +49,7 @@ private:
     float p_term = 0.0f;
     float i_term = 0.0f;
     float d_term = 0.0f;
+    float sum = 0.0f;
 };
 
 #endif // PID_H

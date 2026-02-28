@@ -39,9 +39,9 @@ pidOutputs PID::calculate(float error, float dt) {
     float sum_new = p_term + i_term + d_term;
 
     // Low-pass filter output
-    float sum = lowPassFilter(alpha_o, sum, sum_new);
+    sum = lowPassFilter(alpha_o, sum, sum_new);
 
-    pidOutputs outputs = {p_term, i_term, d_term, sum};
+    pidOutputs outputs = {p_term, i_term, d_term, (int)sum};
 
     return outputs;
 }

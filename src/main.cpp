@@ -61,8 +61,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI); // Floor last 4 bits due to noise
-Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI);
+Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends to spike between 0 when angle > 0 and -2*numBitIgnore when angle < 0 as expected 
+Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
 // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
 pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -328,7 +328,7 @@ void runControl(float dt, int controlCycle) {
 // Gantry-specific loop
 void loop() {
   static uint32_t start_us = micros(); //RC: Initialize start time ONCE only
-  Serial.println(micros() - start_us);
+
   if (micros() - start_us >= LOOP_US) {
     overrun_count++;
     // Serial.println("Loop overrun! Total overruns: " + String(overrun_count));

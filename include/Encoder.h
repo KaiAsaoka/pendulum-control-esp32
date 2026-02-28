@@ -3,7 +3,7 @@
 
 class Encoder {
 public:
-    Encoder(int miso, int clk, int cs, int mosi, int numBits);
+    Encoder(int miso, int clk, int cs, int mosi, int numBitIgnore);
     Encoder(int miso, int clk, int cs, int mosi); // Overloaded constructor with default numBits
     void begin();
     int readAngle();       // Returns current angle (0-360) and updates rotation count
