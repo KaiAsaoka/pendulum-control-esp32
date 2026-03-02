@@ -65,14 +65,13 @@ Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
 // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
-pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
+pidParams setAngleXParams = {25, 2, 15, 0, 0, 985, 0, 50000000};
 // {45, 50, 0.16, 0, 125000000}
 pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {15, 150, 0.5, 0, 55555555}
-pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
+pidParams setPWMXParams = {600, 0, 5, 0, 0, 800, 0, 0};
 // {0, 0, 0, 750, 1000}
 pidParams setPWMYParams = {0, 0, 0, 0, 0, 0, 0, 0};
-// {0, 0, 0, 750, 1000}
 
 PID setPWMPIDX(setPWMXParams);
 PID setPWMPIDY(setPWMYParams);
