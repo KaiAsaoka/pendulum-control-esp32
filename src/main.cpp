@@ -298,6 +298,32 @@ void setup() {
   );
 }
 
+// Custom signum function where sgn(0) = 1 instead of 0
+int sgn(int val) {
+  return (0 <= val) - (val < 0);
+}
+
+// Ensure pendulum is at rest against one side of the mount beforehand
+void swingUp() {
+  int REPOSITION_SPEED = 12; // RC: Consider moving these to global consts? Their scope is local to this function
+  int SWINGUP_SPEED_X = 1;   // RC: but it may be better to keep all constant definitions in one place
+  int SWINGUP_SPEED_Y = 1;
+  int SWINGUP_TIME_MS = 1000; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+
+  int x_dir = sgn(stateVariables.angleX);
+  int y_dir = sgn(stateVariables.angleY);
+
+  while (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) {
+    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir);
+  }
+  delay(2000); // Allow time for pendulum to settle
+
+  int start_swing_up_time = millis();
+  while (millis() - start_swing_up_time < SWINGUP_TIME_MS) {
+    move.moveXY(SWINGUP_SPEED_X * -x_dir, SWINGUP_SPEED_Y * -y_dir); // Note opposite direction!
+  }
+}
+
 void readState() { //140us empirically with scope at 1MHz clock speed
   stateVariables.angleX = -PEND1.getTotalAngle();
   stateVariables.angleY =  PEND2.getTotalAngle();
@@ -369,8 +395,8 @@ void loop() {
       PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
       PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
 
-      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 &&
-          abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
+      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) { //RC: Removed angle dead zones
+        // && abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
         move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
         digitalWrite(RED_LED, LOW);
       } else {
