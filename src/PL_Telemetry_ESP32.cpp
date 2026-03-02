@@ -34,13 +34,13 @@
     }
 
     void PL_Telemetry_ESP32::sendPID() {
-        uint8_t buffer[128 + 1];
+        uint8_t buffer[132];
         size_t offset = 0;
         size_t offsetIncrement = sizeof(int);
 
         buffer[offset++] = 0xCD;
         buffer[offset++] = 0xAC;
-        buffer[offset++] = 3 + 20 * sizeof(int);
+        buffer[offset++] = 3 + 32 * sizeof(int);
 
         for (pidParams* paramSet : _pidParams) {
             memcpy(buffer + offset, &paramSet->p, sizeof(int));
@@ -49,7 +49,13 @@
             offset += sizeof(int);
             memcpy(buffer + offset, &paramSet->d, sizeof(int));
             offset += sizeof(int);
-            memcpy(buffer + offset, &paramSet->lpf, sizeof(int));
+            memcpy(buffer + offset, &paramSet->alpha_p, sizeof(int));
+            offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet->alpha_i, sizeof(int));
+            offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet->alpha_d, sizeof(int));
+            offset += sizeof(int);
+            memcpy(buffer + offset, &paramSet->alpha_o, sizeof(int));
             offset += sizeof(int);
             memcpy(buffer + offset, &paramSet->iCutoff, sizeof(int));
             offset += sizeof(int);
@@ -61,7 +67,7 @@
     }
 
     void PL_Telemetry_ESP32::readGainVals() {
-        size_t expectedBytes = 20 * sizeof(int);
+        size_t expectedBytes = 32 * sizeof(int);
         uint8_t buf[expectedBytes + 1];
         size_t bytesRead = 0;
 
@@ -80,7 +86,13 @@
             offset += sizeof(int);
             memcpy(&paramSet->d, buf+offset, sizeof(int));
             offset += sizeof(int);
-            memcpy(&paramSet->lpf, buf+offset, sizeof(int));
+            memcpy(&paramSet->alpha_p, buf+offset, sizeof(int));
+            offset += sizeof(int);
+            memcpy(&paramSet->alpha_i, buf+offset, sizeof(int));
+            offset += sizeof(int);
+            memcpy(&paramSet->alpha_d, buf+offset, sizeof(int));
+            offset += sizeof(int);
+            memcpy(&paramSet->alpha_o, buf+offset, sizeof(int));
             offset += sizeof(int);
             memcpy(&paramSet->iCutoff, buf+offset, sizeof(int));
             offset += sizeof(int);

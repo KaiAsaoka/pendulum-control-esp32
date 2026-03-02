@@ -42,12 +42,10 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define PEND_CS1 26
 #define PEND_CS2 25   // pick any free GPIO if you don't want 16
 
-#if CURRENT_ESP == ESP_GANTRY
 #define ZERO_BTN 37
 #define AUX_BTN 38        // Extra safety / aux button
 #define BLUE_LED 10       // "Armed" status LED
 #define RED_LED 5         // Out-of-bounds LED
-#endif
 
 #define TARGET_POSX 0
 #define TARGET_POSY 0
@@ -63,16 +61,17 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI);
-Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI);
+Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends to spike between 0 when angle > 0 and -2*numBitIgnore when angle < 0 as expected 
+Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
-pidParams setAngleXParams = {0, 0, 0, 0, 0};
+// Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
+pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {45, 50, 0.16, 0, 125000000}
-pidParams setAngleYParams = {0, 0, 0, 0, 0};
+pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {15, 150, 0.5, 0, 55555555}
-pidParams setPWMXParams = {0, 0, 0, 0, 0};
+pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {0, 0, 0, 750, 1000}
-pidParams setPWMYParams = {0, 0, 0, 0, 0};
+pidParams setPWMYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {0, 0, 0, 750, 1000}
 
 PID setPWMPIDX(setPWMXParams);
@@ -98,10 +97,8 @@ volatile bool buttonPressed = false;
 volatile unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 300;  // milliseconds
 
-#if CURRENT_ESP == ESP_GANTRY
 volatile bool auxButtonPressed = false;
 volatile bool zeroButtonState = false;   // false = not armed, true = armed
-#endif
 
 // Interrupt Service Routine (ISR)
 void IRAM_ATTR buttonISR() {
@@ -112,7 +109,6 @@ void IRAM_ATTR buttonISR() {
   }
 }
 
-#if CURRENT_ESP == ESP_GANTRY
 void IRAM_ATTR auxButtonISR() {
   unsigned long currentTime = millis();
   if (currentTime - lastDebounceTime > debounceDelay) {
@@ -120,7 +116,6 @@ void IRAM_ATTR auxButtonISR() {
     lastDebounceTime = currentTime;
   }
 }
-#endif
 
 struct stateErrs {
   int positionErrorX;
@@ -145,14 +140,11 @@ void handleButtonPress() {
   PEND1.zero();
   PEND2.zero();
 
-#if CURRENT_ESP == ESP_GANTRY
-  // Toggle armed state and update BLUE status LED
-  zeroButtonState = !zeroButtonState;
-  digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
-#endif
+// Toggle armed state and update BLUE status LED
+zeroButtonState = !zeroButtonState;
+digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
 }
 
-#if CURRENT_ESP == ESP_GANTRY
 void handleAuxButtonPress() {
   //setPWMPIDX.reset();
   //setPWMPIDY.reset();
@@ -163,7 +155,6 @@ void handleAuxButtonPress() {
   PEND1.zero();
   PEND2.zero();
 }
-#endif
 
 // Telemetry Globals
 SemaphoreHandle_t pidValsMutex;
@@ -401,12 +392,10 @@ void loop() {
     }
   }
 
-#if CURRENT_ESP == ESP_GANTRY
   if (auxButtonPressed) {
     auxButtonPressed = false;
     if (digitalRead(AUX_BTN) == LOW) {
       handleAuxButtonPress();
     }
   }
-#endif 
 }

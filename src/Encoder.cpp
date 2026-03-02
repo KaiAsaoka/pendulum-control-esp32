@@ -8,13 +8,18 @@ int Encoder::firstReading = true;  // Initialize to 0
 
 int CLOCK_SPEED = 1000000; // 1 MHz; Maximum per AS5147 datasheet is 10 MHz (100ns) but this was not shown to work
 
+// RC : removes the trailing bits from mask E.g., numBitIgnore = 2 -> mask = 0011111111111100 ignores the last 2 bits
+Encoder::Encoder(int miso, int clk, int cs, int mosi, int numBitIgnore)
+    : miso(miso), clk(clk), cs(cs), mosi(mosi), mask(0x3FFF - (pow(2, numBitIgnore)-1)), prevAngle(0), rotationCount(0), zeroAngle(-1)
+{}
 
 Encoder::Encoder(int miso, int clk, int cs, int mosi)
-    : miso(miso), clk(clk), cs(cs), mosi(mosi), prevAngle(0), rotationCount(0), zeroAngle(-1)
+    : Encoder(miso, clk, cs, mosi, 0) // Default to using all 14 bits for AS5147
 {}
 
 void Encoder::begin() {  
   // Configure encoder
+  Serial.println(mask, HEX);
   pinMode(cs, OUTPUT);
   digitalWrite(cs, HIGH);  // Deselect encoder by default
 
@@ -43,7 +48,7 @@ int Encoder::readAngle() {
   digitalWrite(cs, HIGH);
   delayMicroseconds(1);  // Small delay between reads
 
-  int currentAngle = int(response & 0x3FFF);
+  int currentAngle = int(response & mask); // E.g., mask = 0011111111111100 -> Floor last 4 bits
   
   // Detect rollover
   if (prevAngle > 0x3FFF * 0.75 && currentAngle < 0x3FFF * 0.25 && zeroAngle != -1) {

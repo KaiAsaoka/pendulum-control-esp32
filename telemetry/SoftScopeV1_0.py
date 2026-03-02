@@ -8,7 +8,6 @@ import csv
 import time
 import plotly.express as px
 import numpy as np
-import itertools
 
 #from time import perf_counter
 
@@ -145,7 +144,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         main_split.addWidget(self.pid_group)
 
         pid_axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-        pid_params = ["P", "I", "D", "LPF", "Windup"]
+        pid_params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
 
         for axis in pid_axes:
             axis_group = QtWidgets.QGroupBox(axis + " PID")
@@ -154,13 +153,20 @@ class TelemetryGUI(QtWidgets.QWidget):
             
             for i, param in enumerate(pid_params):
                 label = QtWidgets.QLabel(param)
+
+                #RC: Shrunk font size/label width to fit all 8 params
+                font = label.font()
+                font.setPointSize(8)
+                label.setFont(font)
+                label.setFixedWidth(15)               
                 line_edit = QtWidgets.QLineEdit("0.0")
-                line_edit.setFixedWidth(50)
+                line_edit.setFixedWidth(40)
+
                 line_edit.textEdited.connect(self.new_pid_val)
                 self.pid_inputs[f"{axis}_{param}"] = line_edit
 
-                row = 0 if i < 3 else 1
-                col = (i % 3) * 2
+                row = i // 4 # integer division (round down)
+                col = (i % 4) * 2  
 
                 axis_layout.addWidget(label, row, col)
                 axis_layout.addWidget(line_edit, row, col + 1)
@@ -320,7 +326,7 @@ class TelemetryGUI(QtWidgets.QWidget):
 
                 # --- Write PID values (if available) ---
                 axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-                params = ["P", "I", "D", "LPF", "Windup"]
+                params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
 
                 writer.writerow(["PID Parameters"])
                 writer.writerow(["Axis"] + params)
@@ -454,13 +460,13 @@ if __name__ == "__main__":
     print("Started Telemetry!")
 
     axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
-    params = ["P", "I", "D", "LPF", "Windup"]
+    params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
 
     ## This part probably don't need but I can't test right now 
     pid_dict_init = {}
     for i, axis in enumerate(axes):
         for j, param in enumerate(params):
-            pid_dict_init[f"{axis}_{param}"] = pid_gain_vals[i*5 + j]
+            pid_dict_init[f"{axis}_{param}"] = pid_gain_vals[i*8 + j]
     
     app = QtWidgets.QApplication([])
     gui = TelemetryGUI(variable_names, data_buffers)

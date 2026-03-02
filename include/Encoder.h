@@ -3,7 +3,8 @@
 
 class Encoder {
 public:
-    Encoder(int miso, int clk, int cs, int mosi);
+    Encoder(int miso, int clk, int cs, int mosi, int numBitIgnore);
+    Encoder(int miso, int clk, int cs, int mosi); // Overloaded constructor with default numBits
     void begin();
     int readAngle();       // Returns current angle (0-360) and updates rotation count
     long getTotalAngle();   // Returns total angle as (rotationCount * 360 + current angle)
@@ -19,6 +20,7 @@ private:
     int clk;
     int cs;
     int mosi;
+    int mask;           // Mask for valid bits (e.g., 0x3FFF for 14 bits)
     
     float prevAngle;    // Previous instantaneous angle
     int rotationCount;  // Count of full rotations (+/-)
