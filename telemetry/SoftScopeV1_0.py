@@ -1,10 +1,14 @@
 import random
 from PyQt6 import QtWidgets, QtCore
 import pyqtgraph as pg
+import pyqtgraph as pg
+# Force hardware acceleration for rendering
+pg.setConfigOptions(useOpenGL=True, antialias=False)
 import csv
 import time
 import plotly.express as px
 import numpy as np
+import itertools
 
 #from time import perf_counter
 
@@ -387,8 +391,13 @@ class TelemetryGUI(QtWidgets.QWidget):
         for name in self.selected_vars:
             if name not in self.curves:
                 color = self.var_colors.get(name, (255, 255, 255))
-                self.curves[name] = self.plot_widget.plot([], [], pen=pg.mkPen(color=color, width=2), name=name)
-        
+                self.curves[name] = self.plot_widget.plot(
+                    [], [], 
+                    pen=pg.mkPen(color=color, width=2), 
+                    name=name,
+                    skipFiniteCheck=True, # Skips slow NaN/Infinity checks
+                    autoDownsample=True   # Only draw pixels that actually fit on the screen
+                )
 
     def update_plot(self):
         if self.paused or not self.selected_vars:
@@ -399,32 +408,28 @@ class TelemetryGUI(QtWidgets.QWidget):
             buf = self.data_buffers[name]
            
             if buf:
-                # FIX: Slice the buffer as a list FIRST, then convert to NumPy.
-                # This drastically reduces CPU load and frees up the serial thread.
-                recent_data = list(buf)[-1000:]
-                data = np.array(recent_data)
+                # Extract ONLY the last 1000 points
+                start_idx = max(0, len(buf) - 1000)
+                recent_data = list(itertools.islice(buf, start_idx, len(buf)))
                 
-                if len(data) == 0:
+                if not recent_data:
                     continue
-                
-                # Slice columns into separate arrays
-                times = data[:, 0]
-                values = data[:, 1]
-                
-                # Apply per-channel scale using fast numpy vectorization
+
+                # Get scale factor
                 try:
                     scale = float(self.channel_scales[name].text())
                 except ValueError:
                     scale = 1.0
-                    
-                # This multiplies the entire array in C, rather than a Python loop
-                scaled_values = values * scale
+                
+                # FIX: Use pure Python list comprehensions instead of NumPy 2D array conversion.
+                # This is exponentially faster and prevents GIL locking.
+                times = [item[0] for item in recent_data]
+                scaled_values = [item[1] * scale for item in recent_data]
 
                 if now is None:
                     now = times[-1]
                     
-                # Pass the numpy arrays directly to pyqtgraph
-                # We also fixed the bug where scaled_values wasn't being plotted
+                # Pass directly to pyqtgraph
                 self.curves[name].setData(times, scaled_values)
 
         if now is not None:

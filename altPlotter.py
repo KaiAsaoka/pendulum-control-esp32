@@ -40,7 +40,7 @@ GKD = 0
 # User Config
 # -------------
 SERIAL_PORT = 'COM6'        # Adjust if needed
-BAUD_RATE   = 115200
+BAUD_RATE   = 2000000      # Adjust if needed
 UPDATE_INTERVAL_MS = 10     # ~20 FPS
 MAX_POINTS  = 1000          # store up to 1000 samples
 

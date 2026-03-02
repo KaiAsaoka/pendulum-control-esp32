@@ -265,7 +265,7 @@ void setup() {
 
   SPI.begin(ENC_CLK, ENC_MISO, ENC_MOSI);
 
-  Serial.begin(115200);
+  Serial.begin(2000000); // Use the same baud rate as in TelemetryDataTransferV1_0.py
   telemetry.begin();
   pidValsMutex = xSemaphoreCreateMutex(); // Create mutex for errors
 

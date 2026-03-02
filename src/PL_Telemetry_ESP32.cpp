@@ -2,7 +2,7 @@
     #include <iostream>
 
     void PL_Telemetry_ESP32::beginSerial() {
-        Serial.begin(115200);
+        Serial.begin(2000000);
         while (!Serial) delay(10);
         _serialStarted = true;
         Serial.println("Serial Telemetry Initialized");
@@ -138,6 +138,11 @@
     void PL_Telemetry_ESP32::telemetryTask() {
         // Use internal snapshot array
         InternalSnapshot batch[_BATCH_SIZE];
+
+        // FIX: Pre-allocate the maximum buffer size once. No more heap fragmentation.
+        const size_t MAX_PACKET_SIZE = sizeof(TelemetryPacketHeader) + _BATCH_SIZE * (sizeof(float) * _numVars + sizeof(uint64_t)) + 3;
+        uint8_t static_buffer[MAX_PACKET_SIZE];
+
         beginSerial();
 
         for (;;) {
@@ -149,10 +154,7 @@
                 continue;
             }
             if (_telemetryStarted && _metadataRequested && _pidSent) {
-                Serial.println(uxQueueSpacesAvailable(_snapshotQueue));
-                //vTaskDelay(pdMS_TO_TICKS(10));
-                //continue;
-
+                
                 uint8_t count = 0;
                 while (count < _BATCH_SIZE) {
                     if (xQueueReceive(_snapshotQueue, &batch[count], 0) == pdPASS) {
@@ -167,19 +169,18 @@
                     continue;
                 }
 
-                // Build telemetry packet
+                // Calculate the actual size of this specific packet
                 size_t packetSize = sizeof(TelemetryPacketHeader) + count * (sizeof(float) * _numVars + sizeof(uint64_t)) + 3;
-                uint8_t* buffer = new uint8_t[packetSize];
 
-                TelemetryPacketHeader* header = (TelemetryPacketHeader*)buffer;
+                // FIX: Use the static buffer instead of dynamically allocating a new one
+                TelemetryPacketHeader* header = (TelemetryPacketHeader*)static_buffer;
                 header->sync = 0xAA55;
                 header->seq = _packetSeq++;
                 header->num_snapshots = count;
                 header->num_vars = _numVars;
 
-                uint8_t* ptr = buffer + sizeof(TelemetryPacketHeader);
+                uint8_t* ptr = static_buffer + sizeof(TelemetryPacketHeader);
                 for (uint8_t i = 0; i < count; i++) {
-                    // Copy floats first, timestamp last (matches old GUI)
                     memcpy(ptr, batch[i].vars, _numVars * sizeof(float));
                     ptr += _numVars * sizeof(float);
                     memcpy(ptr, &batch[i].timestamp_us, sizeof(uint64_t));
@@ -187,13 +188,13 @@
                 }
 
                 // CRC placeholder
-                uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 3);
+                uint16_t* crcPtr = (uint16_t*)(static_buffer + packetSize - 3);
                 *crcPtr = 0xFFFF;   
 
                 // Send packet
-                sendPacket(buffer, packetSize); 
+                sendPacket(static_buffer, packetSize); 
 
-                delete[] buffer;
+                // FIX: Removed 'delete[] buffer' because we are using the static array now
 
                 vTaskDelay(pdMS_TO_TICKS(10));
             }

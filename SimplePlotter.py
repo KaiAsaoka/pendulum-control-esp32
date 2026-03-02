@@ -10,7 +10,7 @@ from array import array
 
 # Set up serial with optimized buffer
 SERIAL_PORT = 'COM6'
-BAUD_RATE = 115200
+BAUD_RATE = 2000000
 ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.001, write_timeout=1)
 ser.reset_input_buffer()
 time.sleep(2)

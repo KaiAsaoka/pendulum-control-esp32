@@ -20,7 +20,7 @@ sending_pid = False
 pause_receive = threading.Event()
 
 # ----------------- SERIAL SETUP -----------------
-def setup_serial(port=None, baudrate=115200):
+def setup_serial(port=None, baudrate=2000000):
     global ser, use_serial
     use_serial = True
 
@@ -122,44 +122,53 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
             continue
         buffer += new_data
 
-        while len(buffer) >= 6:
-            # FAST SYNC SEARCH: 0xAA55 is little-endian b'\x55\xaa'
-            sync_idx = buffer.find(b'\x55\xaa')
+        # ... inside receive_telemetry, replace the while loop with this:
+        
+        # FIX: Process the buffer using a pointer to avoid copying memory on every packet
+        ptr = 0
+        while len(buffer) - ptr >= 6:
+            # Search for sync word starting from our current pointer
+            sync_idx = buffer.find(b'\x55\xaa', ptr)
             
             if sync_idx == -1:
-                # Sync word not found. Keep the last byte just in case 
-                # it's the first half of the sync word (0x55)
-                buffer = buffer[-1:]
+                # Keep the very last byte just in case it's half a sync word
+                ptr = max(0, len(buffer) - 1)
                 break
-            elif sync_idx > 0:
-                # Throw away garbage bytes before the sync word
-                buffer = buffer[sync_idx:]
-                continue # Re-evaluate length
+                
+            # Move pointer to the start of the sync word
+            ptr = sync_idx
 
-            # At this point, we are guaranteed buffer starts with 0xAA55
-            if len(buffer) < 6:
+            if len(buffer) - ptr < 6:
                 break
 
-            _, seq, num_snapshots, num_vars_in_packet = struct.unpack_from("<HHBB", buffer, 0)
+            # Unpack using the pointer offset
+            _, seq, num_snapshots, num_vars_in_packet = struct.unpack_from("<HHBB", buffer, ptr)
             packet_size = 6 + num_snapshots * (4*num_vars + 8) + 3
 
-            if len(buffer) < packet_size:
+            if len(buffer) - ptr < packet_size:
                 break
 
-            packet = buffer[:packet_size]
-            buffer = buffer[packet_size:]
-
-            offset = 6
+            # Process the packet directly from the main buffer
+            offset = ptr + 6
             for _ in range(num_snapshots):
-                if offset + snapshot_size > len(packet):
+                if offset + snapshot_size > ptr + packet_size:
                     break
-                vars_values = list(struct.unpack_from(snapshot_struct, packet, offset))
+                
+                # Unpack directly from the buffer using offset
+                vars_values = list(struct.unpack_from(snapshot_struct, buffer, offset))
                 offset += 4*num_vars
-                timestamp_us = struct.unpack_from("<Q", packet, offset)[0]
+                timestamp_us = struct.unpack_from("<Q", buffer, offset)[0]
                 offset += 8
+                
                 for i, val in enumerate(vars_values):
                     name = variable_names[i]
                     data_buffers[name].append((timestamp_us/1000.0, val))
+
+            # Move the pointer past the packet we just processed
+            ptr += packet_size
+
+        # Slice the buffer ONLY ONCE after processing all available packets
+        buffer = buffer[ptr:]
 
 # ----------------- SEND PID -----------------
 def send_pid(pid_vals):
