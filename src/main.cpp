@@ -145,14 +145,14 @@ digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
 }
 
 void handleAuxButtonPress() {
-  //setPWMPIDX.reset();
-  //setPWMPIDY.reset();
+  swingUp();
+  // Zero controller values, but not encoder zero points
+  setPWMPIDX.reset();
+  setPWMPIDY.reset();
   setAnglePIDX.reset();
   setAnglePIDY.reset();
-  stateErrors.angleErrorX = 0;
-  stateErrors.angleErrorY = 0;
-  PEND1.zero();
-  PEND2.zero();
+  stateErrors.positionErrorX = 0;
+  stateErrors.positionErrorY = 0;
 }
 
 // Telemetry Globals
@@ -308,12 +308,17 @@ void swingUp() {
   int REPOSITION_SPEED = 12; // RC: Consider moving these to global consts? Their scope is local to this function
   int SWINGUP_SPEED_X = 1;   // RC: but it may be better to keep all constant definitions in one place
   int SWINGUP_SPEED_Y = 1;
+  int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
   int SWINGUP_TIME_MS = 1000; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
 
   int x_dir = sgn(stateVariables.angleX);
   int y_dir = sgn(stateVariables.angleY);
 
   while (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) {
+    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir);
+  }
+  int start_reposition_time = millis();
+  while (millis() - start_reposition_time < 500) { // Residual movement to ensure pendulum is fully against the gantry walls
     move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir);
   }
   delay(2000); // Allow time for pendulum to settle
