@@ -28,7 +28,7 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
 // SPI bus pins (shared)
 #define ENC_MISO 27
-#define ENC_MOSI 13
+#define ENC_MOSI 0
 #define ENC_CLK  14
 
 // Gantry motor encoder chip-selects
@@ -44,11 +44,14 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define RED_LED 5         // Out-of-bounds LED
 
 // Analog potentiometer tuning pins
-#define MOVE_TARGET_POSX_PIN 2 // Move target position with joystick (X)
-#define MOVE_TARGET_POSY_PIN 15 // Move target position with joystick (Y)
-#define MOVE_TARGET_POSX_SCALE_FACTOR 0.001 // Tune sensitivity of joystick for target position (X)
-#define MOVE_TARGET_POSY_SCALE_FACTOR 0.001 // Tune sensitivity of joystick for target position (Y)
+#define MOVE_TARGET_POSX_PIN 12 // Move target position with joystick (X)
+#define MOVE_TARGET_POSY_PIN 13 // Move target position with joystick (Y)
+// #define JOYSTICK_BUTTON_PIN 15
+#define MOVE_TARGET_POSX_SCALE_FACTOR 0.0004 // Tune sensitivity of joystick for target position (X)
+#define MOVE_TARGET_POSY_SCALE_FACTOR 0.0004 // Tune sensitivity of joystick for target position (Y)
 #define JOYSTICK_DEAD_ZONE 50 // To prevent drift when joystick is near neutral
+#define JOYSTICK_OFFSET_X -63 // Calibrate the joystick centre
+#define JOYSTICK_OFFSET_Y -53
 
 #define X_DEADZONE 12
 #define Y_DEADZONE 0
@@ -311,21 +314,25 @@ void readState() { //140us empirically with scope at 1MHz clock speed
 }
 
 void updateTargetPos() {
-  int joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 512;
-  int joystick_reading_y = analogRead(MOVE_TARGET_POSY_PIN) - 512;
+  int joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 2048 - JOYSTICK_OFFSET_X; // Get value between [0, 4095] and divide by 2
+  int joystick_reading_y = analogRead(MOVE_TARGET_POSY_PIN) - 2048 - JOYSTICK_OFFSET_Y; // Note that due to offset, min_value != -1*max_value
   if (abs(joystick_reading_x) > JOYSTICK_DEAD_ZONE) { //RC: Experiment with dead-zone value
     stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*joystick_reading_x; //RC: TODO: Find good scale factor (movement speed)
+    stateVariables.targetPosX = constrain(stateVariables.targetPosX, -2750, 2750); //RC: TODO: replace all instances of dead zone magic numbers with constants
   }
   if (abs(joystick_reading_y) > JOYSTICK_DEAD_ZONE) {
     stateVariables.targetPosY += MOVE_TARGET_POSY_SCALE_FACTOR*joystick_reading_y; //RC: ""
+    stateVariables.targetPosY = constrain(stateVariables.targetPosY, -4000, 4000); //RC: TODO: also consider limiting target to just shy of dead zone as it is impossible to control at dead zone exactly anyway
   }
 }
 
 void runControl(float dt, int controlCycle) {
   // position PID may run on slower loop time
   if (controlCycle == POS_UPDATE_CYCLES) {
-    stateErrors.positionErrorX = (stateVariables.posX - (int)stateVariables.targetPosX);
-    stateErrors.positionErrorY = ((int)stateVariables.targetPosY - stateVariables.posY);
+    stateErrors.positionErrorX = (stateVariables.posX - 0);
+    stateErrors.positionErrorY = (0 - stateVariables.posY);    
+    // stateErrors.positionErrorX = (stateVariables.posX - (int)stateVariables.targetPosX);
+    // stateErrors.positionErrorY = ((int)stateVariables.targetPosY - stateVariables.posY);
   }
 
   setAngleXOutputs = setAnglePIDX.calculate(stateErrors.positionErrorX, dt);
