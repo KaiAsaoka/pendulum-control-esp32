@@ -283,8 +283,8 @@ int sgn(int val) {
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
   Serial.println("swingUp() entered");
-  int REPOSITION_SPEED = 5; // RC: Consider moving these to global consts? Their scope is local to this function
-  int SWINGUP_SPEED_X = 20;   // RC: but it may be better to keep all constant definitions in one place
+  int REPOSITION_SPEED = 9; // RC: Consider moving these to global consts? Their scope is local to this function
+  int SWINGUP_SPEED_X = 28;   // RC: but it may be better to keep all constant definitions in one place
   int SWINGUP_SPEED_Y = 0;
   int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
   int SWINGUP_TIME_MS = 400; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
