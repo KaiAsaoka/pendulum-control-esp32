@@ -321,8 +321,8 @@ void updateTargetPos() {
   //RC: analogReads are the issue. TODO: bugfix
   //RC: It turns out GPIO 0, 2, 4, 12-15, 25-27 are on ADC2 which are shared with Wi-Fi/Bluetooth
   //RC: Unlike GPIO 32-39 which are on ADC1 and are always free
-  //RC: First test change: turn WiFi off with WiFi.mode(WIFI_OFF);
-  //RC: Alternatively, try jumping the connections to pins 34, 35 which are not GPIO (as discovered with the LEDs) but are ADC1
+  //RC: First test change: turn WiFi off with WiFi.mode(WIFI_OFF) - CHANGE WORKS
+  //RC: Alternatively, try jumping the connections to pins 34, 35 which are not GPIO (as discovered with the LEDs) but are ADC1 (untested)
   WiFi.mode(WIFI_OFF);
   stateVariables.joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 2048 - JOYSTICK_OFFSET_X; // Get value between [0, 4095] and divide by 2
   stateVariables.joystick_reading_y = analogRead(MOVE_TARGET_POSY_PIN) - 2048 - JOYSTICK_OFFSET_Y; // Note that due to offset, min_value != -1*max_value
