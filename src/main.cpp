@@ -125,36 +125,6 @@ struct stateErrs {
 
 stateErrs stateErrors;
 
-// The function to run when button is pressed
-void handleButtonPress() {
-  //serial.println("Button was pressed!");
-  setPWMPIDX.reset();
-  setPWMPIDY.reset();
-  setAnglePIDX.reset();
-  setAnglePIDY.reset();
-  stateErrors.positionErrorX = 0;
-  stateErrors.positionErrorY = 0;
-  ENC1.zero(); //Old zeroing button
-  ENC2.zero();
-  PEND1.zero();
-  PEND2.zero();
-
-// Toggle armed state and update BLUE status LED
-zeroButtonState = !zeroButtonState;
-digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
-}
-
-void handleAuxButtonPress() {
-  swingUp();
-  // Zero controller values, but not encoder zero points
-  setPWMPIDX.reset();
-  setPWMPIDY.reset();
-  setAnglePIDX.reset();
-  setAnglePIDY.reset();
-  stateErrors.positionErrorX = 0;
-  stateErrors.positionErrorY = 0;
-}
-
 // Telemetry Globals
 SemaphoreHandle_t pidValsMutex;
 bool pauseTesting = false;
@@ -298,6 +268,13 @@ void setup() {
   );
 }
 
+void readState() { //140us empirically with scope at 1MHz clock speed
+  stateVariables.angleX = -PEND1.getTotalAngle();
+  stateVariables.angleY =  PEND2.getTotalAngle();
+  stateVariables.posX = move.returnPosX();
+  stateVariables.posY = move.returnPosY();
+}
+
 // Custom signum function where sgn(0) = 1 instead of 0
 int sgn(int val) {
   return (0 <= val) - (val < 0);
@@ -305,35 +282,34 @@ int sgn(int val) {
 
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
-  int REPOSITION_SPEED = 12; // RC: Consider moving these to global consts? Their scope is local to this function
-  int SWINGUP_SPEED_X = 1;   // RC: but it may be better to keep all constant definitions in one place
-  int SWINGUP_SPEED_Y = 1;
+  Serial.println("swingUp() entered");
+  int REPOSITION_SPEED = 5; // RC: Consider moving these to global consts? Their scope is local to this function
+  int SWINGUP_SPEED_X = 15;   // RC: but it may be better to keep all constant definitions in one place
+  int SWINGUP_SPEED_Y = 0;
   int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
-  int SWINGUP_TIME_MS = 1000; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+  int SWINGUP_TIME_MS = 400; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
 
-  int x_dir = sgn(stateVariables.angleX);
-  int y_dir = sgn(stateVariables.angleY);
+  int x_dir = -sgn(stateVariables.angleX);
+  int y_dir = -sgn(stateVariables.angleY);
 
-  while (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) {
-    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir);
+  Serial.println("constants set");
+  while (abs(stateVariables.posX) < 2750) { // RC: Supress [...] until we get to 2D - [&& abs(stateVariables.posY) < 4000) { ]
+    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0); // RC: y-movement disabled
+    readState();
   }
+  Serial.println("repositioned");
   int start_reposition_time = millis();
-  while (millis() - start_reposition_time < 500) { // Residual movement to ensure pendulum is fully against the gantry walls
-    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir);
+  while (millis() - start_reposition_time < 300) { // Residual movement to ensure pendulum is fully against the gantry walls
+    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0);
   }
+  Serial.println("excess moved");
   delay(2000); // Allow time for pendulum to settle
 
   int start_swing_up_time = millis();
   while (millis() - start_swing_up_time < SWINGUP_TIME_MS) {
-    move.moveXY(SWINGUP_SPEED_X * -x_dir, SWINGUP_SPEED_Y * -y_dir); // Note opposite direction!
+    move.moveXY(SWINGUP_SPEED_X * -x_dir, SWINGUP_SPEED_Y * -y_dir * 0); // Note opposite direction!
   }
-}
-
-void readState() { //140us empirically with scope at 1MHz clock speed
-  stateVariables.angleX = -PEND1.getTotalAngle();
-  stateVariables.angleY =  PEND2.getTotalAngle();
-  stateVariables.posX = move.returnPosX();
-  stateVariables.posY = move.returnPosY();
+  Serial.println("swing up done");
 }
 
 void runControl(float dt, int controlCycle) {
@@ -353,6 +329,37 @@ void runControl(float dt, int controlCycle) {
   setPWMYOutputs = setPWMPIDY.calculate(stateErrors.angleErrorY, dt);
 
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
+}
+
+// The function to run when button is pressed
+void handleButtonPress() {
+  //serial.println("Button was pressed!");
+  setPWMPIDX.reset();
+  setPWMPIDY.reset();
+  setAnglePIDX.reset();
+  setAnglePIDY.reset();
+  stateErrors.positionErrorX = 0;
+  stateErrors.positionErrorY = 0;
+  ENC1.zero(); //Old zeroing button
+  ENC2.zero();
+  PEND1.zero();
+  PEND2.zero();
+
+// Toggle armed state and update BLUE status LED
+zeroButtonState = !zeroButtonState;
+digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
+}
+
+void handleAuxButtonPress() {
+  // Serial.println("Aux button pressed!");
+  swingUp();
+  // Zero controller values, but not encoder zero points
+  setPWMPIDX.reset();
+  setPWMPIDY.reset();
+  setAnglePIDX.reset();
+  setAnglePIDY.reset();
+  stateErrors.positionErrorX = 0;
+  stateErrors.positionErrorY = 0;
 }
 
 // Gantry-specific loop
