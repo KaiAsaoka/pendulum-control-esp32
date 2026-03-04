@@ -68,11 +68,11 @@ Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
 // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
-pidParams setAngleXParams = {25, 2, 15, 0, 0, 985, 0, 50000000};
+pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {45, 50, 0.16, 0, 125000000}
 pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {15, 150, 0.5, 0, 55555555}
-pidParams setPWMXParams = {600, 0, 5, 0, 0, 800, 0, 0};
+pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {0, 0, 0, 750, 1000}
 pidParams setPWMYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -177,8 +177,10 @@ struct stateVars {
   int posY;
   int angleX;
   int angleY;
-  double targetPosX; //RC: doubles since we need the resolution to be fine for the
-  double targetPosY; //RC: joystick adjustment. Casted to int for PID calculations
+  int joystick_reading_x;
+  int joystick_reading_y;
+  float targetPosX; //RC: doubles since we need the resolution to be fine for the
+  float targetPosY; //RC: joystick adjustment. Casted to int for PID calculations
 };
 
 stateVars stateVariables;
@@ -279,6 +281,8 @@ void setup() {
 
   stateVariables.targetPosX = 0;
   stateVariables.targetPosY = 0;
+  stateVariables.joystick_reading_x = 0;
+  stateVariables.joystick_reading_y = 0;
 
   ENC1.begin();
   ENC2.begin();
@@ -314,14 +318,21 @@ void readState() { //140us empirically with scope at 1MHz clock speed
 }
 
 void updateTargetPos() {
-  int joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 2048 - JOYSTICK_OFFSET_X; // Get value between [0, 4095] and divide by 2
-  int joystick_reading_y = analogRead(MOVE_TARGET_POSY_PIN) - 2048 - JOYSTICK_OFFSET_Y; // Note that due to offset, min_value != -1*max_value
-  if (abs(joystick_reading_x) > JOYSTICK_DEAD_ZONE) { //RC: Experiment with dead-zone value
-    stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*joystick_reading_x; //RC: TODO: Find good scale factor (movement speed)
+  //RC: analogReads are the issue. TODO: bugfix
+  //RC: It turns out GPIO 0, 2, 4, 12-15, 25-27 are on ADC2 which are shared with Wi-Fi/Bluetooth
+  //RC: Unlike GPIO 32-39 which are on ADC1 and are always free
+  //RC: First test change: turn WiFi off with WiFi.mode(WIFI_OFF);
+  //RC: Alternatively, try jumping the connections to pins 34, 35 which are not GPIO (as discovered with the LEDs) but are ADC1
+  WiFi.mode(WIFI_OFF);
+  stateVariables.joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 2048 - JOYSTICK_OFFSET_X; // Get value between [0, 4095] and divide by 2
+  stateVariables.joystick_reading_y = analogRead(MOVE_TARGET_POSY_PIN) - 2048 - JOYSTICK_OFFSET_Y; // Note that due to offset, min_value != -1*max_value
+  
+  if (abs(stateVariables.joystick_reading_x) > JOYSTICK_DEAD_ZONE) { //RC: Experiment with dead-zone value
+    stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*stateVariables.joystick_reading_x; //RC: TODO: Find good scale factor (movement speed)
     stateVariables.targetPosX = constrain(stateVariables.targetPosX, -2750, 2750); //RC: TODO: replace all instances of dead zone magic numbers with constants
   }
-  if (abs(joystick_reading_y) > JOYSTICK_DEAD_ZONE) {
-    stateVariables.targetPosY += MOVE_TARGET_POSY_SCALE_FACTOR*joystick_reading_y; //RC: ""
+  if (abs(stateVariables.joystick_reading_y) > JOYSTICK_DEAD_ZONE) {
+    stateVariables.targetPosY += MOVE_TARGET_POSY_SCALE_FACTOR*stateVariables.joystick_reading_y; //RC: ""
     stateVariables.targetPosY = constrain(stateVariables.targetPosY, -4000, 4000); //RC: TODO: also consider limiting target to just shy of dead zone as it is impossible to control at dead zone exactly anyway
   }
 }
@@ -329,10 +340,8 @@ void updateTargetPos() {
 void runControl(float dt, int controlCycle) {
   // position PID may run on slower loop time
   if (controlCycle == POS_UPDATE_CYCLES) {
-    stateErrors.positionErrorX = (stateVariables.posX - 0);
-    stateErrors.positionErrorY = (0 - stateVariables.posY);    
-    // stateErrors.positionErrorX = (stateVariables.posX - (int)stateVariables.targetPosX);
-    // stateErrors.positionErrorY = ((int)stateVariables.targetPosY - stateVariables.posY);
+    stateErrors.positionErrorX = (stateVariables.posX - (int)stateVariables.targetPosX);
+    stateErrors.positionErrorY = ((int)stateVariables.targetPosY - stateVariables.posY);
   }
 
   setAngleXOutputs = setAnglePIDX.calculate(stateErrors.positionErrorX, dt);
