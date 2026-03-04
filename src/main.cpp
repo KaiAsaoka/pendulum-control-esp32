@@ -167,10 +167,11 @@ const char* telemVars[] = {
   "carriageXPosition", "pendulumXAngle",
   "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM",
   "pendulumYAngle",
-  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut"
+  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut",
+  "rawPositionErrorX", "rawPositionErrorY", "rawAngleErrorX", "rawAngleErrorY"
 };
 
-float telemVals[14];
+float telemVals[18];
 
 struct stateVars {
   int posX;
@@ -182,8 +183,16 @@ struct stateVars {
   float targetPosX; //RC: doubles since we need the resolution to be fine for the
   float targetPosY; //RC: joystick adjustment. Casted to int for PID calculations
 };
+  
+struct rawVars {
+  int rawPositionErrorX;
+  int rawPositionErrorY;
+  int rawAngleErrorX;
+  int rawAngleErrorY;
+};
 
 stateVars stateVariables;
+rawVars rawVariables;
 motorPWMs PWMOutputs;
 
 volatile uint32_t loopTime;
@@ -224,6 +233,10 @@ void updateTelemetry() {
   telemVals[11] = setAngleXOutputs.iOut;
   telemVals[12] = setAngleXOutputs.dOut;
   telemVals[13] = setAngleXOutputs.output;
+  telemVals[14] = rawVariables.rawPositionErrorX;
+  telemVals[15] = rawVariables.rawPositionErrorY;
+  telemVals[16] = rawVariables.rawAngleErrorX;
+  telemVals[17] = rawVariables.rawAngleErrorY;
 }
 
 void telemLoop(void *pvParameters){
@@ -343,6 +356,11 @@ void runControl(float dt, int controlCycle) {
     stateErrors.positionErrorX = (stateVariables.posX - (int)stateVariables.targetPosX);
     stateErrors.positionErrorY = ((int)stateVariables.targetPosY - stateVariables.posY);
   }
+
+  rawVariables.rawPositionErrorX = stateErrors.positionErrorX;
+  rawVariables.rawPositionErrorY = stateErrors.positionErrorY;
+  rawVariables.rawAngleErrorX = stateErrors.angleErrorX;
+  rawVariables.rawAngleErrorY = stateErrors.angleErrorY;
 
   setAngleXOutputs = setAnglePIDX.calculate(stateErrors.positionErrorX, dt);
   setAngleYOutputs = setAnglePIDY.calculate(stateErrors.positionErrorY, dt);
