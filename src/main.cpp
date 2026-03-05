@@ -282,7 +282,6 @@ int sgn(int val) {
 
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
-  Serial.println("swingUp() entered");
   int REPOSITION_SPEED = 9; // RC: Consider moving these to global consts? Their scope is local to this function
   int SWINGUP_SPEED_X = 245;   // RC: but it may be better to keep all constant definitions in one place
   int SWINGUP_SPEED_Y = 0;
@@ -294,21 +293,18 @@ void swingUp() {
 
   uint32_t loop_timer = micros();
 
-  Serial.println("constants set");
   while (abs(stateVariables.posX) < 2750) { // RC: Supress [...] until we get to 2D - [&& abs(stateVariables.posY) < 4000) { ]
     move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0); // RC: y-movement disabled
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);} // Give time for motor PWM commands to register. delayUS(1) since empty while loop makes ESP32 mad
     loop_timer = micros();
   }
-  Serial.println("repositioned");
   int start_reposition_time = millis();
   while (millis() - start_reposition_time < 100) { // Residual movement to ensure pendulum is fully against the gantry walls
     move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0);
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
-  Serial.println("excess moved");
   delay(2000); // Allow time for pendulum to settle
 
   int start_swing_up_time = millis();
@@ -317,7 +313,6 @@ void swingUp() {
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
-  Serial.println("swing up done");
 }
 
 void runControl(float dt, int controlCycle) {
