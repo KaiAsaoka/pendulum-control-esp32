@@ -128,36 +128,6 @@ struct stateErrs {
 
 stateErrs stateErrors;
 
-// The function to run when button is pressed
-void handleButtonPress() {
-  //serial.println("Button was pressed!");
-  setPWMPIDX.reset();
-  setPWMPIDY.reset();
-  setAnglePIDX.reset();
-  setAnglePIDY.reset();
-  stateErrors.positionErrorX = 0;
-  stateErrors.positionErrorY = 0;
-  ENC1.zero(); //Old zeroing button
-  ENC2.zero();
-  PEND1.zero();
-  PEND2.zero();
-
-// Toggle armed state and update BLUE status LED
-zeroButtonState = !zeroButtonState;
-digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
-}
-
-void handleAuxButtonPress() {
-  //setPWMPIDX.reset();
-  //setPWMPIDY.reset();
-  setAnglePIDX.reset();
-  setAnglePIDY.reset();
-  stateErrors.angleErrorX = 0;
-  stateErrors.angleErrorY = 0;
-  PEND1.zero();
-  PEND2.zero();
-}
-
 // Telemetry Globals
 SemaphoreHandle_t pidValsMutex;
 bool pauseTesting = false;
@@ -317,6 +287,46 @@ void readState() { //140us empirically with scope at 1MHz clock speed
   stateVariables.posY = move.returnPosY();
 }
 
+// Custom signum function where sgn(0) = 1 instead of 0
+int sgn(int val) {
+  return (0 <= val) - (val < 0);
+}
+
+// Ensure pendulum is at rest against one side of the mount beforehand
+void swingUp() {
+  int REPOSITION_SPEED = 9; // RC: Consider moving these to global consts? Their scope is local to this function
+  int SWINGUP_SPEED_X = 245;   // RC: but it may be better to keep all constant definitions in one place
+  int SWINGUP_SPEED_Y = 0;
+  int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
+  int SWINGUP_TIME_MS = 92; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+
+  int x_dir = sgn(stateVariables.angleX);
+  int y_dir = sgn(stateVariables.angleY);
+
+  uint32_t loop_timer = micros();
+
+  while (abs(stateVariables.posX) < 2750) { // RC: Supress [...] until we get to 2D - [&& abs(stateVariables.posY) < 4000) { ]
+    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0); // RC: y-movement disabled
+    readState();
+    while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);} // Give time for motor PWM commands to register. delayUS(1) since empty while loop makes ESP32 mad
+    loop_timer = micros();
+  }
+  int start_reposition_time = millis();
+  while (millis() - start_reposition_time < 100) { // Residual movement to ensure pendulum is fully against the gantry walls
+    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0);
+    while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
+    loop_timer = micros();
+  }
+  delay(2000); // Allow time for pendulum to settle
+
+  int start_swing_up_time = millis();
+  while (millis() - start_swing_up_time < SWINGUP_TIME_MS) {
+    move.moveXY(SWINGUP_SPEED_X * -x_dir, SWINGUP_SPEED_Y * -y_dir * 0); // Note opposite direction!
+    while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
+    loop_timer = micros();
+  }
+}
+
 void updateTargetPos() {
   //RC: analogReads are the issue. TODO: bugfix
   //RC: It turns out GPIO 0, 2, 4, 12-15, 25-27 are on ADC2 which are shared with Wi-Fi/Bluetooth
@@ -354,6 +364,37 @@ void runControl(float dt, int controlCycle) {
   setPWMYOutputs = setPWMPIDY.calculate(stateErrors.angleErrorY, dt);
 
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
+}
+
+// The function to run when button is pressed
+void handleButtonPress() {
+  //serial.println("Button was pressed!");
+  setPWMPIDX.reset();
+  setPWMPIDY.reset();
+  setAnglePIDX.reset();
+  setAnglePIDY.reset();
+  stateErrors.positionErrorX = 0;
+  stateErrors.positionErrorY = 0;
+  ENC1.zero(); //Old zeroing button
+  ENC2.zero();
+  PEND1.zero();
+  PEND2.zero();
+
+// Toggle armed state and update BLUE status LED
+zeroButtonState = !zeroButtonState;
+digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
+}
+
+void handleAuxButtonPress() {
+  // Serial.println("Aux button pressed!");
+  swingUp();
+  // Zero controller values, but not encoder zero points
+  setPWMPIDX.reset();
+  setPWMPIDY.reset();
+  setAnglePIDX.reset();
+  setAnglePIDY.reset();
+  stateErrors.positionErrorX = 0;
+  stateErrors.positionErrorY = 0;
 }
 
 // Gantry-specific loop
@@ -401,8 +442,8 @@ void loop() {
       PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
       PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
 
-      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000 &&
-          abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
+      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) { //RC: Removed angle dead zones
+        // && abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
         move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
         digitalWrite(RED_LED, LOW);
       } else {
