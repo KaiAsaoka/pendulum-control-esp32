@@ -44,8 +44,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define RED_LED 5         // Out-of-bounds LED
 
 // Analog potentiometer tuning pins
-#define MOVE_TARGET_POSX_PIN 12 // Move target position with joystick (X)
-#define MOVE_TARGET_POSY_PIN 13 // Move target position with joystick (Y)
+#define MOVE_TARGET_POSX_PIN 13 // Move target position with joystick (X)
+#define MOVE_TARGET_POSY_PIN 12 // Move target position with joystick (Y)
 // #define JOYSTICK_BUTTON_PIN 15
 #define MOVE_TARGET_POSX_SCALE_FACTOR 0.0004 // Tune sensitivity of joystick for target position (X)
 #define MOVE_TARGET_POSY_SCALE_FACTOR 0.0004 // Tune sensitivity of joystick for target position (Y)
