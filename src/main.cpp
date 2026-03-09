@@ -295,10 +295,11 @@ int sgn(int val) {
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
   int REPOSITION_SPEED = 9; // RC: Consider moving these to global consts? Their scope is local to this function
-  int SWINGUP_SPEED_X = 245;   // RC: but it may be better to keep all constant definitions in one place
+  int SWINGUP_SPEED_X = 252;   // RC: but it may be better to keep all constant definitions in one place
   int SWINGUP_SPEED_Y = 0;
   int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
-  int SWINGUP_TIME_MS = 92; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+  int SWINGUP_TIME_MS = 96; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+  int SWINGUP_ANGLE_THRESHOLD = 10;
 
   int x_dir = sgn(stateVariables.angleX);
   int y_dir = sgn(stateVariables.angleY);
@@ -322,6 +323,29 @@ void swingUp() {
   int start_swing_up_time = millis();
   while (millis() - start_swing_up_time < SWINGUP_TIME_MS) {
     move.moveXY(SWINGUP_SPEED_X * -x_dir, SWINGUP_SPEED_Y * -y_dir * 0); // Note opposite direction!
+    while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
+    loop_timer = micros();
+  }
+
+  while (true) {
+    readState();
+    if (abs(stateVariables.angleX) < SWINGUP_ANGLE_THRESHOLD) {
+
+      // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
+
+      setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
+      setPWMXParams = {15, 0, 0, 0, 0, 0, 0, 0};
+      
+      setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
+      setPWMYParams = {0, 0, 0, 0, 0, 0, 0, 0};
+
+      setAnglePIDX.readNewGains(setAngleXParams);
+      setAnglePIDY.readNewGains(setAngleYParams);
+      setPWMPIDX.readNewGains(setPWMXParams);
+      setPWMPIDY.readNewGains(setPWMYParams);
+      return;
+    }
+
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
