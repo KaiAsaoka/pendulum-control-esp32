@@ -30,10 +30,10 @@ VAR_COLORS = {
     "carriageXPosition": "White",
     "pendulumXAngle": "Red",
     "xAngleError": "Blue",
-    "xPWMp" : "Green",
+    "xPWMp" : "Red",
     "xPWMi" : "Cyan",
-    "xPWMd" : "Magenta",
-    "xPWMout": "Orange",
+    "xPWMd" : "Orange",
+    "xPWMout": "Yellow",
     "xPWM": "Yellow",
 }
 

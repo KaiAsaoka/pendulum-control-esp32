@@ -59,7 +59,10 @@ float PID::lowPassFilter(float alpha, float prev_val, float new_val) {
 void PID::reset() {
     integral = 0.0f;
     previous_error = 0.0f;
+    p_term = 0.0f;
+    i_term = 0.0f;
     d_term = 0.0f;
+    sum = 0.0f;
 }
 
 void PID::readNewGains(pidParams newParams) {

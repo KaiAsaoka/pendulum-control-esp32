@@ -68,11 +68,11 @@ Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
 // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
-pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
+pidParams setAngleXParams = {15, 2, 25, 0, 0, 985, 0, 50000000};
 // {45, 50, 0.16, 0, 125000000}
 pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {15, 150, 0.5, 0, 55555555}
-pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
+pidParams setPWMXParams = {600, 0, 2, 0, 0, 900, 0, 0};
 // {0, 0, 0, 750, 1000}
 pidParams setPWMYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -294,34 +294,55 @@ int sgn(int val) {
 
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
-  int REPOSITION_SPEED = 9; // RC: Consider moving these to global consts? Their scope is local to this function
-  int SWINGUP_SPEED_X = 245;   // RC: but it may be better to keep all constant definitions in one place
+  int REPOSITION_SPEED = 7; // RC: Consider moving these to global consts? Their scope is local to this function
+  int SWINGUP_SPEED_X = 255;   // RC: but it may be better to keep all constant definitions in one place
   int SWINGUP_SPEED_Y = 0;
   int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
-  int SWINGUP_TIME_MS = 92; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+  int SWINGUP_TIME_MS = 120; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+
+  move.moveXY(0, 0);
+  int now = millis();
+  while (millis() - now < 4000) {delayMicroseconds(100);} // RC: Doesn't like delay for some reason? Investigate later
+  //delay(4000); // Give pendulum time to tip one way or the other
+  readState();
 
   int x_dir = sgn(stateVariables.angleX);
   int y_dir = sgn(stateVariables.angleY);
 
   uint32_t loop_timer = micros();
 
-  while (abs(stateVariables.posX) < 2750) { // RC: Supress [...] until we get to 2D - [&& abs(stateVariables.posY) < 4000) { ]
+  while (x_dir * stateVariables.posX < 2750) { // RC: Supress [...] until we get to 2D - [&& y_dir * stateVariables.posY < 4000) { ]
     move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0); // RC: y-movement disabled
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);} // Give time for motor PWM commands to register. delayUS(1) since empty while loop makes ESP32 mad
     loop_timer = micros();
   }
+
   int start_reposition_time = millis();
   while (millis() - start_reposition_time < 100) { // Residual movement to ensure pendulum is fully against the gantry walls
     move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0);
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
-  delay(2000); // Allow time for pendulum to settle
 
-  int start_swing_up_time = millis();
-  while (millis() - start_swing_up_time < SWINGUP_TIME_MS) {
+  move.moveXY(0, 0);
+  delay(3000); // Allow time for pendulum to settle
+
+  loop_timer = micros();
+  int swingup_start = millis();
+  
+  // while (-x_dir * stateVariables.angleX < 0 && abs(stateVariables.posX) < 2650 && abs(stateVariables.posY) < 3900) { // RC: See line 308 && -y_dir * stateVariables.angleY < 4000) {
+  while (millis() - swingup_start < SWINGUP_TIME_MS) {
     move.moveXY(SWINGUP_SPEED_X * -x_dir, SWINGUP_SPEED_Y * -y_dir * 0); // Note opposite direction!
+    readState();
+    while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
+    loop_timer = micros();
+  }
+
+  // Let momentum of pendulum throw itself upright
+  while (abs(stateVariables.angleX) < 5) { // RC: 10 is admittedly a magic number. Tune if necessary
+    move.moveXY(0, 0);
+    readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
