@@ -67,5 +67,7 @@ def process():
         hovermode="x unified",
         template="plotly_dark"
     )
-
+ 
     fig.show()
+
+# process()

@@ -229,6 +229,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         controls.addWidget(self.set_y_range_btn)
 
         self.view_saved_telem_btn = QtWidgets.QPushButton("View Telemetry")
+        self.view_saved_telem_btn.setChecked(False)
         self.view_saved_telem_btn.clicked.connect(self.view_telem)
         self.view_saved_telem_btn.setEnabled(False)
         controls.addWidget(self.view_saved_telem_btn)
