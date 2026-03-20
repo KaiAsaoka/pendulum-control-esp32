@@ -14,14 +14,14 @@
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
 
-// Define 1 ms loop timing 
-constexpr uint32_t LOOP_US = 1000;     // 1 ms
+// Define loop timing 
+constexpr uint32_t LOOP_US = 1500;     // 1.5 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 const float dt = LOOP_US * 1e-6f; // Convert microseconds to seconds for PID calculations
 
-constexpr uint32_t POS_UPDATE_US = 1000;               // 1 ms
+constexpr uint32_t POS_UPDATE_US = 1500;               // 1 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
 #define CONTROL_LOOP_PIN 15
@@ -67,13 +67,15 @@ Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends to spike between 0 when angle > 0 and -2*numBitIgnore when angle < 0 as expected 
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
-// Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
-pidParams setAngleXParams = {25, 2, 15, 0, 0, 985, 0, 50000000};
-// {45, 50, 0.16, 0, 125000000}
+// // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
+pidParams setAngleXParams = {25, 2, 15, 0, 0, 985, 0, 50000000}; 
+// pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
+// {25, 2, 15, 0, 0, 985, 0, 50000000} is current best for setAngleX
+// pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 pidParams setAngleYParams = {25, 2, 15, 0, 0, 985, 0, 50000000};
-// {15, 150, 0.5, 0, 55555555}
+// {}
+// pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 pidParams setPWMXParams = {600, 0, 5, 985, 0, 800, 0, 0};
-// {0, 0, 0, 750, 1000}
 pidParams setPWMYParams = {600, 0, 5, 0, 0, 800, 0, 0};
 
 PID setPWMPIDX(setPWMXParams);
@@ -227,7 +229,7 @@ void telemLoop(void *pvParameters){
     } else {
       while ((uint32_t)(micros() - start_us) < LOOP_US) {
         if(telemetry.pauseTesting()) {
-          if (telemetry.updateGainVals()) {
+          if(telemetry.updateGainVals()) {
             if(xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
               setAnglePIDX.readNewGains(telemetry.setAngleXParams);
               setAnglePIDY.readNewGains(telemetry.setAngleYParams);
@@ -416,13 +418,13 @@ void handleButtonPress() {
   PEND2.zero();
 
 // Toggle armed state and update BLUE status LED
-zeroButtonState = !zeroButtonState;
-digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
+  zeroButtonState = !zeroButtonState;
+  digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
 }
 
 void handleAuxButtonPress() {
   // Serial.println("Aux button pressed!");
-  swingUp();
+  // swingUp();
   // Zero controller values, but not encoder zero points
   setPWMPIDX.reset();
   setPWMPIDY.reset();
@@ -430,6 +432,8 @@ void handleAuxButtonPress() {
   setAnglePIDY.reset();
   stateErrors.positionErrorX = 0;
   stateErrors.positionErrorY = 0;
+  stateVariables.targetPosX = 0;
+  stateVariables.targetPosY = 0;
 }
 
 // Gantry-specific loop
@@ -449,7 +453,7 @@ void loop() {
   }
   start_us += LOOP_US;
 
-  updateTargetPos();
+  // updateTargetPos();
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
