@@ -68,13 +68,13 @@ Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
 // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
-pidParams setAngleXParams = {15, 2, 25, 0, 0, 985, 0, 50000000};
+pidParams setAngleXParams = {25, 2, 15, 0, 0, 985, 0, 50000000};
 // {45, 50, 0.16, 0, 125000000}
-pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
+pidParams setAngleYParams = {25, 2, 15, 0, 0, 985, 0, 50000000};
 // {15, 150, 0.5, 0, 55555555}
-pidParams setPWMXParams = {600, 0, 2, 0, 0, 900, 0, 0};
+pidParams setPWMXParams = {600, 0, 5, 985, 0, 800, 0, 0};
 // {0, 0, 0, 750, 1000}
-pidParams setPWMYParams = {0, 0, 0, 0, 0, 0, 0, 0};
+pidParams setPWMYParams = {600, 0, 5, 0, 0, 800, 0, 0};
 
 PID setPWMPIDX(setPWMXParams);
 PID setPWMPIDY(setPWMYParams);
@@ -136,11 +136,13 @@ bool pauseTesting = false;
 const char* telemVars[] = {
   "carriageXPosition", "pendulumXAngle",
   "xAngleError", "xPWMp", "xPWMi", "xPWMd", "xPWMout", "xPWM",
-  "pendulumYAngle",
-  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut"
+  "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut",
+  "carriageYPosition", "pendulumYAngle",
+  "yAngleError", "yPWMp", "yPWMi", "yPWMd", "yWMout", "yPWM",
+  "yPositionError", "angleYp", "angleYi", "angleYd", "setAngleYOut"
 };
 
-float telemVals[14];
+float telemVals[26];
 
 struct stateVars {
   int posX;
@@ -188,12 +190,24 @@ void updateTelemetry() {
   telemVals[5] = setPWMXOutputs.dOut;
   telemVals[6] = setPWMXOutputs.output;
   telemVals[7] = PWMOutputs.xPWM;
-  telemVals[8] = stateVariables.angleY;
-  telemVals[9] = stateErrors.positionErrorX;
-  telemVals[10] = setAngleXOutputs.pOut;
-  telemVals[11] = setAngleXOutputs.iOut;
-  telemVals[12] = setAngleXOutputs.dOut;
-  telemVals[13] = setAngleXOutputs.output;
+  telemVals[8] = stateErrors.positionErrorX;
+  telemVals[9] = setAngleXOutputs.pOut;
+  telemVals[10] = setAngleXOutputs.iOut;
+  telemVals[11] = setAngleXOutputs.dOut;
+  telemVals[12] = setAngleXOutputs.output;
+  telemVals[13] = stateVariables.posY;
+  telemVals[14] = stateVariables.angleY;
+  telemVals[15] = -stateErrors.angleErrorY;
+  telemVals[16] = setPWMYOutputs.pOut;
+  telemVals[17] = setPWMYOutputs.iOut;
+  telemVals[18] = setPWMYOutputs.dOut;
+  telemVals[19] = setPWMYOutputs.output;
+  telemVals[20] = PWMOutputs.yPWM;
+  telemVals[21] = stateErrors.positionErrorY;
+  telemVals[22] = setAngleYOutputs.pOut;
+  telemVals[23] = setAngleYOutputs.iOut;
+  telemVals[24] = setAngleYOutputs.dOut;
+  telemVals[25] = setAngleYOutputs.output;
 }
 
 void telemLoop(void *pvParameters){
@@ -295,10 +309,10 @@ int sgn(int val) {
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
   int REPOSITION_SPEED = 7; // RC: Consider moving these to global consts? Their scope is local to this function
-  int SWINGUP_SPEED_X = 255;   // RC: but it may be better to keep all constant definitions in one place
+  int SWINGUP_SPEED_X = 100;   // RC: but it may be better to keep all constant definitions in one place
   int SWINGUP_SPEED_Y = 0;
   int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
-  int SWINGUP_TIME_MS = 120; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+  int SWINGUP_TIME_MS = 150; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
 
   move.moveXY(0, 0);
   int now = millis();
@@ -312,7 +326,7 @@ void swingUp() {
   uint32_t loop_timer = micros();
 
   while (x_dir * stateVariables.posX < 2750) { // RC: Supress [...] until we get to 2D - [&& y_dir * stateVariables.posY < 4000) { ]
-    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0); // RC: y-movement disabled
+    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir * 0); // RC: y-movement disabled
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);} // Give time for motor PWM commands to register. delayUS(1) since empty while loop makes ESP32 mad
     loop_timer = micros();
@@ -320,7 +334,7 @@ void swingUp() {
 
   int start_reposition_time = millis();
   while (millis() - start_reposition_time < 100) { // Residual movement to ensure pendulum is fully against the gantry walls
-    move.moveXY(REPOSITION_SPEED * x_dir, REPOSITION_SPEED * y_dir * 0);
+    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir * 0);
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
@@ -333,7 +347,7 @@ void swingUp() {
   
   // while (-x_dir * stateVariables.angleX < 0 && abs(stateVariables.posX) < 2650 && abs(stateVariables.posY) < 3900) { // RC: See line 308 && -y_dir * stateVariables.angleY < 4000) {
   while (millis() - swingup_start < SWINGUP_TIME_MS) {
-    move.moveXY(SWINGUP_SPEED_X * -x_dir, SWINGUP_SPEED_Y * -y_dir * 0); // Note opposite direction!
+    move.moveXY(SWINGUP_SPEED_X * x_dir, SWINGUP_SPEED_Y * y_dir * 0); // Note opposite direction!
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();

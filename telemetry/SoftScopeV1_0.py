@@ -28,13 +28,21 @@ COLOR_OPTIONS = {
 
 VAR_COLORS = {
     "carriageXPosition": "White",
+    "carriageYPosition": "White",
     "pendulumXAngle": "Red",
+    "pendulumYAngle": "Red",
     "xAngleError": "Blue",
     "xPWMp" : "Red",
     "xPWMi" : "Cyan",
     "xPWMd" : "Orange",
     "xPWMout": "Yellow",
     "xPWM": "Yellow",
+    "yAngleError": "Blue",
+    "yPWMp" : "Red",
+    "yPWMi" : "Cyan",
+    "yPWMd" : "Orange",
+    "yPWMout": "Yellow",
+    "yPWM": "Yellow",
 }
 
 
