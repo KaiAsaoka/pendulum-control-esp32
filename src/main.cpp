@@ -68,15 +68,15 @@ Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends
 Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
 
 // // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
-pidParams setAngleXParams = {25, 2, 15, 0, 0, 985, 0, 50000000}; 
+pidParams setAngleXParams = {15, 3, 48, 0, 0, 985, 0, 50000000}; 
 // pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 // {25, 2, 15, 0, 0, 985, 0, 50000000} is current best for setAngleX
 // pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
-pidParams setAngleYParams = {25, 2, 15, 0, 0, 985, 0, 50000000};
+pidParams setAngleYParams = {15, 3, 25, 0, 0, 985, 0, 50000000};
 // {}
 // pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
-pidParams setPWMXParams = {600, 0, 5, 985, 0, 800, 0, 0};
-pidParams setPWMYParams = {600, 0, 5, 0, 0, 800, 0, 0};
+pidParams setPWMXParams = {600, 0, 7, 890, 0, 880, 0, 0};
+pidParams setPWMYParams = {600, 0, 7, 790, 0, 880, 0, 0};
 
 PID setPWMPIDX(setPWMXParams);
 PID setPWMPIDY(setPWMYParams);
@@ -311,10 +311,10 @@ int sgn(int val) {
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
   int REPOSITION_SPEED = 7; // RC: Consider moving these to global consts? Their scope is local to this function
-  int SWINGUP_SPEED_X = 100;   // RC: but it may be better to keep all constant definitions in one place
-  int SWINGUP_SPEED_Y = 0;
+  int SWINGUP_SPEED_X = 10;   // RC: but it may be better to keep all constant definitions in one place
+  int SWINGUP_SPEED_Y = 10;
   int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
-  int SWINGUP_TIME_MS = 150; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+  int SWINGUP_TIME_MS = 250; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
 
   move.moveXY(0, 0);
   int now = millis();
@@ -327,8 +327,8 @@ void swingUp() {
 
   uint32_t loop_timer = micros();
 
-  while (x_dir * stateVariables.posX < 2750) { // RC: Supress [...] until we get to 2D - [&& y_dir * stateVariables.posY < 4000) { ]
-    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir * 0); // RC: y-movement disabled
+  while (x_dir * stateVariables.posX < 2750 && y_dir * stateVariables.posY < 4000) {
+    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir); // RC: y-movement disabled
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);} // Give time for motor PWM commands to register. delayUS(1) since empty while loop makes ESP32 mad
     loop_timer = micros();
@@ -336,7 +336,7 @@ void swingUp() {
 
   int start_reposition_time = millis();
   while (millis() - start_reposition_time < 100) { // Residual movement to ensure pendulum is fully against the gantry walls
-    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir * 0);
+    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir);
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
@@ -349,14 +349,14 @@ void swingUp() {
   
   // while (-x_dir * stateVariables.angleX < 0 && abs(stateVariables.posX) < 2650 && abs(stateVariables.posY) < 3900) { // RC: See line 308 && -y_dir * stateVariables.angleY < 4000) {
   while (millis() - swingup_start < SWINGUP_TIME_MS) {
-    move.moveXY(SWINGUP_SPEED_X * x_dir, SWINGUP_SPEED_Y * y_dir * 0); // Note opposite direction!
+    move.moveXY(SWINGUP_SPEED_X * x_dir, SWINGUP_SPEED_Y * y_dir); // Note opposite direction!
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
 
   // Let momentum of pendulum throw itself upright
-  while (abs(stateVariables.angleX) < 5) { // RC: 10 is admittedly a magic number. Tune if necessary
+  while (abs(stateVariables.angleX) > 10 && abs(stateVariables.angleY) > 10) { // RC: 10 is admittedly a magic number. Tune if necessary
     move.moveXY(0, 0);
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
@@ -412,6 +412,8 @@ void handleButtonPress() {
   setAnglePIDY.reset();
   stateErrors.positionErrorX = 0;
   stateErrors.positionErrorY = 0;
+  stateVariables.targetPosX = 0;
+  stateVariables.targetPosY = 0;
   ENC1.zero(); //Old zeroing button
   ENC2.zero();
   PEND1.zero();
@@ -453,7 +455,7 @@ void loop() {
   }
   start_us += LOOP_US;
 
-  // updateTargetPos();
+  updateTargetPos();
 
   if(!zeroButtonState || telemetry.pauseTesting()) {
     move.moveXY(0, 0);
