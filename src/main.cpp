@@ -50,8 +50,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define MOVE_TARGET_POSX_SCALE_FACTOR 0.0004 // Tune sensitivity of joystick for target position (X)
 #define MOVE_TARGET_POSY_SCALE_FACTOR 0.0004 // Tune sensitivity of joystick for target position (Y)
 #define JOYSTICK_DEAD_ZONE 50 // To prevent drift when joystick is near neutral
-#define JOYSTICK_OFFSET_X -63 // Calibrate the joystick centre
-#define JOYSTICK_OFFSET_Y -53
+#define JOYSTICK_OFFSET_X -120 // Calibrate the joystick centre
+#define JOYSTICK_OFFSET_Y -110
 
 #define X_DEADZONE 12
 #define Y_DEADZONE 0
@@ -373,7 +373,10 @@ void updateTargetPos() {
   WiFi.mode(WIFI_OFF);
   stateVariables.joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 2048 - JOYSTICK_OFFSET_X; // Get value between [0, 4095] and divide by 2
   stateVariables.joystick_reading_y = analogRead(MOVE_TARGET_POSY_PIN) - 2048 - JOYSTICK_OFFSET_Y; // Note that due to offset, min_value != -1*max_value
-  
+  // Serial.println("Joystick X");
+  // Serial.println(stateVariables.joystick_reading_x);
+  //   Serial.println("Joystick Y");
+  // Serial.println(stateVariables.joystick_reading_y);
   if (abs(stateVariables.joystick_reading_x) > JOYSTICK_DEAD_ZONE) { //RC: Experiment with dead-zone value
     stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*stateVariables.joystick_reading_x; //RC: TODO: Find good scale factor (movement speed)
     stateVariables.targetPosX = constrain(stateVariables.targetPosX, -2750, 2750); //RC: TODO: replace all instances of dead zone magic numbers with constants
