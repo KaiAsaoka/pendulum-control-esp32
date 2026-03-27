@@ -10,6 +10,9 @@
 #include <freertos/semphr.h>
 #include <array>
 
+// ADDED: Include the BNO085 Library
+#include "SparkFun_BNO080_Arduino_Library.h"
+
 // Define ESP identifiers
 #define ESP_GANTRY 1
 #define ESP_PENDULUM 2
@@ -30,6 +33,13 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define ENC_MISO 27
 #define ENC_MOSI 0
 #define ENC_CLK  14
+
+// --- BNO085 Specific Pins ---
+// CHANGED: IMU_CS moved from 5 to 18 to avoid conflict with RED_LED
+#define IMU_CS   18  
+#define IMU_WAK  4   // Wake pin
+#define IMU_INT  16  // Interrupt pin
+#define IMU_RST  17  // Reset pin
 
 // Gantry motor encoder chip-selects
 #define ENC_CS1  33
@@ -64,17 +74,15 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); // RC: Pend angle tends to spike between 0 when angle > 0 and -2*numBitIgnore when angle < 0 as expected 
-Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); // RC: (but not desired). Ignore Greg's suggestion and use filtering instead for now
+Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); 
+Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); 
+
+// ADDED: IMU Object
+BNO080 myIMU;
 
 // // Param order: kp, ki, kd, ap, ai, ad, ao, iCutoff
 pidParams setAngleXParams = {15, 3, 48, 0, 0, 985, 0, 50000000}; 
-// pidParams setAngleXParams = {0, 0, 0, 0, 0, 0, 0, 0};
-// {25, 2, 15, 0, 0, 985, 0, 50000000} is current best for setAngleX
-// pidParams setAngleYParams = {0, 0, 0, 0, 0, 0, 0, 0};
 pidParams setAngleYParams = {15, 3, 25, 0, 0, 985, 0, 50000000};
-// {}
-// pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
 pidParams setPWMXParams = {600, 0, 7, 890, 0, 880, 0, 0};
 pidParams setPWMYParams = {600, 0, 7, 790, 0, 880, 0, 0};
 
@@ -153,8 +161,8 @@ struct stateVars {
   int angleY;
   int joystick_reading_x;
   int joystick_reading_y;
-  float targetPosX; //RC: doubles since we need the resolution to be fine for the
-  float targetPosY; //RC: joystick adjustment. Casted to int for PID calculations
+  float targetPosX; 
+  float targetPosY; 
 };
 
 stateVars stateVariables;
@@ -272,8 +280,21 @@ void setup() {
 
   ENC1.begin();
   ENC2.begin();
+  
+  // NOTE: Pendulum Encoders left enabled in setup in case you still need them, 
+  // but they are no longer updating stateVariables.angle in readState()
   PEND1.begin();
   PEND2.begin();
+
+  // ADDED: Initialize BNO085 IMU
+  Serial.println("Starting BNO085 over SPI...");
+  if (myIMU.beginSPI(IMU_CS, IMU_WAK, IMU_INT, IMU_RST) == false) {
+    Serial.println("BNO085 not detected. Check wiring!");
+    // while (1); // Commented out so gantry won't completely freeze if IMU wires slip
+  } else {
+    myIMU.enableRotationVector(2500); // 400Hz update rate
+    Serial.println("BNO085 Initialized!");
+  }
 
   DVR1.begin();
   delay(1000);
@@ -296,9 +317,24 @@ void setup() {
   );
 }
 
-void readState() { //140us empirically with scope at 1MHz clock speed
-  stateVariables.angleX = -PEND1.getTotalAngle();
-  stateVariables.angleY =  PEND2.getTotalAngle();
+void readState() { 
+  // 1. UPDATE PENDULUM ANGLES VIA BNO085 IMU
+  if (myIMU.dataAvailable() == true) {
+    float roll  = (myIMU.getRoll()) * 180.0 / PI;   
+    float pitch = (myIMU.getPitch()) * 180.0 / PI;  
+    
+    // Cast float to int to match existing struct. 
+    // WARNING: Your PID gains must be retuned since these are now 
+    // degrees (-180 to 180) instead of raw 14-bit encoder ticks!
+    stateVariables.angleX = (int)roll;
+    stateVariables.angleY = (int)pitch;
+  }
+
+  // Old encoder reads commented out:
+  // stateVariables.angleX = -PEND1.getTotalAngle();
+  // stateVariables.angleY =  PEND2.getTotalAngle();
+
+  // 2. UPDATE GANTRY POSITIONS VIA MOTORS
   stateVariables.posX = move.returnPosX();
   stateVariables.posY = move.returnPosY();
 }
@@ -310,16 +346,15 @@ int sgn(int val) {
 
 // Ensure pendulum is at rest against one side of the mount beforehand
 void swingUp() {
-  int REPOSITION_SPEED = 7; // RC: Consider moving these to global consts? Their scope is local to this function
-  int SWINGUP_SPEED_X = 10;   // RC: but it may be better to keep all constant definitions in one place
+  int REPOSITION_SPEED = 7; 
+  int SWINGUP_SPEED_X = 10;   
   int SWINGUP_SPEED_Y = 10;
-  int EXCESS_REPOSITION_TIME_MS = 1000; // RC: Time to continue repositioning after reaching target bounds, to ensure pendulum is fully against the walls
-  int SWINGUP_TIME_MS = 250; // RC: Time the pendulum takes to swing up. Tune alongside SWINGUP_SPEED to try to get carriage to end up at center
+  int EXCESS_REPOSITION_TIME_MS = 1000; 
+  int SWINGUP_TIME_MS = 250; 
 
   move.moveXY(0, 0);
   int now = millis();
-  while (millis() - now < 4000) {delayMicroseconds(100);} // RC: Doesn't like delay for some reason? Investigate later
-  //delay(4000); // Give pendulum time to tip one way or the other
+  while (millis() - now < 4000) {delayMicroseconds(100);} 
   readState();
 
   int x_dir = sgn(stateVariables.angleX);
@@ -328,35 +363,33 @@ void swingUp() {
   uint32_t loop_timer = micros();
 
   while (x_dir * stateVariables.posX < 2750 && y_dir * stateVariables.posY < 4000) {
-    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir); // RC: y-movement disabled
+    move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir); 
     readState();
-    while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);} // Give time for motor PWM commands to register. delayUS(1) since empty while loop makes ESP32 mad
+    while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);} 
     loop_timer = micros();
   }
 
   int start_reposition_time = millis();
-  while (millis() - start_reposition_time < 100) { // Residual movement to ensure pendulum is fully against the gantry walls
+  while (millis() - start_reposition_time < 100) { 
     move.moveXY(REPOSITION_SPEED * -x_dir, REPOSITION_SPEED * -y_dir);
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
 
   move.moveXY(0, 0);
-  delay(3000); // Allow time for pendulum to settle
+  delay(3000); 
 
   loop_timer = micros();
   int swingup_start = millis();
   
-  // while (-x_dir * stateVariables.angleX < 0 && abs(stateVariables.posX) < 2650 && abs(stateVariables.posY) < 3900) { // RC: See line 308 && -y_dir * stateVariables.angleY < 4000) {
   while (millis() - swingup_start < SWINGUP_TIME_MS) {
-    move.moveXY(SWINGUP_SPEED_X * x_dir, SWINGUP_SPEED_Y * y_dir); // Note opposite direction!
+    move.moveXY(SWINGUP_SPEED_X * x_dir, SWINGUP_SPEED_Y * y_dir); 
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
     loop_timer = micros();
   }
 
-  // Let momentum of pendulum throw itself upright
-  while (abs(stateVariables.angleX) > 10 && abs(stateVariables.angleY) > 10) { // RC: 10 is admittedly a magic number. Tune if necessary
+  while (abs(stateVariables.angleX) > 10 && abs(stateVariables.angleY) > 10) { 
     move.moveXY(0, 0);
     readState();
     while (micros() - loop_timer < LOOP_US) {delayMicroseconds(100);}
@@ -365,30 +398,21 @@ void swingUp() {
 }
 
 void updateTargetPos() {
-  //RC: analogReads are the issue. TODO: bugfix
-  //RC: It turns out GPIO 0, 2, 4, 12-15, 25-27 are on ADC2 which are shared with Wi-Fi/Bluetooth
-  //RC: Unlike GPIO 32-39 which are on ADC1 and are always free
-  //RC: First test change: turn WiFi off with WiFi.mode(WIFI_OFF) - CHANGE WORKS
-  //RC: Alternatively, try jumping the connections to pins 34, 35 which are not GPIO (as discovered with the LEDs) but are ADC1 (untested)
   WiFi.mode(WIFI_OFF);
-  stateVariables.joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 2048 - JOYSTICK_OFFSET_X; // Get value between [0, 4095] and divide by 2
-  stateVariables.joystick_reading_y = -1*(analogRead(MOVE_TARGET_POSY_PIN) - 2048 - JOYSTICK_OFFSET_Y); // Note that due to offset, min_value != -1*max_value
-  // Serial.println("Joystick X");
-  // Serial.println(stateVariables.joystick_reading_x);
-  //   Serial.println("Joystick Y");
-  // Serial.println(stateVariables.joystick_reading_y);
-  if (abs(stateVariables.joystick_reading_x) > JOYSTICK_DEAD_ZONE) { //RC: Experiment with dead-zone value
-    stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*stateVariables.joystick_reading_x; //RC: TODO: Find good scale factor (movement speed)
-    stateVariables.targetPosX = constrain(stateVariables.targetPosX, -2750, 2750); //RC: TODO: replace all instances of dead zone magic numbers with constants
+  stateVariables.joystick_reading_x = analogRead(MOVE_TARGET_POSX_PIN) - 2048 - JOYSTICK_OFFSET_X; 
+  stateVariables.joystick_reading_y = -1*(analogRead(MOVE_TARGET_POSY_PIN) - 2048 - JOYSTICK_OFFSET_Y); 
+
+  if (abs(stateVariables.joystick_reading_x) > JOYSTICK_DEAD_ZONE) { 
+    stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*stateVariables.joystick_reading_x; 
+    stateVariables.targetPosX = constrain(stateVariables.targetPosX, -2750, 2750); 
   }
   if (abs(stateVariables.joystick_reading_y) > JOYSTICK_DEAD_ZONE) {
-    stateVariables.targetPosY += MOVE_TARGET_POSY_SCALE_FACTOR*stateVariables.joystick_reading_y; //RC: ""
-    stateVariables.targetPosY = constrain(stateVariables.targetPosY, -4000, 4000); //RC: TODO: also consider limiting target to just shy of dead zone as it is impossible to control at dead zone exactly anyway
+    stateVariables.targetPosY += MOVE_TARGET_POSY_SCALE_FACTOR*stateVariables.joystick_reading_y; 
+    stateVariables.targetPosY = constrain(stateVariables.targetPosY, -4000, 4000); 
   }
 }
 
 void runControl(float dt, int controlCycle) {
-  // position PID may run on slower loop time
   if (controlCycle == POS_UPDATE_CYCLES) {
     stateErrors.positionErrorX = (stateVariables.posX - (int)stateVariables.targetPosX);
     stateErrors.positionErrorY = ((int)stateVariables.targetPosY - stateVariables.posY);
@@ -406,9 +430,7 @@ void runControl(float dt, int controlCycle) {
   PWMOutputs = {setPWMXOutputs.output, setPWMYOutputs.output};
 }
 
-// The function to run when button is pressed
 void handleButtonPress() {
-  //serial.println("Button was pressed!");
   setPWMPIDX.reset();
   setPWMPIDY.reset();
   setAnglePIDX.reset();
@@ -417,20 +439,16 @@ void handleButtonPress() {
   stateErrors.positionErrorY = 0;
   stateVariables.targetPosX = 0;
   stateVariables.targetPosY = 0;
-  ENC1.zero(); //Old zeroing button
+  ENC1.zero(); 
   ENC2.zero();
   PEND1.zero();
   PEND2.zero();
 
-// Toggle armed state and update BLUE status LED
   zeroButtonState = !zeroButtonState;
   digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
 }
 
 void handleAuxButtonPress() {
-  // Serial.println("Aux button pressed!");
-  // swingUp();
-  // Zero controller values, but not encoder zero points
   setPWMPIDX.reset();
   setPWMPIDY.reset();
   setAnglePIDX.reset();
@@ -441,18 +459,18 @@ void handleAuxButtonPress() {
   stateVariables.targetPosY = 0;
 }
 
-// Gantry-specific loop
 void loop() {
-  static uint32_t start_us = micros(); //RC: Initialize start time ONCE only
+  static uint32_t start_us = micros(); 
 
   if (micros() - start_us >= LOOP_US) {
     overrun_count++;
-    // Serial.println("Loop overrun! Total overruns: " + String(overrun_count));
-    digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); // Toggle pin to measure loop timing
+    digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); 
     while(micros() - start_us > LOOP_US) {
       start_us += LOOP_US;
     }
   }
+  
+  // The BNO085's INT pin is continuously checked right here
   while(micros() - start_us < LOOP_US) {
     readState();
   }
@@ -476,18 +494,10 @@ void loop() {
       controlCycle++;
       if(controlCycle > POS_UPDATE_CYCLES) controlCycle = 1;
 
-      // if (abs(PWMOutputs.xPWM) < X_DEADZONE) {
-      //   PWMOutputs.xPWM = int(X_DEADZONE * std::tanh(PWMOutputs.xPWM/(float)(3)));
-      // }
-
-      // if (stateErrors.angleErrorY < 0) PWMOutputs.yPWM -= Y_DEADZONE;
-      // else if (stateErrors.angleErrorY > 0) PWMOutputs.yPWM += Y_DEADZONE;
-
       PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
       PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
 
-      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) { //RC: Removed angle dead zones
-        // && abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
+      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) { 
         move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
         digitalWrite(RED_LED, LOW);
       } else {
