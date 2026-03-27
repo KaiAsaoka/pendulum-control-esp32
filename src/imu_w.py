@@ -1,7 +1,7 @@
 import smbus2
 import time
 
-# MPU6050 Default I2C address
+# MPU6050 Default I2C address (may change)
 DEVICE_ADDR = 0x68
 
 # Register Map
