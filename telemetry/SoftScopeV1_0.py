@@ -2,8 +2,6 @@ import random
 from PyQt6 import QtWidgets, QtCore
 import pyqtgraph as pg
 import csv
-import time
-import plotly.express as px
 import numpy as np
 
 #from time import perf_counter
@@ -65,33 +63,128 @@ VAR_COLORS = {
     "setAngleYOut": "Cyan",
 }
 
+class XYGraphWindow(QtWidgets.QWidget):
+    def __init__(self, data_buffers):
+        super().__init__()
+        self.setWindowTitle("XY Position View")
+        self.resize(600, 600)
 
-## GPT rounding thing - get rid of it if it doensn't work well 
+        self.data_buffers = data_buffers
+        self.trail_length = 200  # number of past points to show in trail
 
-def nice_round(val):
-    """
-    Rounds a float to a "nice" human-readable format.
-    - Small numbers: keep up to 3-5 significant digits
-    - Large numbers: no decimal if integer
-    """
-    if val == 0:
-        return "0"
-    abs_val = abs(val)
-    
-    # Determine number of digits to keep based on magnitude
-    if abs_val >= 1:
-        # Round to 4 significant digits for medium/large numbers
-        return str(round(val, 4 - int(len(str(int(abs_val))))))
-    elif abs_val < 1:
-        # For small numbers, keep 3 significant digits
-        # Example: 0.000159999995 -> 0.00016
-        from math import log10, floor
-        digits = 3
-        exponent = floor(log10(abs_val))
-        rounded = round(val, -exponent + (digits - 1))
-        return str(rounded)
-    else:
-        return str(val)
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
+
+        # --- Plot ---
+        self.plot_widget = pg.PlotWidget(title="XY Position")
+        self.plot_widget.setLabel("left", "Y Position")
+        self.plot_widget.setLabel("bottom", "X Position")
+        self.plot_widget.setAspectLocked(True)
+        self.plot_widget.addLegend()
+        layout.addWidget(self.plot_widget)
+
+        # In __init__, after creating self.plot_widget:
+        self.plot_widget.disableAutoRange()
+        self.plot_widget.setXRange(-275, 275, padding=0)
+        self.plot_widget.setYRange(-400, 400, padding=0)
+
+        # Setpoint node - large, bright
+        self.setpoint_dot = self.plot_widget.plot(
+            [], [],
+            pen=None,
+            symbol='o',
+            symbolSize=18,
+            symbolBrush=(255, 255, 0, 255),
+            symbolPen=pg.mkPen((200, 200, 0), width=2),
+            name="Setpoint"
+        )
+
+        # Carriage trail - fading line
+        self.trail_curve = self.plot_widget.plot(
+            [], [],
+            pen=pg.mkPen((0, 180, 255, 120), width=1),
+            name="Carriage Trail"
+        )
+
+        # Carriage node - smaller, on top of trail
+        self.carriage_dot = self.plot_widget.plot(
+            [], [],
+            pen=None,
+            symbol='o',
+            symbolSize=10,
+            symbolBrush=(0, 180, 255, 255),
+            symbolPen=pg.mkPen((0, 120, 200), width=2),
+            name="Carriage"
+        )
+
+        # --- Controls ---
+        controls = QtWidgets.QHBoxLayout()
+        layout.addLayout(controls)
+
+        self.pause_btn = QtWidgets.QPushButton("Pause")
+        self.pause_btn.setCheckable(True)
+        self.pause_btn.toggled.connect(self.toggle_pause)
+        controls.addWidget(self.pause_btn)
+
+        controls.addWidget(QtWidgets.QLabel("Trail Length:"))
+        self.trail_input = QtWidgets.QLineEdit(str(self.trail_length))
+        self.trail_input.setFixedWidth(60)
+        controls.addWidget(self.trail_input)
+
+        self.set_trail_btn = QtWidgets.QPushButton("Set")
+        self.set_trail_btn.clicked.connect(self.update_trail_length)
+        controls.addWidget(self.set_trail_btn)
+
+        controls.addStretch(1)
+
+        self.paused = False
+
+        # --- Timer ---
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(20)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start()
+
+    def toggle_pause(self, checked):
+        self.paused = checked
+        self.pause_btn.setText("Resume" if checked else "Pause")
+
+    def update_trail_length(self):
+        try:
+            self.trail_length = int(self.trail_input.text())
+        except ValueError:
+            pass
+
+    def update_plot(self):
+        if self.paused:
+            return
+
+        buf_sx = self.data_buffers.get("SetPositionX")
+        buf_sy = self.data_buffers.get("SetPositionY")
+        buf_cx = self.data_buffers.get("carriageXPosition")
+        buf_cy = self.data_buffers.get("carriageYPosition")
+
+        # --- Setpoint node ---
+        if buf_sx and buf_sy:
+            sx = buf_sx[-1] / 10
+            sy = buf_sy[-1] / 10
+            self.setpoint_dot.setData([sx], [sy])
+
+        # --- Carriage trail + node ---
+        if buf_cx and buf_cy:
+            # Use the shorter of the two buffers to stay in sync
+            n = min(len(buf_cx), len(buf_cy), self.trail_length)
+            cx_arr = np.array(buf_cx)[-n:] / 10
+            cy_arr = np.array(buf_cy)[-n:] / 10
+
+            self.trail_curve.setData(cx_arr, cy_arr)
+
+            # Current position is the last point
+            self.carriage_dot.setData([cx_arr[-1]], [cy_arr[-1]])
+
+    def closeEvent(self, event):
+        self.timer.stop()
+        event.accept()
 
 class TelemetryGUI(QtWidgets.QWidget):
     def __init__(self, variable_names, data_buffers):
@@ -158,7 +251,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         main_split.addWidget(self.plot_widget)
         self.plot_widget.addLegend()
         self.plot_widget.setLabel("left", "Value")
-        self.plot_widget.setLabel("bottom", "Time (ms)")
+        self.plot_widget.setLabel("bottom", "Sample Index")
         self.curves = {}
 
         # PID Sending
@@ -227,7 +320,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         controls.addWidget(self.save_btn)
 
         # Timebase selector
-        controls.addWidget(QtWidgets.QLabel("Timebase (ms/div):"))
+        controls.addWidget(QtWidgets.QLabel("Samples / Window:"))
         # self.timebase_box = QtWidgets.QComboBox()
         # self.timebase_values = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000]
         # for v in self.timebase_values:
@@ -262,6 +355,9 @@ class TelemetryGUI(QtWidgets.QWidget):
         self.view_saved_telem_btn.setEnabled(False)
         controls.addWidget(self.view_saved_telem_btn)
 
+        self.view_xy_btn = QtWidgets.QPushButton("View XY")
+        self.view_xy_btn.clicked.connect(self.open_xy_view)
+        controls.addWidget(self.view_xy_btn)
 
         controls.addStretch(1)
 
@@ -269,7 +365,7 @@ class TelemetryGUI(QtWidgets.QWidget):
         # self.time_per_div = TIME_PER_DIV_DEFAULT
         self.time_per_div = float(self.timebase_box.text())
         self.num_divs = NUM_DIVS_DEFAULT
-        self.time_window_ms = self.time_per_div * self.num_divs
+        self.time_window_ms = self.time_per_div
 
         # State
         self.paused = False
@@ -314,12 +410,11 @@ class TelemetryGUI(QtWidgets.QWidget):
     def save(self, checked):
         if not checked:
             return
+        
+        buffers_snapshot = {name: list(buf) for name, buf in self.data_buffers.items()}
 
-        all_timestamps = sorted(set(t for buf in self.data_buffers.values() for t, _ in buf))
-        data_dict = {name: {t: v for t, v in buf} for name, buf in self.data_buffers.items()}
-
-        self.paused = checked
-        self.pause_btn.setText("Resume" if checked else "Pause")
+        self.paused = True
+        self.pause_btn.setText("Resume")
 
         file_dialog = QtWidgets.QFileDialog(self)
         file_dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
@@ -336,21 +431,27 @@ class TelemetryGUI(QtWidgets.QWidget):
         try:
             with open(save_path, "w", newline="") as f:
                 writer = csv.writer(f)
-                
+
                 # --- Write telemetry data ---
-                header = ["Timestamp (ms)"] + list(self.data_buffers.keys())
+                names = list(buffers_snapshot.keys())
+                header = ["Sample Index"] + names
                 writer.writerow(header)
 
-                for t in all_timestamps:
-                    row = [t]
-                    for name in self.data_buffers.keys():
-                        row.append(data_dict[name].get(t, ""))
+                # All buffers should be the same length, use the longest as reference
+                max_len = max(len(buf) for buf in buffers_snapshot.values())
+                buffers_as_lists = {name: list(buffers_snapshot[name]) for name in names}
+
+                for i in range(max_len):
+                    row = [i]
+                    for name in names:
+                        buf = buffers_as_lists[name]
+                        row.append(buf[i] if i < len(buf) else "")
                     writer.writerow(row)
 
                 # --- Add a blank line separator ---
                 writer.writerow([])
 
-                # --- Write PID values (if available) ---
+                # --- Write PID values ---
                 axes = ["Set Angle X", "Set Angle Y", "Set PWM X", "Set PWM Y"]
                 params = ["P", "I", "D", "aP", "aI", "aD", "aO", "Windup"]
 
@@ -362,20 +463,20 @@ class TelemetryGUI(QtWidgets.QWidget):
                     try:
                         pid_dict[key] = float(line_edit.text())
                     except ValueError:
-                        pid_dict[key] = self.pid_initial[key]
+                        pid_dict[key] = self.pid_initial.get(key, 0.0)
 
-                for i, axis in enumerate(axes):
-                    row = [axis]
-                    for j, param in enumerate(params):
-                        row.append(pid_dict[f"{axis}_{param}"])
-                    writer.writerow([row])
+                for axis in axes:
+                    row = [axis] + [pid_dict.get(f"{axis}_{param}", 0.0) for param in params]
+                    writer.writerow(row)
 
+            self.reset_buffer()
             print(f"Telemetry data + PID values saved to: {save_path}")
+
         except Exception as e:
             print(f"Error saving telemetry data: {e}")
+
         finally:
             self.save_btn.setChecked(False)
-            self.reset_buffer()
 
     def send_pid_values(self):
         pid_dict = {}
@@ -430,53 +531,47 @@ class TelemetryGUI(QtWidgets.QWidget):
         if self.paused or not self.selected_vars:
             return
 
-        now = None
+        total_samples = 0
+
         for name in self.selected_vars:
             buf = self.data_buffers[name]
-           
-            if buf:
-                # Convert the deque directly to a numpy array and slice the last 1000 points
-                # This is significantly faster than list comprehensions and zipping
-                data = np.array(buf)[-1000:]
-                
-                if len(data) == 0:
-                    continue
-                
-                # Slice columns into separate arrays
-                times = data[:, 0]
-                values = data[:, 1]
+            if not buf:
+                continue
 
-                # Apply per-channel scale using fast numpy vectorization
-                try:
-                    scale = float(self.channel_scales[name].text())
-                except ValueError:
-                    scale = 1.0
-                    
-                # This multiplies the entire array in C, rather than a Python loop
-                scaled_values = values * scale
+            data = np.array(buf)
+            total_samples = max(total_samples, len(data))
+            display_count = int(self.time_window_ms)
+            data = data[-display_count:]
 
-                if now is None:
-                    now = times[-1]
-                    
-                # Pass the numpy arrays directly to pyqtgraph
-                # We also fixed the bug where scaled_values wasn't being plotted
-                self.curves[name].setData(times, scaled_values)
+            try:
+                scale = float(self.channel_scales[name].text())
+            except ValueError:
+                scale = 1.0
 
-        if now is not None:
-            # Set the X-axis range to create the scrolling oscilloscope effect
-            if self.just_resumed:
-                self.plot_widget.setXRange(now - self.time_window_ms, now)
-                self.just_resumed = False # Reset the flag
-            else:
-                self.plot_widget.setXRange(now - self.time_window_ms, now)
+            scaled_values = data * scale
 
-    # def closeEvent(self, event: QtWidgets.QCloseEvent):
-    #     end_telemetry()
+            # Anchor x indices to absolute position in buffer
+            start_idx = total_samples - len(scaled_values)
+            x_indices = np.arange(start_idx, total_samples)
+            self.curves[name].setData(x_indices, scaled_values)
 
+        if total_samples > 0:
+            display_count = int(self.time_window_ms)
+            # Window scrolls once buffer exceeds display_count
+            x_max = max(total_samples, display_count)
+            x_min = x_max - display_count
+            self.plot_widget.setXRange(x_min, x_max, padding=0)
 
+    def open_xy_view(self):
+        if not hasattr(self, '_xy_window') or not self._xy_window.isVisible():
+            self._xy_window = XYGraphWindow(self.data_buffers)
+            self._xy_window.show()
+        else:
+            self._xy_window.raise_()
+            self._xy_window.activateWindow()
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial()
+    setup_serial("COM3")
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
     print("PID GAINS: ", pid_gain_vals)

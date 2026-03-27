@@ -1,0 +1,8 @@
+Timestamp (ms),carriageXPosition,pendulumXAngle,xAngleError,xPWMp,xPWMi,xPWMd,xPWMout,xPWM,xPositionError,angleXp,angleXi,angleXd,setAngleXOut,carriageYPosition,pendulumYAngle,yAngleError,yPWMp,yPWMi,yPWMd,yWMout,yPWM,yPositionError,angleYp,angleYi,angleYd,setAngleYOut
+
+PID Parameters
+Axis,P,I,D,aP,aI,aD,aO,Windup
+"['Set Angle X', 15.0, 3.0, 30.0, 0.0, 0.0, 985.0, 0.0, 50000000.0]"
+"['Set Angle Y', 15.0, 3.0, 30.0, 0.0, 0.0, 985.0, 0.0, 50000000.0]"
+"['Set PWM X', 725.0, 0.0, 17.0, 830.0, 0.0, 890.0, 0.0, 0.0]"
+"['Set PWM Y', 625.0, 0.0, 11.0, 830.0, 0.0, 890.0, 0.0, 0.0]"

@@ -104,7 +104,7 @@ def receive_pid():
 def receive_telemetry(num_vars, variable_names, data_buffers):
     global sending_pid
     snapshot_struct = "<" + "f"*num_vars
-    snapshot_size = 4*num_vars + 8
+    snapshot_size = 4*num_vars
 
     buffer = b""
     while True:
@@ -148,11 +148,10 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
                     break
                 vars_values = list(struct.unpack_from(snapshot_struct, packet, offset))
                 offset += 4*num_vars
-                timestamp_us = struct.unpack_from("<Q", packet, offset)[0]
-                offset += 8
+                # offset += 8
                 for i, val in enumerate(vars_values):
                     name = variable_names[i]
-                    data_buffers[name].append((timestamp_us/1000.0, val))
+                    data_buffers[name].append(val)
 
 # ----------------- SEND PID -----------------
 def send_pid(pid_vals):

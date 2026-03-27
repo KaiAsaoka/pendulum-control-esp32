@@ -227,14 +227,13 @@
         );
     }
 
-    void PL_Telemetry_ESP32::sendSnapshot(const float* values, uint64_t timestamp) {
+    void PL_Telemetry_ESP32::sendSnapshot(const float* values) {
         if(!_telemetryStarted) return;
 
         InternalSnapshot snap;
         for(size_t i=0;i<_numVars;i++) {
             snap.vars[i] = values[i];
         }
-        snap.timestamp_us = timestamp;
 
         xQueueSend(_snapshotQueue, &snap, 0);
     }

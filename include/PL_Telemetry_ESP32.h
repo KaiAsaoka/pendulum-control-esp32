@@ -9,7 +9,6 @@ class PL_Telemetry_ESP32 {
 public:
     struct Snapshot {
         float* vars[64];              // allocated based on numVars
-        uint64_t timestamp_us;
     };
 
     struct __attribute__((packed)) TelemetryPacketHeader {
@@ -32,7 +31,7 @@ public:
     {}
 
     void begin();
-    void sendSnapshot(const float* values, uint64_t timestamp);
+    void sendSnapshot(const float* values);
     
     bool updateGainVals();
     bool pauseTesting();

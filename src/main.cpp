@@ -98,18 +98,19 @@ unsigned long getTime(unsigned long startTime);
 volatile bool buttonPressed = false;
 
 // Time tracking for debouncing
-volatile unsigned long lastDebounceTime = 0;
-const unsigned long debounceDelay = 300;  // milliseconds
+volatile unsigned long lastDebounceTime_zero = 0;
+volatile unsigned long lastDebounceTime_aux  = 0;
+const unsigned long debounceDelay_us = 300000; // 300ms in microseconds
 
 volatile bool auxButtonPressed = false;
 volatile bool zeroButtonState = false;   // false = not armed, true = armed
 
 // Interrupt Service Routine (ISR)
-void IRAM_ATTR buttonISR() {
-  unsigned long currentTime = millis();
-  if (currentTime - lastDebounceTime > debounceDelay) {
-    buttonPressed = true;
-    lastDebounceTime = currentTime;
+void IRAM_ATTR auxButtonISR() {
+  unsigned long now = micros();
+  if (now - lastDebounceTime_aux > debounceDelay_us) {
+    auxButtonPressed = true;
+    lastDebounceTime_aux = now;
   }
 }
 
@@ -141,10 +142,11 @@ const char* telemVars[] = {
   "xPositionError", "angleXp", "angleXi", "angleXd", "setAngleXOut",
   "carriageYPosition", "pendulumYAngle",
   "yAngleError", "yPWMp", "yPWMi", "yPWMd", "yWMout", "yPWM",
-  "yPositionError", "angleYp", "angleYi", "angleYd", "setAngleYOut"
+  "yPositionError", "angleYp", "angleYi", "angleYd", "setAngleYOut",
+  "SetPositionX", "SetPositionY"
 };
 
-float telemVals[26];
+float telemVals[28];
 
 struct stateVars {
   int posX;
@@ -210,6 +212,8 @@ void updateTelemetry() {
   telemVals[23] = setAngleYOutputs.iOut;
   telemVals[24] = setAngleYOutputs.dOut;
   telemVals[25] = setAngleYOutputs.output;
+  telemVals[26] = stateVariables.targetPosX;
+  telemVals[27] = stateVariables.targetPosY;
 }
 
 void telemLoop(void *pvParameters){
@@ -218,7 +222,7 @@ void telemLoop(void *pvParameters){
 
     if (xSemaphoreTake(pidValsMutex, portMAX_DELAY) == pdTRUE) {
       updateTelemetry();
-      telemetry.sendSnapshot(telemVals, start_us);
+      telemetry.sendSnapshot(telemVals);
       xSemaphoreGive(pidValsMutex);
     }
 
@@ -508,15 +512,11 @@ void loop() {
 
   if (buttonPressed) {
     buttonPressed = false;
-    if (digitalRead(ZERO_BTN) == LOW) {
-      handleButtonPress();
-    }
+    handleButtonPress();
   }
 
   if (auxButtonPressed) {
     auxButtonPressed = false;
-    if (digitalRead(AUX_BTN) == LOW) {
-      handleAuxButtonPress();
-    }
+    handleAuxButtonPress();
   }
 }
