@@ -494,7 +494,7 @@ class TelemetryGUI(QtWidgets.QWidget):
     def change_timebase(self, val):
         # self.time_per_div = int(val)
         self.time_per_div = float(self.timebase_box.text())
-        self.time_window_ms = self.time_per_div * self.num_divs
+        self.time_window_ms = self.time_per_div
 
     def set_y_axis(self):
         try:
@@ -571,7 +571,7 @@ class TelemetryGUI(QtWidgets.QWidget):
             self._xy_window.activateWindow()
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
-    setup_serial("COM3")
+    setup_serial()
     variable_names, esp_addr = receive_metadata()
     pid_gain_vals = receive_pid()
     print("PID GAINS: ", pid_gain_vals)

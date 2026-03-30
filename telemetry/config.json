@@ -1,5 +1,5 @@
 {
-    "TIME_PER_DIV": 1000,
+    "TIME_PER_DIV": 10000,
     "NUM_DIVS": 10,
     "MAX_POINTS": 20000,
     "ESP_IP": "192.168.137.50",

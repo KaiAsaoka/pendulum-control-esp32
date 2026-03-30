@@ -20,7 +20,7 @@ sending_pid = False
 pause_receive = threading.Event()
 
 # ----------------- SERIAL SETUP -----------------
-def setup_serial(port=None, baudrate=115200):
+def setup_serial(port=None, baudrate=921600):
     global ser, use_serial
     use_serial = True
 
@@ -39,27 +39,50 @@ def setup_serial(port=None, baudrate=115200):
 
 # ----------------- RECEIVE METADATA -----------------
 def receive_metadata():
+    ser.reset_input_buffer()
     ser.write(b"METADATA")
+    print("Requesting metadata...")
+    
+    buffer = b""
     while True:
-        data = ser.readline()
-        print(data)
-        if len(data) < 3:
-            sleep(0.05)
-            continue
+        bytes_to_read = ser.in_waiting or 1
+        chunk = ser.read(bytes_to_read)
+        if chunk:
+            buffer += chunk
 
-        if data[0] == 0xCD and data[1] == 0xAB:
-            num_vars = data[2]
+        # Scan for 0xCD 0xAB header
+        while len(buffer) >= 2:
+            if buffer[0] != 0xCD or buffer[1] != 0xAB:
+                buffer = buffer[1:]
+                continue
+
+            # Have header - need at least 3 bytes to get num_vars
+            if len(buffer) < 3:
+                break
+
+            num_vars = buffer[2]
+
+            # Parse variable names starting at offset 3
             offset = 3
             names = []
+            valid = True
             for _ in range(num_vars):
-                # print(offset)
-                name_len = data[offset]
+                if offset >= len(buffer):
+                    valid = False  # not enough data yet
+                    break
+                name_len = buffer[offset]
                 offset += 1
-                name = data[offset:offset+name_len].decode('ascii')
-                # print(name)
+                if offset + name_len > len(buffer):
+                    valid = False  # name not fully received yet
+                    break
+                name = buffer[offset:offset + name_len].decode('ascii')
                 offset += name_len
                 names.append(name)
-            print("Metadata received (Serial)! Variable names:", names)
+
+            if not valid:
+                break  # wait for more data
+
+            print("Metadata received! Variable names:", names)
             return names, None
         
 def receive_pid():
@@ -134,7 +157,7 @@ def receive_telemetry(num_vars, variable_names, data_buffers):
                 break
 
             _, seq, num_snapshots, num_vars_in_packet = struct.unpack_from("<HHBB", buffer, 0)
-            packet_size = 6 + num_snapshots * (4*num_vars + 8) + 3
+            packet_size = 6 + num_snapshots * (4*num_vars) + 3
 
             if len(buffer) < packet_size:
                 break

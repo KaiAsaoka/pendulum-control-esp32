@@ -69,7 +69,7 @@ private:
 
     struct InternalSnapshot {
         float vars[64];   // max supported vars
-        uint64_t timestamp_us;
+        // uint64_t timestamp_us;
     };
 
     QueueHandle_t _snapshotQueue;

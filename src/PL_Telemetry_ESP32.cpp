@@ -2,7 +2,7 @@
     #include <iostream>
 
     void PL_Telemetry_ESP32::beginSerial() {
-        Serial.begin(115200);
+        Serial.begin(921600);
         while (!Serial) delay(10);
         _serialStarted = true;
         Serial.println("Serial Telemetry Initialized");
@@ -148,23 +148,22 @@
     }
 
     void PL_Telemetry_ESP32::telemetryTask() {
-        // Use internal snapshot array
         InternalSnapshot batch[_BATCH_SIZE];
         beginSerial();
 
         for (;;) {
-            checkCommands();
+            // Check for incoming commands independently of packet sending
+            if (Serial.available() > 0) {
+                checkCommands();
+            }
 
             if (!_telemetryStarted || _testingPaused) {
                 xQueueReset(_snapshotQueue);
                 vTaskDelay(pdMS_TO_TICKS(10));
                 continue;
             }
-            if (_telemetryStarted && _metadataRequested && _pidSent) {
-                Serial.println(uxQueueSpacesAvailable(_snapshotQueue));
-                //vTaskDelay(pdMS_TO_TICKS(10));
-                //continue;
 
+            if (_telemetryStarted && _metadataRequested && _pidSent) {
                 uint8_t count = 0;
                 while (count < _BATCH_SIZE) {
                     if (xQueueReceive(_snapshotQueue, &batch[count], 0) == pdPASS) {
@@ -179,7 +178,6 @@
                     continue;
                 }
 
-                // Build telemetry packet
                 size_t packetSize = sizeof(TelemetryPacketHeader) + count * (sizeof(float) * _numVars + sizeof(uint64_t)) + 3;
                 uint8_t* buffer = new uint8_t[packetSize];
 
@@ -191,23 +189,20 @@
 
                 uint8_t* ptr = buffer + sizeof(TelemetryPacketHeader);
                 for (uint8_t i = 0; i < count; i++) {
-                    // Copy floats first, timestamp last (matches old GUI)
                     memcpy(ptr, batch[i].vars, _numVars * sizeof(float));
                     ptr += _numVars * sizeof(float);
-                    memcpy(ptr, &batch[i].timestamp_us, sizeof(uint64_t));
-                    ptr += sizeof(uint64_t);
+                    // memcpy(ptr, &batch[i].timestamp_us, sizeof(uint64_t));
+                    // ptr += sizeof(uint64_t);
                 }
 
-                // CRC placeholder
                 uint16_t* crcPtr = (uint16_t*)(buffer + packetSize - 3);
-                *crcPtr = 0xFFFF;   
+                *crcPtr = 0xFFFF;
 
-                // Send packet
-                sendPacket(buffer, packetSize); 
-
+                sendPacket(buffer, packetSize);
                 delete[] buffer;
 
-                vTaskDelay(pdMS_TO_TICKS(10));
+                // vTaskDelay(pdMS_TO_TICKS(10));
+                taskYIELD();
             }
         }
     }

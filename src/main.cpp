@@ -105,20 +105,19 @@ const unsigned long debounceDelay_us = 300000; // 300ms in microseconds
 volatile bool auxButtonPressed = false;
 volatile bool zeroButtonState = false;   // false = not armed, true = armed
 
-// Interrupt Service Routine (ISR)
+void IRAM_ATTR buttonISR() {
+  unsigned long now = micros();
+  if (now - lastDebounceTime_zero > debounceDelay_us) {
+    buttonPressed = true;
+    lastDebounceTime_zero = now;
+  }
+}
+
 void IRAM_ATTR auxButtonISR() {
   unsigned long now = micros();
   if (now - lastDebounceTime_aux > debounceDelay_us) {
     auxButtonPressed = true;
     lastDebounceTime_aux = now;
-  }
-}
-
-void IRAM_ATTR auxButtonISR() {
-  unsigned long currentTime = millis();
-  if (currentTime - lastDebounceTime > debounceDelay) {
-    auxButtonPressed = true;
-    lastDebounceTime = currentTime;
   }
 }
 
@@ -252,7 +251,7 @@ void setup() {
 
   SPI.begin(ENC_CLK, ENC_MISO, ENC_MOSI);
 
-  Serial.begin(115200);
+  Serial.begin(921600);
   telemetry.begin();
   pidValsMutex = xSemaphoreCreateMutex(); // Create mutex for errors
 
