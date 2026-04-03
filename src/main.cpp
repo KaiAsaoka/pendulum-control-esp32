@@ -30,16 +30,17 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define CONTROL_LOOP_PIN 15
 
 // SPI bus pins (shared)
-#define ENC_MISO 27
-#define ENC_MOSI 0
+#define ENC_MISO 12
+#define ENC_MOSI 13
 #define ENC_CLK  14
 
 // --- BNO085 Specific Pins ---
 // CHANGED: IMU_CS moved from 5 to 18 to avoid conflict with RED_LED
-#define IMU_CS   18  
+#define IMU_CS   33  
 #define IMU_WAK  4   // Wake pin
 #define IMU_INT  16  // Interrupt pin
-#define IMU_RST  17  // Reset pin
+#define IMU_RST  27  // Reset pin
+// #define IMU_BOOT 0
 
 // Gantry motor encoder chip-selects
 #define ENC_CS1  33
@@ -292,17 +293,18 @@ void setup() {
     Serial.println("BNO085 not detected. Check wiring!");
     // while (1); // Commented out so gantry won't completely freeze if IMU wires slip
   } else {
+    Serial.println("Trying to enable rotation vector");
     myIMU.enableRotationVector(2500); // 400Hz update rate
-    Serial.println("BNO085 Initialized!");
+    Serial.println("BNO085 Ifnitialized!");
   }
 
-  DVR1.begin();
-  delay(1000);
-  Serial.flush();
+  // DVR1.begin();
+  // delay(1000);
+  // Serial.flush();
 
-  DVR2.begin();
-  delay(1000);
-  Serial.flush();
+  // DVR2.begin();
+  // delay(1000);
+  // Serial.flush();
 
   Serial.flush();
 
@@ -329,6 +331,9 @@ void readState() {
     stateVariables.angleX = (int)roll;
     stateVariables.angleY = (int)pitch;
   }
+
+  Serial.println(stateVariables.angleX);
+  Serial.println(stateVariables.angleY);
 
   // Old encoder reads commented out:
   // stateVariables.angleX = -PEND1.getTotalAngle();
