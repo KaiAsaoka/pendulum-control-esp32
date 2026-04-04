@@ -70,7 +70,7 @@ class XYGraphWindow(QtWidgets.QWidget):
         self.resize(600, 600)
 
         self.data_buffers = data_buffers
-        self.trail_length = 200  # number of past points to show in trail
+        self.trail_length = 1000  # number of past points to show in trail
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
@@ -95,26 +95,40 @@ class XYGraphWindow(QtWidgets.QWidget):
             symbol='o',
             symbolSize=18,
             symbolBrush=(255, 255, 0, 255),
-            symbolPen=pg.mkPen((200, 200, 0), width=2),
-            name="Setpoint"
+            symbolPen=pg.mkPen((200, 200, 0), width=3),
+            name="Target"
         )
 
         # Carriage trail - fading line
         self.trail_curve = self.plot_widget.plot(
             [], [],
-            pen=pg.mkPen((0, 180, 255, 120), width=1),
+            pen=pg.mkPen((0, 180, 255, 120), width=6),
             name="Carriage Trail"
         )
-
+        
         # Carriage node - smaller, on top of trail
         self.carriage_dot = self.plot_widget.plot(
             [], [],
             pen=None,
             symbol='o',
-            symbolSize=10,
+            symbolSize=14,
             symbolBrush=(0, 180, 255, 255),
-            symbolPen=pg.mkPen((0, 120, 200), width=2),
+            symbolPen=pg.mkPen((0, 120, 200), width=3),
             name="Carriage"
+        )
+
+        # Set angle line
+        self.set_angle_line = self.plot_widget.plot(
+            [], [],
+            pen=pg.mkPen((0, 255, 0, 200), width=4),
+            name="Target Angle"
+        )
+
+        # Angle line
+        self.angle_line = self.plot_widget.plot(
+            [], [],
+            pen=pg.mkPen((255, 0, 0, 255), width=3),
+            name="Pendulum"
         )
 
         # --- Controls ---
@@ -163,24 +177,54 @@ class XYGraphWindow(QtWidgets.QWidget):
         buf_sy = self.data_buffers.get("SetPositionY")
         buf_cx = self.data_buffers.get("carriageXPosition")
         buf_cy = self.data_buffers.get("carriageYPosition")
+        buf_ax = self.data_buffers.get("pendulumXAngle")
+        buf_ay = self.data_buffers.get("pendulumYAngle")
+        buf_sax = self.data_buffers.get("setAngleXOut")
+        buf_say = self.data_buffers.get("setAngleYOut")
 
+        SCALE_POS = 0.1
+        SCALE_ANG = 2
+        LINE_RESOLUTION = 2
         # --- Setpoint node ---
         if buf_sx and buf_sy:
-            sx = buf_sx[-1] / 10
-            sy = buf_sy[-1] / 10
+            sx = buf_sx[-1] * SCALE_POS
+            sy = buf_sy[-1] * SCALE_POS
             self.setpoint_dot.setData([sx], [sy])
 
         # --- Carriage trail + node ---
         if buf_cx and buf_cy:
             # Use the shorter of the two buffers to stay in sync
             n = min(len(buf_cx), len(buf_cy), self.trail_length)
-            cx_arr = np.array(buf_cx)[-n:] / 10
-            cy_arr = np.array(buf_cy)[-n:] / 10
+            cx_arr = np.array(buf_cx)[-n:] * SCALE_POS
+            cy_arr = np.array(buf_cy)[-n:] * SCALE_POS
 
             self.trail_curve.setData(cx_arr, cy_arr)
 
             # Current position is the last point
             self.carriage_dot.setData([cx_arr[-1]], [cy_arr[-1]])
+
+        # --- Angle line ---
+        if buf_ax and buf_ay and buf_cx and buf_cy:
+            SCALE = 0.1
+            ax = buf_ax[-1] * SCALE_ANG
+            ay = buf_ay[-1] * SCALE_ANG
+            cx = buf_cx[-1] * SCALE_POS
+            cy = buf_cy[-1] * SCALE_POS
+            ax_arr = np.linspace(cx, cx + ax, LINE_RESOLUTION)
+            ay_arr = np.linspace(cy, cy + ay, LINE_RESOLUTION)
+
+            self.angle_line.setData(ax_arr, ay_arr)
+
+        # --- Set angle line ---
+        if buf_sax and buf_say and buf_cx and buf_cy:
+            sax = buf_sax[-1] * SCALE_ANG
+            say = buf_say[-1] * SCALE_ANG
+            cx = buf_cx[-1] * SCALE_POS
+            cy = buf_cy[-1] * SCALE_POS
+            sax_arr = np.linspace(cx, cx + sax, LINE_RESOLUTION)
+            say_arr = np.linspace(cy, cy + say, LINE_RESOLUTION)
+
+            self.set_angle_line.setData(sax_arr, say_arr)
 
     def closeEvent(self, event):
         self.timer.stop()
