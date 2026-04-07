@@ -30,33 +30,33 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define CONTROL_LOOP_PIN 15
 
 // SPI bus pins (shared)
-#define ENC_MISO 25
-#define ENC_MOSI 26
+#define ENC_MISO 27
+#define ENC_MOSI 0
 #define ENC_CLK  14
 
 // // --- BNO085 Specific Pins ---
 // // CHANGED: IMU_CS moved from 5 to 18 to avoid conflict with RED_LED
-#define IMU_CS   32   
-#define IMU_RST  33  // Reset pin
-#define IMU_WAK  27  // Wake pin
-#define IMU_BOOTN  22  // Boot pin
-#define IMU_INTN 21 // Init pin
+#define IMU_CS   26  
+#define IMU_RST  25  // Reset pin
+#define IMU_WAK  8  // Wake pin
+#define IMU_BOOTN  7  // Boot pin, currenly not being used
+#define IMU_INTN 9 // Init pin
 
 // Gantry motor encoder chip-selects
-#define ENC_CS1  2
-#define ENC_CS2  4
+#define ENC_CS1  33  
+#define ENC_CS2  32 
 // Pendulum encoder chip-selects
-#define PEND_CS1 0
-#define PEND_CS2 19
+// #define PEND_CS1 0
+// #define PEND_CS2 19
 
 #define ZERO_BTN 37
 #define AUX_BTN 38        // Extra safety / aux button
 #define BLUE_LED 10       // "Armed" status LED
 #define RED_LED 5         // Out-of-bounds LED
 
-#define PWM2 7
-#define DIR2 9
-#define PWM1 8
+#define PWM2 19
+#define DIR2 22
+#define PWM1 21
 #define DIR1 20
 
 // Analog potentiometer tuning pins
@@ -80,8 +80,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 Encoder ENC1(ENC_MISO, ENC_CLK, ENC_CS1, ENC_MOSI);
 Encoder ENC2(ENC_MISO, ENC_CLK, ENC_CS2, ENC_MOSI);
 
-Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); 
-Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); 
+// Encoder PEND1(ENC_MISO, ENC_CLK, PEND_CS1, ENC_MOSI, 0); 
+// Encoder PEND2(ENC_MISO, ENC_CLK, PEND_CS2, ENC_MOSI, 0); 
 
 // // ADDED: IMU Object
 BNO080 myIMU;
@@ -447,8 +447,8 @@ void handleButtonPress() {
   stateVariables.targetPosY = 0;
   ENC1.zero(); 
   ENC2.zero();
-  PEND1.zero();
-  PEND2.zero();
+  // PEND1.zero();
+  // PEND2.zero();
 
   zeroButtonState = !zeroButtonState;
   digitalWrite(BLUE_LED, zeroButtonState ? HIGH : LOW);
