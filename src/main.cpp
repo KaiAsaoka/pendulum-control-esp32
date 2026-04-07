@@ -18,13 +18,14 @@
 #define ESP_PENDULUM 2
 
 // Define loop timing 
-constexpr uint32_t LOOP_US = 5000;     // 1.5 ms
+constexpr uint32_t LOOP_US = 10000;     // 1.5 ms
 constexpr uint32_t MAX_GANTRY_LOOP_US = LOOP_US;
 static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 const float dt = LOOP_US * 1e-6f; // Convert microseconds to seconds for PID calculations
+constexpr float ENC_IMU_CONV = 45.5;
 
-constexpr uint32_t POS_UPDATE_US = 5000;               // 1 ms
+constexpr uint32_t POS_UPDATE_US = 10000;               // 1 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
 #define CONTROL_LOOP_PIN 15
@@ -39,8 +40,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define IMU_CS   26  
 #define IMU_RST  25  // Reset pin
 #define IMU_WAK  8  // Wake pin
-#define IMU_BOOTN  7  // Boot pin, currenly not being used
-#define IMU_INTN 9 // Init pin
+// #define IMU_BOOTN  9 // Boot pin, currenly not being used, NOTE WAS 7, boot issues ESP?
+#define IMU_INTN 7 // Init pin
 
 // Gantry motor encoder chip-selects
 #define ENC_CS1  33  
@@ -294,7 +295,7 @@ void setup() {
 
   // myIMU.enableDebugging(Serial);
   Serial.println("Starting BNO085 over SPI...");
-  if (myIMU.beginSPI(IMU_CS, IMU_WAK, IMU_INTN, IMU_RST) == false) {
+  if (myIMU.beginSPI(IMU_CS, IMU_WAK, IMU_INTN, IMU_RST, 1e5) == false) {
     Serial.println("BNO085 not detected. Check wiring!");
     // while (1); // Commented out so gantry won't completely freeze if IMU wires slip
   } else {
@@ -305,8 +306,8 @@ void setup() {
 
    Serial.flush();
 
-  // ENC1.begin();
-  // ENC2.begin();
+  ENC1.begin();
+  ENC2.begin();
   
   // // NOTE: Pendulum Encoders left enabled in setup in case you still need them, 
   // // but they are no longer updating stateVariables.angle in readState()
@@ -327,8 +328,8 @@ void setup() {
 void readState() { 
   // 1. UPDATE PENDULUM ANGLES VIA BNO085 IMU
   if (myIMU.dataAvailable() == true) {
-    float roll  = (myIMU.getRoll()) * 180.0 / PI;   
-    float pitch = (myIMU.getPitch()) * 180.0 / PI;  
+    float roll  = ENC_IMU_CONV * (myIMU.getRoll()) * 180.0 / PI;   
+    float pitch = ENC_IMU_CONV * (myIMU.getPitch()) * 180.0 / PI;  
     
     // Cast float to int to match existing struct. 
     // WARNING: Your PID gains must be retuned since these are now 
@@ -336,6 +337,8 @@ void readState() {
     stateVariables.angleX = (int)roll;
     stateVariables.angleY = (int)pitch;
   }
+
+  delay(5);
 
   // Old encoder reads commented out:
   // stateVariables.angleX = -PEND1.getTotalAngle();
@@ -447,6 +450,8 @@ void handleButtonPress() {
   stateVariables.targetPosY = 0;
   ENC1.zero(); 
   ENC2.zero();
+  myIMU.tareNow();
+  myIMU.saveTare();
   // PEND1.zero();
   // PEND2.zero();
 
@@ -466,16 +471,6 @@ void handleAuxButtonPress() {
 }
 
 void loop() {
-  //   if (myIMU.dataAvailable()) {
-  //     float roll  = myIMU.getRoll()  * 180.0 / PI;
-  //     float pitch = myIMU.getPitch() * 180.0 / PI;
-  //     float yaw   = myIMU.getYaw()   * 180.0 / PI;
-
-  //     Serial.print("Roll: ");  Serial.print(roll);
-  //     Serial.print(" Pitch: "); Serial.print(pitch);
-  //     Serial.print(" Yaw: ");   Serial.println(yaw);
-  // }
-
   static uint32_t start_us = micros(); 
 
   if (micros() - start_us >= LOOP_US) {
@@ -483,20 +478,28 @@ void loop() {
     digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN)); 
     while(micros() - start_us > LOOP_US) {
       start_us += LOOP_US;
+      Serial.println("Overrun");
     }
   }
   
   // The BNO085's INT pin is continuously checked right here
   while(micros() - start_us < LOOP_US) {
     // readState();
+    delayMicroseconds(100);
   }
 
+  // digitalWrite(CONTROL_LOOP_PIN, !digitalRead(CONTROL_LOOP_PIN));
   readState();
   start_us += LOOP_US;
 
+  Serial.print("Angle X (roll): ");
   Serial.println(stateVariables.angleX);
+  Serial.print("Angle Y (pitch): ");
   Serial.println(stateVariables.angleY);
-
+  Serial.print("X Position: ");
+  Serial.println(stateVariables.posX);
+  Serial.print("Y Position:: ");
+  Serial.println(stateVariables.posY);
   updateTargetPos();
 
   if(!zeroButtonState || telemetry.pauseTesting()) {

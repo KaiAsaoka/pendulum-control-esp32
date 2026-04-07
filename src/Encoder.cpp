@@ -24,11 +24,11 @@ void Encoder::begin() {
   digitalWrite(cs, HIGH);  // Deselect encoder by default
 
   if (firstReading) {
-    pinMode(mosi, OUTPUT);  // Explicitly set MOSI as output
-    digitalWrite(mosi, HIGH);  // Set MOSI high initially
+    // pinMode(mosi, OUTPUT);  // Explicitly set MOSI as output
+    // digitalWrite(mosi, HIGH);  // Set MOSI high initially
 
     SPI.begin(clk, miso, mosi);
-    SPI.beginTransaction(SPISettings(CLOCK_SPEED, MSBFIRST, SPI_MODE1));
+    // SPI.beginTransaction(SPISettings(CLOCK_SPEED, MSBFIRST, SPI_MODE1));
     firstReading = false;
   }
 
