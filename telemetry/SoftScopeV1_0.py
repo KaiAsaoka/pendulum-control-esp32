@@ -85,7 +85,7 @@ class XYGraphWindow(QtWidgets.QWidget):
 
         # In __init__, after creating self.plot_widget:
         self.plot_widget.disableAutoRange()
-        self.plot_widget.setXRange(-275, 275, padding=0)
+        self.plot_widget.setXRange(-285, 285, padding=0)
         self.plot_widget.setYRange(-400, 400, padding=0)
 
         # Setpoint node - large, bright

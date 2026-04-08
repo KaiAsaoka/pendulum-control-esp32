@@ -21,7 +21,7 @@ static volatile uint32_t overrun_count = 0;
 int controlCycle = 0;
 const float dt = LOOP_US * 1e-6f; // Convert microseconds to seconds for PID calculations
 
-constexpr uint32_t POS_UPDATE_US = 1500;               // 1 ms
+constexpr uint32_t POS_UPDATE_US = 1500;               // 1.5 ms
 constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 
 #define CONTROL_LOOP_PIN 15
@@ -47,8 +47,8 @@ constexpr int POS_UPDATE_CYCLES = POS_UPDATE_US / LOOP_US;
 #define MOVE_TARGET_POSX_PIN 13 // Move target position with joystick (X)
 #define MOVE_TARGET_POSY_PIN 12 // Move target position with joystick (Y)
 // #define JOYSTICK_BUTTON_PIN 15
-#define MOVE_TARGET_POSX_SCALE_FACTOR 0.0008 // Tune sensitivity of joystick for target position (X)
-#define MOVE_TARGET_POSY_SCALE_FACTOR 0.0008 // Tune sensitivity of joystick for target position (Y)
+#define MOVE_TARGET_POSX_SCALE_FACTOR 0.0005 // Tune sensitivity of joystick for target position (X)
+#define MOVE_TARGET_POSY_SCALE_FACTOR 0.0005 // Tune sensitivity of joystick for target position (Y)
 #define JOYSTICK_DEAD_ZONE 50 // To prevent drift when joystick is near neutral
 #define JOYSTICK_OFFSET_X -120 // Calibrate the joystick centre
 #define JOYSTICK_OFFSET_Y -110
@@ -75,8 +75,8 @@ pidParams setAngleXParams = {5, 3, 40, 0, 0, 985, 0, 50000000};
 pidParams setAngleYParams = {15, 3, 30, 0, 0, 985, 0, 50000000};
 // {}
 // pidParams setPWMXParams = {0, 0, 0, 0, 0, 0, 0, 0};
-pidParams setPWMXParams = {725, 0, 17, 830, 0, 890, 0, 0};
-pidParams setPWMYParams = {625, 0, 11, 830, 0, 890, 0, 0};
+pidParams setPWMXParams = {625, 0, 20, 830, 0, 890, 0, 0};
+pidParams setPWMYParams = {625, 0, 13, 830, 0, 890, 0, 0};
 
 PID setPWMPIDX(setPWMXParams);
 PID setPWMPIDY(setPWMYParams);
@@ -251,7 +251,7 @@ void setup() {
 
   SPI.begin(ENC_CLK, ENC_MISO, ENC_MOSI);
 
-  Serial.begin(921600);
+  Serial.begin(460800);
   telemetry.begin();
   pidValsMutex = xSemaphoreCreateMutex(); // Create mutex for errors
 
@@ -385,13 +385,14 @@ void updateTargetPos() {
   // Serial.println(stateVariables.joystick_reading_x);
   //   Serial.println("Joystick Y");
   // Serial.println(stateVariables.joystick_reading_y);
+
   if (abs(stateVariables.joystick_reading_x) > JOYSTICK_DEAD_ZONE) { //RC: Experiment with dead-zone value
     stateVariables.targetPosX += MOVE_TARGET_POSX_SCALE_FACTOR*stateVariables.joystick_reading_x; //RC: TODO: Find good scale factor (movement speed)
-    stateVariables.targetPosX = constrain(stateVariables.targetPosX, -2750, 2750); //RC: TODO: replace all instances of dead zone magic numbers with constants
+    stateVariables.targetPosX = constrain(stateVariables.targetPosX, -2600, 2600); //RC: TODO: replace all instances of dead zone magic numbers with constants
   }
   if (abs(stateVariables.joystick_reading_y) > JOYSTICK_DEAD_ZONE) {
     stateVariables.targetPosY += MOVE_TARGET_POSY_SCALE_FACTOR*stateVariables.joystick_reading_y; //RC: ""
-    stateVariables.targetPosY = constrain(stateVariables.targetPosY, -4000, 4000); //RC: TODO: also consider limiting target to just shy of dead zone as it is impossible to control at dead zone exactly anyway
+    stateVariables.targetPosY = constrain(stateVariables.targetPosY, -3700, 3700); //RC: TODO: also consider limiting target to just shy of dead zone as it is impossible to control at dead zone exactly anyway
   }
 }
 
@@ -494,7 +495,7 @@ void loop() {
       PWMOutputs.xPWM = constrain(PWMOutputs.xPWM, -255, 255);
       PWMOutputs.yPWM = constrain(PWMOutputs.yPWM, -255, 255);
 
-      if (abs(stateVariables.posX) < 2750 && abs(stateVariables.posY) < 4000) { //RC: Removed angle dead zones
+      if (abs(stateVariables.posX) < 2850 && abs(stateVariables.posY) < 4000) { //RC: Removed angle dead zones
         // && abs(stateVariables.angleX) < 1400 && abs(stateVariables.angleY) < 1500) {
         move.moveXY(PWMOutputs.xPWM, PWMOutputs.yPWM);
         digitalWrite(RED_LED, LOW);

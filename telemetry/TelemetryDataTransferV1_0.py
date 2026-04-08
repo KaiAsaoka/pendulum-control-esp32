@@ -20,7 +20,7 @@ sending_pid = False
 pause_receive = threading.Event()
 
 # ----------------- SERIAL SETUP -----------------
-def setup_serial(port=None, baudrate=921600):
+def setup_serial(port=None, baudrate=460800):
     global ser, use_serial
     use_serial = True
 
